@@ -1,16 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router";
 import { motion } from "framer-motion";
 import Marquee from "react-fast-marquee";
-import {
-  BookOpen,
-  FileText,
-  GraduationCap,
-  Calendar,
-  Folder,
-  ImageIcon,
-} from "lucide-react";
+import { BookOpen, FileText, GraduationCap, Folder } from "lucide-react";
 import { BN_DAYS_FULL, BN_MONTHS } from "../common/Datepicker";
 import { CLASS_COLORS, DEFAULT_CLASS_COLOR, toBn } from "../../utility/shared";
 
@@ -28,16 +21,27 @@ interface WeeklyExamRaw {
   ExamNumber: string;
   topics: string;
   createdAt: string;
-  images?: (string | { imageUrl?: string; url?: string; publicId?: string })[];
-}
-
-interface NormalizedExam extends WeeklyExamRaw {
-  normalizedImages: { url: string }[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────
-const isFriday = () => new Date().getDay() === 5;
-const isSaturday = () => new Date().getDay() === 6;
+
+// Thursday 2pm থেকে Saturday 9am পর্যন্ত weekly exam দেখাবে
+const shouldShowExam = () => {
+  const now = new Date();
+  const day = now.getDay(); // 0=Sunday, 4=Thursday, 5=Friday, 6=Saturday
+  const hour = now.getHours();
+
+  // Thursday 2pm (14:00) এর পরে
+  if (day === 4 && hour >= 14) return true;
+
+  // Friday সারাদিন
+  if (day === 5) return true;
+
+  // Saturday 9am এর আগে
+  if (day === 6 && hour < 9) return true;
+
+  return false;
+};
 
 const todayBn = () => {
   const d = new Date();
@@ -57,19 +61,7 @@ const getCurrentWeekRange = () => {
   return { monday, sunday };
 };
 
-const normalizeImages = (
-  images?: WeeklyExamRaw["images"],
-): { url: string }[] => {
-  if (!images) return [];
-  return images
-    .map((img) => {
-      if (typeof img === "string") return { url: img };
-      return { url: img.imageUrl ?? img.url ?? "" };
-    })
-    .filter((i) => i.url.startsWith("http"));
-};
-
-// ─── Lesson Card ──────────────────────────────────────────
+// ─── Lesson Card (Text Only) ──────────────────────────────
 const LessonCard = ({
   lesson,
   index,
@@ -98,7 +90,7 @@ const LessonCard = ({
       }}
       whileHover={{ y: -2, transition: { duration: 0.15 } }}
       onClick={onClick}
-      className="relative flex-shrink-0 w-[210px] rounded-xl overflow-hidden cursor-pointer bangla"
+      className="relative flex-shrink-0 w-[280px] h-[140px] rounded-xl overflow-hidden cursor-pointer bangla"
       style={{
         border: "1px solid var(--color-active-border)",
         background: "var(--color-bg)",
@@ -106,26 +98,26 @@ const LessonCard = ({
     >
       {/* accent top bar */}
       <div
-        className="h-[2px] w-full"
+        className="h-[3px] w-full"
         style={{
           background: `linear-gradient(90deg, ${color.from}, ${color.to})`,
         }}
       />
 
-      <div className="p-3.5 flex flex-col gap-2.5">
+      <div className="p-4 flex flex-col gap-2 h-[calc(100%-3px)]">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <h4 className="text-[13px] font-bold text-[var(--color-text)] leading-tight line-clamp-1">
+            <h4 className="text-[15px] font-bold text-[var(--color-text)] leading-tight line-clamp-1">
               {lesson.subject}
             </h4>
-            <p className="text-[11px] text-[var(--color-gray)] mt-0.5 flex items-center gap-1 truncate">
-              <Folder className="w-3 h-3 shrink-0" />
+            <p className="text-[12px] text-[var(--color-gray)] mt-1 flex items-center gap-1.5 truncate">
+              <Folder className="w-3.5 h-3.5 shrink-0" />
               {teacherName}
             </p>
           </div>
           <span
-            className="text-[10px] font-bold px-2 py-0.5 rounded-md shrink-0"
+            className="text-[11px] font-bold px-2.5 py-1 rounded-md shrink-0"
             style={{ background: `${color.from}18`, color: color.from }}
           >
             {lesson.class.replace(" শ্রেণি", "")}
@@ -134,44 +126,33 @@ const LessonCard = ({
 
         {/* Ref pill */}
         <span
-          className="inline-flex items-center gap-1 self-start text-[11px] font-semibold px-2 py-0.5 rounded-md"
+          className="inline-flex items-center gap-1.5 self-start text-[12px] font-semibold px-2.5 py-1 rounded-md"
           style={{ background: `${color.from}12`, color: color.from }}
         >
-          <Icon className="w-3 h-3" />
+          <Icon className="w-3.5 h-3.5" />
           {refLabel} {toBn(lesson.chapterNumber)}
         </span>
 
         {/* Topics */}
-        <p className="text-[11px] leading-relaxed text-[var(--color-gray)] line-clamp-2 whitespace-pre-line">
+        <p className="text-[12px] leading-relaxed text-[var(--color-gray)] line-clamp-2 whitespace-pre-line flex-1">
           {lesson.topics}
         </p>
-
-        {/* Date footer */}
-        <div className="flex items-center gap-1 text-[10px] text-[var(--color-gray)] pt-2 border-t border-[var(--color-active-border)]">
-          <Calendar className="w-3 h-3 shrink-0" />
-          {BN_DAYS_FULL[new Date(lesson.date).getDay()] ?? ""},{" "}
-          {toBn(String(new Date(lesson.date).getDate()))}{" "}
-          {BN_MONTHS[new Date(lesson.date).getMonth()]}
-        </div>
       </div>
     </motion.div>
   );
 };
 
-// ─── Exam Card ────────────────────────────────────────────
+// ─── Exam Card (Text Only - No Images) ────────────────────
 const ExamCard = ({
   exam,
   index,
   onClick,
 }: {
-  exam: NormalizedExam;
+  exam: WeeklyExamRaw;
   index: number;
   onClick: () => void;
 }) => {
-  const [imgError, setImgError] = useState(false);
   const color = EXAM_COLORS[index % EXAM_COLORS.length];
-  const firstImg = exam.normalizedImages[0];
-  const hasImg = !!firstImg && !imgError;
 
   return (
     <motion.div
@@ -184,91 +165,43 @@ const ExamCard = ({
       }}
       whileHover={{ y: -2, transition: { duration: 0.15 } }}
       onClick={onClick}
-      className="relative flex-shrink-0 w-[210px] rounded-xl overflow-hidden cursor-pointer bangla"
+      className="relative flex-shrink-0 w-[280px] h-[140px] rounded-xl overflow-hidden cursor-pointer bangla"
       style={{
         border: "1px solid var(--color-active-border)",
         background: "var(--color-bg)",
       }}
     >
-      {hasImg ? (
-        <div className="relative h-24 overflow-hidden">
-          <img
-            src={firstImg.url}
-            alt={exam.subject}
-            onError={() => setImgError(true)}
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
-          <p className="absolute bottom-2 left-3 right-3 text-white text-[12px] font-bold line-clamp-1 drop-shadow-sm">
-            {exam.subject}
-          </p>
-          <span
-            className="absolute top-2 left-2 text-[10px] font-bold px-1.5 py-0.5 rounded-md text-white"
-            style={{
-              background: "rgba(0,0,0,0.4)",
-              backdropFilter: "blur(4px)",
-            }}
-          >
-            পরীক্ষা {toBn(exam.ExamNumber)}
-          </span>
-          {exam.normalizedImages.length > 1 && (
-            <span
-              className="absolute top-2 right-2 text-[10px] font-bold px-1.5 py-0.5 rounded-md text-white flex items-center gap-1"
-              style={{ background: "rgba(0,0,0,0.4)" }}
-            >
-              <ImageIcon className="w-2.5 h-2.5" />
-              {toBn(String(exam.normalizedImages.length))}
-            </span>
-          )}
-        </div>
-      ) : (
-        <div
-          className="h-[2px] w-full"
-          style={{
-            background: `linear-gradient(90deg, ${color.from}, ${color.to})`,
-          }}
-        />
-      )}
+      {/* accent top bar */}
+      <div
+        className="h-[3px] w-full"
+        style={{
+          background: `linear-gradient(90deg, ${color.from}, ${color.to})`,
+        }}
+      />
 
-      <div className="p-3.5 flex flex-col gap-2">
-        {!hasImg && (
-          <div>
-            <h4 className="text-[13px] font-bold text-[var(--color-text)] line-clamp-1">
-              {exam.subject}
-            </h4>
-            <p
-              className="text-[10px] font-semibold mt-0.5"
-              style={{ color: color.from }}
-            >
+      <div className="px-4 py-1 flex flex-col gap-1 h-[calc(100%-3px)]">
+        {/* Header */}
+        <div className="flex flex-col items-cener justify-center">
+          <h4 className="text-md text-center font-bold text-[var(--color-text)] ">
+            {exam.subject}
+          </h4>
+
+          <div className="flex justify-between items-center">
+            <p className="text-xs font-semibold text-[var(--color-gray)] gap-x-1">
               পরীক্ষা নং {toBn(exam.ExamNumber)}
             </p>
+            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md bg-[var(--color-active-bg)] text-[var(--color-gray)]">
+              <GraduationCap className="w-3.5 h-3.5" />
+              {exam.class}
+            </span>
+            <span className="text-xs font-bold  rounded-md shrink-0 text-[var(--color-gray)]">
+              পূর্ণমান- {toBn(String(exam.mark))}
+            </span>
           </div>
-        )}
-
-        {exam.teacher && (
-          <p className="text-[11px] text-[var(--color-gray)] flex items-center gap-1 truncate">
-            <Folder className="w-3 h-3 shrink-0" />
-            {exam.teacher}
-          </p>
-        )}
-
-        <div className="flex flex-wrap gap-1.5">
-          <span
-            className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md"
-            style={{ background: `${color.from}12`, color: color.from }}
-          >
-            <GraduationCap className="w-3 h-3" />
-            {exam.class}
-          </span>
-          <span
-            className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md"
-            style={{ background: `${color.from}12`, color: color.from }}
-          >
-            {toBn(String(exam.mark))} নম্বর
-          </span>
         </div>
 
-        <p className="text-[11px] leading-relaxed text-[var(--color-gray)] line-clamp-2 whitespace-pre-line">
+        {/* Topics */}
+        <p className="text-[12px] leading-relaxed text-[var(--color-gray)] line-clamp-2 whitespace-pre-line flex-1">
           {exam.topics}
         </p>
       </div>
@@ -278,9 +211,9 @@ const ExamCard = ({
 
 // ─── Dot separator ────────────────────────────────────────
 const Dot = ({ color }: { color: string }) => (
-  <div className="flex items-center px-3 shrink-0">
+  <div className="flex items-center px-4 shrink-0">
     <div
-      className="w-1 h-1 rounded-full opacity-40"
+      className="w-1.5 h-1.5 rounded-full opacity-40"
       style={{ background: color }}
     />
   </div>
@@ -289,8 +222,7 @@ const Dot = ({ color }: { color: string }) => (
 const DailyUpdateDLWE = () => {
   const navigate = useNavigate();
 
-  const saturday = isSaturday();
-  const showExam = isFriday();
+  const showExam = shouldShowExam();
 
   const { data: lessonData } = useQuery<DailyLessonData[]>({
     queryKey: ["daily-lessons"],
@@ -301,7 +233,7 @@ const DailyUpdateDLWE = () => {
     },
     staleTime: 1000 * 30,
     refetchInterval: 1000 * 60,
-    enabled: !showExam && !saturday,
+    enabled: !showExam,
   });
 
   const { data: examData } = useQuery<WeeklyExamRaw[]>({
@@ -312,7 +244,7 @@ const DailyUpdateDLWE = () => {
       return Array.isArray(p) ? p : Array.isArray(p?.data) ? p.data : [];
     },
     staleTime: 1000 * 60,
-    enabled: showExam && !saturday,
+    enabled: showExam,
   });
 
   const todayLessons = useMemo(() => {
@@ -328,7 +260,7 @@ const DailyUpdateDLWE = () => {
     });
   }, [lessonData]);
 
-  const thisWeekExams: NormalizedExam[] = useMemo(() => {
+  const thisWeekExams = useMemo(() => {
     if (!examData) return [];
     const { monday, sunday } = getCurrentWeekRange();
     const thisWeekNums = new Set(
@@ -352,11 +284,8 @@ const DailyUpdateDLWE = () => {
       .filter((e) => targetNums.has(e.ExamNumber))
       .sort(
         (a, b) => (CLASS_ORDER[a.class] ?? 99) - (CLASS_ORDER[b.class] ?? 99),
-      )
-      .map((e) => ({ ...e, normalizedImages: normalizeImages(e.images) }));
+      );
   }, [examData]);
-
-  if (saturday) return null;
 
   const isLesson = !showExam;
   const items = isLesson ? todayLessons : thisWeekExams;
@@ -379,7 +308,7 @@ const DailyUpdateDLWE = () => {
     >
       {/* ── Header ── */}
       <div
-        className="flex flex-col items-center cursor-pointer"
+        className="flex flex-col items-center cursor-pointer mb-4"
         onClick={handleNavigate}
       >
         <span className="text-2xl md:text-4xl font-bold text-[var(--color-text)]">
@@ -388,11 +317,11 @@ const DailyUpdateDLWE = () => {
             : `সাপ্তাহিক পরীক্ষার ধারণা নং-${toBn(currentExamNumber)}`}
         </span>
 
-        <span className="text-2xl md:text-3xl text-[var(--color-text)]">
+        <span className="text-xl md:text-2xl text-[var(--color-text)]">
           {todayBn()}
         </span>
 
-        <span className="text-xl md:text-2xl text-[var(--color-gray)]">
+        <span className="text-lg md:text-xl text-[var(--color-gray)]">
           মোট{" "}
           <span className="font-bold text-[var(--color-text)]">
             {toBn(String(items.length))}
@@ -402,12 +331,12 @@ const DailyUpdateDLWE = () => {
       </div>
 
       {/* ── Marquee ── */}
-      <div className="relative rounded-b-xl py-3 overflow-hidden">
-        <Marquee speed={32} gradient={false} pauseOnHover direction="left">
+      <div className="relative rounded-b-xl py-2 overflow-hidden">
+        <Marquee speed={35} gradient={false} direction="left">
           <div className="flex items-stretch gap-0 px-2">
             {repeated.map((item, i) =>
               isLesson ? (
-                <div key={`${item._id}-${i}`} className="flex">
+                <div key={`${item._id}-${i}`} className="flex items-center">
                   <LessonCard
                     lesson={item as DailyLessonData}
                     index={i % items.length}
@@ -416,9 +345,9 @@ const DailyUpdateDLWE = () => {
                   <Dot color={accentColor} />
                 </div>
               ) : (
-                <div key={`${item._id}-${i}`} className="flex">
+                <div key={`${item._id}-${i}`} className="flex items-center">
                   <ExamCard
-                    exam={item as NormalizedExam}
+                    exam={item as WeeklyExamRaw}
                     index={i % items.length}
                     onClick={handleNavigate}
                   />
