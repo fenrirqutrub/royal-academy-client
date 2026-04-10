@@ -181,27 +181,24 @@ const ExamCard = ({
 
       <div className="px-4 py-1 flex flex-col gap-1 h-[calc(100%-3px)]">
         {/* Header */}
-        <div className="flex flex-col items-cener justify-center">
-          <h4 className="text-md text-center font-bold text-[var(--color-text)] ">
+        <div className="flex flex-col items-cener justify-center pt-1">
+          <h4 className="text-md md:text-lg text-center font-bold text-[var(--color-text)] ">
             {exam.subject}
           </h4>
 
           <div className="flex justify-between items-center">
-            <p className="text-xs font-semibold text-[var(--color-gray)] gap-x-1">
-              পরীক্ষা নং {toBn(exam.ExamNumber)}
-            </p>
-            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md bg-[var(--color-active-bg)] text-[var(--color-gray)]">
+            <span className="inline-flex items-center gap-2 text-sm font-semibold px-2 py-0.5 rounded-md  text-[var(--color-gray)]">
               <GraduationCap className="w-3.5 h-3.5" />
               {exam.class}
             </span>
-            <span className="text-xs font-bold  rounded-md shrink-0 text-[var(--color-gray)]">
+            <span className="text-sm font-bold  rounded-md shrink-0 text-[var(--color-gray)]">
               পূর্ণমান- {toBn(String(exam.mark))}
             </span>
           </div>
         </div>
 
         {/* Topics */}
-        <p className="text-[12px] leading-relaxed text-[var(--color-gray)] line-clamp-2 whitespace-pre-line flex-1">
+        <p className="text-xs leading-relaxed text-[var(--color-gray)] line-clamp-2 whitespace-pre-line flex-1">
           {exam.topics}
         </p>
       </div>
