@@ -1,0 +1,73 @@
+/* index.css */
+
+/* tailwind css */
+@import "tailwindcss";
+
+/* ← color variables */
+@import "./styles/colors.css";
+
+/* custom && google fonts */
+@import "./styles/fonts.css";
+
+/* swiper slider */
+@import "swiper/swiper-bundle.css";
+
+/* dark mode */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+/* Hide scrollbar inside modal scroll container */
+.modal-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scroll::-webkit-scrollbar {
+  display: none; /* Chrome, Safari */
+}
+
+input:focus {
+  @apply ring-0;
+}
+
+/* ----------------------------------- */
+
+@theme {
+  --animate-fade-up: fadeUp 0.4s ease forwards;
+  --animate-pop-in: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  --animate-slide-in-right: slideInRight 0.35s ease forwards;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  70% {
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

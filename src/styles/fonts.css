@@ -1,0 +1,28 @@
+/* fonts.css */
+
+/* google fonts */
+
+@import url("https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300..900;1,300..900&display=swap");
+
+/* custom font */
+@font-face {
+  font-family: "kalpurush";
+  src: url("/public/fonts/kalpurush.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+.rubik {
+  font-family: "Rubik", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.bangla {
+  font-family: "kalpurush", sans-serif;
+  font-weight: 500;
+  font-style: normal;
+
+  line-height: 1.8;
+}

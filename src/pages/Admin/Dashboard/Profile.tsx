@@ -1,0 +1,1547 @@
+// src/pages/admin/Profile.tsx
+import { useState, useRef } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
+import {
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Camera,
+  Check,
+  Pencil,
+  X,
+  ShieldCheck,
+  AlertCircle,
+  Loader2,
+  GraduationCap,
+  Lock,
+  Eye,
+  EyeOff,
+  Heart,
+  BookOpen,
+  CalendarDays,
+  PhoneCall,
+  Building2,
+  Hash,
+  School,
+  Copy,
+  ChevronRight,
+} from "lucide-react";
+import toast from "react-hot-toast";
+import axiosPublic from "../../../hooks/axiosPublic";
+import { useAuth } from "../../../context/AuthContext";
+import DatePicker from "../../../components/common/Datepicker";
+import SelectInput from "../../../components/common/SelectInput";
+import Skeleton from "../../../components/common/Skeleton";
+import { getDivisions, getDistricts, getThanas } from "../../../data/bd-geo";
+import { AnimatedAvatar } from "../../../components/common/AnimatedAvatar";
+
+/* ─── Constants ───────────────────────────────────────────────────────────── */
+const ROLE_COLOR: Record<string, string> = {
+  owner: "#f59e0b",
+  admin: "#ef4444",
+  principal: "#8b5cf6",
+  teacher: "#3b82f6",
+  student: "#10b981",
+};
+
+const ROLE_LABEL: Record<string, string> = {
+  owner: "মালিক",
+  admin: "প্রশাসক",
+  principal: "অধ্যক্ষ",
+  teacher: "শিক্ষক",
+  student: "ছাত্র/ছাত্রী",
+};
+
+const RELIGION_OPTIONS = [
+  { value: "ইসলাম", label: "ইসলাম" },
+  { value: "হিন্দু", label: "হিন্দু" },
+  { value: "বৌদ্ধ", label: "বৌদ্ধ" },
+  { value: "খ্রিষ্টান", label: "খ্রিষ্টান" },
+];
+
+const CLASS_OPTIONS = [
+  "ষষ্ঠ শ্রেণি",
+  "সপ্তম শ্রেণি",
+  "অষ্টম শ্রেণি",
+  "নবম শ্রেণি",
+  "দশম শ্রেণি",
+  "একাদশ শ্রেণি",
+  "দ্বাদশ শ্রেণি",
+].map((v) => ({ value: v, label: v }));
+
+const SUBJECT_OPTIONS = [
+  { value: "বিজ্ঞান", label: "বিজ্ঞান" },
+  { value: "মানবিক", label: "মানবিক" },
+  { value: "বাণিজ্য", label: "বাণিজ্য" },
+];
+
+const CLASSES_WITH_SUBJECT = [
+  "নবম শ্রেণি",
+  "দশম শ্রেণি",
+  "একাদশ শ্রেণি",
+  "দ্বাদশ শ্রেণি",
+];
+
+const DEGREE_LABEL: Record<string, string> = {
+  hsc: "এইচএসসি / সমমান",
+  hons: "স্নাতক (সম্মান)",
+  masters: "স্নাতকোত্তর",
+};
+
+/* ─── Helpers ─────────────────────────────────────────────────────────────── */
+const toLocalIso = (date: Date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
+const formatDOB = (dob: string | null | undefined) => {
+  if (!dob) return null;
+  try {
+    return new Date(dob).toLocaleDateString("bn-BD", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  } catch {
+    return dob;
+  }
+};
+
+/* ─── Animation Variants ──────────────────────────────────────────────────── */
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08, delayChildren: 0.1 },
+  },
+};
+
+const cardVariants = {
+  hidden: { scale: 0.95, opacity: 0, y: 20 },
+  visible: {
+    scale: 1,
+    opacity: 1,
+    y: 0,
+    transition: { type: "spring" as const, stiffness: 350, damping: 25 },
+  },
+};
+
+/* ─── GlassCard Component ─────────────────────────────────────────────────── */
+const GlassCard = ({
+  children,
+  delay = 0,
+  className = "",
+}: {
+  children: React.ReactNode;
+  delay?: number;
+  className?: string;
+}) => (
+  <motion.div
+    variants={cardVariants}
+    initial="hidden"
+    animate="visible"
+    transition={{ delay }}
+    className={`relative rounded-3xl overflow-hidden bg-[var(--color-bg)] 
+      border border-[var(--color-active-border)] shadow-lg ${className}`}
+  >
+    {/* Subtle gradient overlay */}
+    <div className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-500 pointer-events-none">
+      <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-active-bg)] to-transparent" />
+    </div>
+    <div className="relative">{children}</div>
+  </motion.div>
+);
+
+/* ─── SectionHeader ───────────────────────────────────────────────────────── */
+const SectionHeader = ({
+  icon,
+  title,
+  action,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  action?: React.ReactNode;
+}) => (
+  <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-[var(--color-active-border)]">
+    <div className="flex items-center gap-3">
+      <motion.div
+        whileHover={{ rotate: 360 }}
+        transition={{ duration: 0.5 }}
+        className="w-10 h-10 rounded-2xl flex items-center justify-center bg-[var(--color-active-bg)]"
+      >
+        <span className="text-[var(--color-text-hover)]">{icon}</span>
+      </motion.div>
+      <h3 className="text-lg font-bold bangla text-[var(--color-text)]">
+        {title}
+      </h3>
+    </div>
+    {action}
+  </div>
+);
+
+/* ─── FieldDisplay ────────────────────────────────────────────────────────── */
+const FieldDisplay = ({
+  icon,
+  label,
+  value,
+  optional,
+  roleColor,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string | null | undefined;
+  optional?: boolean;
+  roleColor?: string;
+}) => {
+  const missing = !value;
+
+  return (
+    <motion.div
+      layout
+      className="group relative px-6 py-4 border-b border-[var(--color-active-border)] last:border-0"
+    >
+      <div className="flex items-start gap-4">
+        <motion.div
+          whileHover={{ scale: 1.1, rotate: 5 }}
+          className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-[var(--color-active-bg)]"
+        >
+          <span className="text-[var(--color-gray)]">{icon}</span>
+        </motion.div>
+
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)] mb-1">
+            {label}
+            {optional && (
+              <span className="ml-1.5 normal-case tracking-normal opacity-50">
+                (ঐচ্ছিক)
+              </span>
+            )}
+          </p>
+
+          <motion.p
+            layout
+            className={`text-base font-medium bangla truncate ${
+              missing
+                ? "italic text-[var(--color-gray)] opacity-60"
+                : "text-[var(--color-text)]"
+            }`}
+          >
+            {missing ? (
+              <span className="flex items-center gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5" />
+                তথ্য যোগ করুন
+              </span>
+            ) : (
+              value
+            )}
+          </motion.p>
+        </div>
+
+        {/* Hover indicator */}
+        {!missing && (
+          <motion.div
+            initial={{ opacity: 0, x: 10 }}
+            whileHover={{ opacity: 1, x: 0 }}
+            className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100"
+          >
+            <ChevronRight
+              className="w-4 h-4 text-[var(--color-gray)]"
+              style={{ color: roleColor }}
+            />
+          </motion.div>
+        )}
+      </div>
+    </motion.div>
+  );
+};
+
+/* ─── TextInput ───────────────────────────────────────────────────────────── */
+const TextInput = ({
+  icon,
+  label,
+  name,
+  value,
+  type = "text",
+  placeholder,
+  optional,
+  onChange,
+  roleColor,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  name: string;
+  value?: string | null;
+  type?: string;
+  placeholder?: string;
+  optional?: boolean;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  roleColor?: string;
+}) => (
+  <motion.div layout className="space-y-2 mb-4">
+    <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
+      <span>{icon}</span>
+      {label}
+      {optional && (
+        <span className="normal-case tracking-normal opacity-50">(ঐচ্ছিক)</span>
+      )}
+    </label>
+    <div className="relative group">
+      <input
+        name={name}
+        type={type}
+        defaultValue={value ?? ""}
+        onChange={onChange}
+        placeholder={placeholder}
+        className="w-full text-sm rounded-2xl px-4 py-3 pl-11 outline-none bangla transition-all duration-300
+          bg-[var(--color-active-bg)] border-2 border-[var(--color-active-border)] 
+          text-[var(--color-text)] placeholder:text-[var(--color-gray)] placeholder:opacity-50
+          focus:border-[var(--color-text-hover)] focus:bg-[var(--color-bg)]
+          hover:border-[var(--color-text-hover)]/50"
+        style={{
+          boxShadow: `0 0 0 0 ${roleColor}00`,
+        }}
+        onFocus={(e) => {
+          e.currentTarget.style.boxShadow = `0 0 0 3px ${roleColor}20`;
+        }}
+        onBlur={(e) => {
+          e.currentTarget.style.boxShadow = `0 0 0 0 ${roleColor}00`;
+        }}
+      />
+      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-gray)] group-focus-within:text-[var(--color-text-hover)] transition-colors">
+        {icon}
+      </span>
+    </div>
+  </motion.div>
+);
+
+/* ─── PasswordInput ───────────────────────────────────────────────────────── */
+const PasswordInput = ({
+  onChange,
+  roleColor,
+}: {
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  roleColor?: string;
+}) => {
+  const [show, setShow] = useState(false);
+
+  return (
+    <motion.div layout className="space-y-2 mb-4">
+      <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
+        <Lock className="w-3.5 h-3.5" />
+        নতুন পাসওয়ার্ড
+        <span className="normal-case tracking-normal opacity-50">(ঐচ্ছিক)</span>
+      </label>
+      <div className="relative group">
+        <input
+          name="password"
+          type={show ? "text" : "password"}
+          onChange={onChange}
+          placeholder="পরিবর্তন না করলে ফাঁকা রাখুন"
+          className="w-full text-sm rounded-2xl px-4 py-3 pl-11 pr-12 outline-none bangla transition-all duration-300
+            bg-[var(--color-active-bg)] border-2 border-[var(--color-active-border)] 
+            text-[var(--color-text)] placeholder:text-[var(--color-gray)] placeholder:opacity-50
+            focus:border-[var(--color-text-hover)] focus:bg-[var(--color-bg)]
+            hover:border-[var(--color-text-hover)]/50"
+          style={{
+            boxShadow: `0 0 0 0 ${roleColor}00`,
+          }}
+          onFocus={(e) => {
+            e.currentTarget.style.boxShadow = `0 0 0 3px ${roleColor}20`;
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.boxShadow = `0 0 0 0 ${roleColor}00`;
+          }}
+        />
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-gray)]">
+          <Lock className="w-4 h-4" />
+        </span>
+        <button
+          type="button"
+          onClick={() => setShow((s) => !s)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-xl
+            text-[var(--color-gray)] hover:text-[var(--color-text-hover)] 
+            hover:bg-[var(--color-active-bg)] transition-all"
+        >
+          {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+        </button>
+      </div>
+    </motion.div>
+  );
+};
+
+/* ─── ProfileCompletion ───────────────────────────────────────────────────── */
+const ProfileCompletion = ({
+  missing,
+  total,
+  roleColor,
+}: {
+  missing: number;
+  total: number;
+  roleColor: string;
+}) => {
+  const completed = total - missing;
+  const percentage = (completed / total) * 100;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mt-4 p-4 rounded-2xl bg-[var(--color-active-bg)] border border-[var(--color-active-border)]"
+    >
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-bold bangla text-[var(--color-gray)]">
+          প্রোফাইল সম্পূর্ণতা
+        </span>
+        <span className="text-xs font-bold" style={{ color: roleColor }}>
+          {Math.round(percentage)}%
+        </span>
+      </div>
+      <div className="h-2 rounded-full bg-[var(--color-bg)] overflow-hidden">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${percentage}%` }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          className="h-full rounded-full"
+          style={{
+            background: `linear-gradient(90deg, ${roleColor}80, ${roleColor})`,
+          }}
+        />
+      </div>
+      {missing > 0 && (
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="mt-2 text-xs bangla text-[var(--color-gray)] flex items-center gap-1.5"
+        >
+          <AlertCircle className="w-3 h-3" />
+          আরও {missing}টি তথ্য যোগ করুন
+        </motion.p>
+      )}
+    </motion.div>
+  );
+};
+
+/* ════════════════════════════════════════════════════════════════════════════
+   PROFILE PAGE
+════════════════════════════════════════════════════════════════════════════ */
+const Profile = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const slug = user?.slug ?? "";
+  const roleColor = ROLE_COLOR[user?.role ?? "teacher"] ?? "#3b82f6";
+  const isStudent = user?.role === "student";
+  const isHardcoded = user?.isHardcoded ?? false;
+
+  const [editing, setEditing] = useState(false);
+  const [formData, setFormData] = useState<Record<string, string>>({});
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [copied, setCopied] = useState(false);
+
+  // Geo state
+  const [division, setDivision] = useState("");
+  const [district, setDistrict] = useState("");
+  const [thana, setThana] = useState("");
+  const [pDivision, setPDivision] = useState("");
+  const [pDistrict, setPDistrict] = useState("");
+  const [pThana, setPThana] = useState("");
+
+  // DOB
+  const [dobDisplay, setDobDisplay] = useState("");
+  const [dobIso, setDobIso] = useState("");
+
+  /* ── Fetch profile ── */
+  const { data: profileRes, isLoading } = useQuery({
+    queryKey: ["profile", slug],
+    queryFn: async () =>
+      (await axiosPublic.get(`/api/users/${slug}/profile`)).data,
+    enabled: !!slug,
+  });
+  const profile = profileRes?.data;
+
+  /* ── Update mutation ── */
+  const updateMutation = useMutation({
+    mutationFn: async (payload: Record<string, string>) =>
+      (await axiosPublic.patch(`/api/users/${slug}/profile`, payload)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile", slug] });
+      toast.success("প্রোফাইল সফলভাবে আপডেট হয়েছে! ✨");
+      setEditing(false);
+      setFormData({});
+    },
+    onError: (err: { response?: { data?: { message?: string } } }) =>
+      toast.error(err?.response?.data?.message ?? "আপডেট ব্যর্থ"),
+  });
+
+  /* ── Avatar mutation ── */
+  const avatarMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const fd = new FormData();
+      fd.append("image", file);
+      return (await axiosPublic.post(`/api/users/${slug}/avatar`, fd)).data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile", slug] });
+      toast.success("ছবি আপডেট হয়েছে! 📸");
+    },
+    onError: () => toast.error("ছবি আপলোড ব্যর্থ"),
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+
+  const handleSelectChange = (name: string, val: string) =>
+    setFormData((prev) => ({ ...prev, [name]: val }));
+
+  const startEditing = () => {
+    setDivision(profile?.division ?? "");
+    setDistrict(profile?.district ?? "");
+    setThana(profile?.thana ?? "");
+    setPDivision(profile?.permanentDivision ?? "");
+    setPDistrict(profile?.permanentDistrict ?? "");
+    setPThana(profile?.permanentThana ?? "");
+    setDobDisplay("");
+    setDobIso(
+      profile?.dateOfBirth ? toLocalIso(new Date(profile.dateOfBirth)) : "",
+    );
+    setEditing(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleSave = () => {
+    const payload: Record<string, string> = { ...formData };
+    if (division) payload.division = division;
+    if (district) payload.district = district;
+    if (thana) payload.thana = thana;
+    if (pDivision) payload.permanentDivision = pDivision;
+    if (pDistrict) payload.permanentDistrict = pDistrict;
+    if (pThana) payload.permanentThana = pThana;
+    if (dobIso) payload.dateOfBirth = dobIso;
+    if (!payload.password) delete payload.password;
+    if (Object.keys(payload).length === 0) {
+      setEditing(false);
+      return;
+    }
+    updateMutation.mutate(payload);
+  };
+
+  const handleCopyId = () => {
+    navigator.clipboard.writeText(slug);
+    setCopied(true);
+    toast.success("ID কপি হয়েছে! 📋");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const missingFields = [
+    profile?.phone,
+    profile?.gramNam,
+    profile?.thana,
+    profile?.district,
+    profile?.fatherName,
+    profile?.motherName,
+    profile?.dateOfBirth,
+    profile?.religion,
+  ].filter((v) => !v).length;
+
+  const totalFields = 8;
+
+  // Geo options
+  const divisionOptions = getDivisions().map((v) => ({ value: v, label: v }));
+  const districtOptions = division
+    ? getDistricts(division).map((v) => ({ value: v, label: v }))
+    : [];
+  const thanaOptions =
+    division && district
+      ? getThanas(division, district).map((v) => ({ value: v, label: v }))
+      : [];
+  const pDistrictOptions = pDivision
+    ? getDistricts(pDivision).map((v) => ({ value: v, label: v }))
+    : [];
+  const pThanaOptions =
+    pDivision && pDistrict
+      ? getThanas(pDivision, pDistrict).map((v) => ({ value: v, label: v }))
+      : [];
+
+  // ── Loading ───────────────────────────────────────────────────────────────
+  if (isLoading)
+    return (
+      <div className="min-h-screen bg-[var(--color-bg)]">
+        <Skeleton variant="profile" />
+      </div>
+    );
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  return (
+    <div className="min-h-screen bg-[var(--color-bg)]">
+      {/* Background decoration */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div
+          className="absolute -top-40 -right-40 w-96 h-96 rounded-full opacity-10 blur-3xl"
+          style={{ background: roleColor }}
+        />
+        <div
+          className="absolute top-1/2 -left-40 w-80 h-80 rounded-full opacity-10 blur-3xl"
+          style={{ background: roleColor }}
+        />
+      </div>
+
+      <main className="relative w-full max-w-4xl mx-auto px-4 py-8 lg:py-12">
+        <LayoutGroup>
+          {/* ── Page Header ── */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
+          >
+            <h1 className="text-2xl md:text-3xl font-black bangla text-[var(--color-text)]">
+              আমার প্রোফাইল
+            </h1>
+            <p className="text-base md:text-lg mt-1 bangla text-[var(--color-gray)]">
+              আপনার ব্যক্তিগত তথ্য পরিচালনা ও আপডেট করুন
+            </p>
+          </motion.div>
+
+          {/* ── Hero Card ── */}
+          <GlassCard delay={0.05} className="mb-6">
+            <div className="p-6 md:p-8">
+              <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
+                {/* Avatar Section */}
+                <motion.div
+                  layout
+                  className="relative flex-shrink-0"
+                  whileHover={{ scale: 1.02 }}
+                >
+                  <AnimatedAvatar
+                    name={profile?.name ?? user?.name ?? "User"}
+                    url={profile?.avatar?.url ?? null}
+                    color={roleColor}
+                    size={120}
+                    showRings={true}
+                    showStatus={true}
+                  />
+
+                  {/* Camera Button */}
+                  <motion.button
+                    whileHover={{ scale: 1.15, rotate: 15 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => fileRef.current?.click()}
+                    disabled={avatarMutation.isPending}
+                    className="absolute -bottom-1 -right-1 w-10 h-10 rounded-full 
+                      flex items-center justify-center cursor-pointer
+                      bg-[var(--color-bg)] border-2 border-[var(--color-active-border)]
+                      shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {avatarMutation.isPending ? (
+                      <Loader2 className="w-5 h-5 animate-spin text-[var(--color-gray)]" />
+                    ) : (
+                      <Camera className="w-5 h-5 text-[var(--color-text)]" />
+                    )}
+                  </motion.button>
+
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) avatarMutation.mutate(f);
+                    }}
+                  />
+                </motion.div>
+
+                {/* Info Section */}
+                <div className="flex-1 text-center md:text-left min-w-0">
+                  <motion.h2
+                    layout
+                    className="text-xl md:text-2xl font-bold bangla text-[var(--color-text)] truncate"
+                  >
+                    {profile?.name ?? user?.name ?? "—"}
+                  </motion.h2>
+
+                  <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-3">
+                    {/* Role Badge */}
+                    <motion.span
+                      whileHover={{ scale: 1.05 }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bangla"
+                      style={{
+                        background: `${roleColor}15`,
+                        color: roleColor,
+                        border: `1px solid ${roleColor}30`,
+                      }}
+                    >
+                      <motion.span
+                        animate={{ scale: [1, 1.3, 1] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                        className="w-1.5 h-1.5 rounded-full"
+                        style={{ backgroundColor: roleColor }}
+                      />
+                      {ROLE_LABEL[user?.role ?? ""] ?? user?.role}
+                    </motion.span>
+
+                    {/* ID Badge */}
+                    {slug && (
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={handleCopyId}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full 
+                          text-xs font-mono font-bold cursor-pointer
+                          bg-[var(--color-active-bg)] border border-[var(--color-active-border)]
+                          text-[var(--color-gray)] hover:text-[var(--color-text)]
+                          hover:border-[var(--color-text-hover)] transition-all"
+                      >
+                        <Hash className="w-3 h-3" />
+                        {slug}
+                        <AnimatePresence mode="wait">
+                          {copied ? (
+                            <motion.span
+                              key="check"
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              exit={{ scale: 0 }}
+                            >
+                              <Check className="w-3 h-3 text-[#10b981]" />
+                            </motion.span>
+                          ) : (
+                            <motion.span
+                              key="copy"
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              exit={{ scale: 0 }}
+                            >
+                              <Copy className="w-3 h-3" />
+                            </motion.span>
+                          )}
+                        </AnimatePresence>
+                      </motion.button>
+                    )}
+
+                    {/* Admin Shield */}
+                    {(user?.role === "admin" || user?.role === "owner") && (
+                      <motion.div
+                        whileHover={{ rotate: 360 }}
+                        transition={{ duration: 0.5 }}
+                        className="p-1.5 rounded-full"
+                        style={{
+                          background: `${roleColor}15`,
+                          border: `1px solid ${roleColor}30`,
+                        }}
+                      >
+                        <ShieldCheck
+                          className="w-4 h-4"
+                          style={{ color: roleColor }}
+                        />
+                      </motion.div>
+                    )}
+                  </div>
+
+                  {/* Profile Completion */}
+                  {!isHardcoded && !editing && (
+                    <ProfileCompletion
+                      missing={missingFields}
+                      total={totalFields}
+                      roleColor={roleColor}
+                    />
+                  )}
+                </div>
+
+                {/* Edit Button */}
+                {!isHardcoded && (
+                  <motion.div layout className="flex-shrink-0">
+                    <AnimatePresence mode="wait">
+                      {editing ? (
+                        <motion.div
+                          key="save"
+                          initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                          className="flex gap-2"
+                        >
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={handleSave}
+                            disabled={updateMutation.isPending}
+                            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl 
+                              text-sm font-bold bangla text-white
+                              bg-[#10b981] hover:bg-[#059669] 
+                              shadow-lg shadow-emerald-500/20
+                              disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {updateMutation.isPending ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Check className="w-4 h-4" />
+                            )}
+                            সংরক্ষণ
+                          </motion.button>
+
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => {
+                              setEditing(false);
+                              setFormData({});
+                            }}
+                            className="p-2.5 rounded-2xl 
+                              bg-[var(--color-active-bg)] border border-[var(--color-active-border)]
+                              text-[var(--color-gray)] hover:text-[var(--color-text)]
+                              hover:border-[var(--color-text-hover)] transition-all"
+                          >
+                            <X className="w-5 h-5" />
+                          </motion.button>
+                        </motion.div>
+                      ) : (
+                        <motion.button
+                          key="edit"
+                          initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={startEditing}
+                          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl 
+                            text-sm font-bold bangla
+                            bg-[var(--color-active-bg)] border border-[var(--color-active-border)]
+                            text-[var(--color-text)] hover:bg-[var(--color-bg)]
+                            hover:border-[var(--color-text-hover)] transition-all"
+                        >
+                          <Pencil className="w-4 h-4" />
+                          সম্পাদনা
+                        </motion.button>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                )}
+              </div>
+            </div>
+          </GlassCard>
+
+          {/* ── Content Cards ── */}
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="space-y-4"
+          >
+            {/* Personal Info */}
+            <GlassCard delay={0.1}>
+              <SectionHeader
+                icon={<User className="w-5 h-5" />}
+                title="ব্যক্তিগত তথ্য"
+              />
+              <div className="py-2">
+                {!editing ? (
+                  <>
+                    <FieldDisplay
+                      icon={<User className="w-4 h-4" />}
+                      label="পূর্ণ নাম"
+                      value={profile?.name ?? user?.name}
+                      roleColor={roleColor}
+                    />
+                    {!isHardcoded && (
+                      <>
+                        <FieldDisplay
+                          icon={<User className="w-4 h-4" />}
+                          label="বাবার নাম"
+                          value={profile?.fatherName}
+                          roleColor={roleColor}
+                        />
+                        <FieldDisplay
+                          icon={<User className="w-4 h-4" />}
+                          label="মায়ের নাম"
+                          value={profile?.motherName}
+                          roleColor={roleColor}
+                        />
+                        <FieldDisplay
+                          icon={<CalendarDays className="w-4 h-4" />}
+                          label="জন্ম তারিখ"
+                          value={formatDOB(profile?.dateOfBirth)}
+                          roleColor={roleColor}
+                        />
+                        <FieldDisplay
+                          icon={<Heart className="w-4 h-4" />}
+                          label="ধর্ম"
+                          value={profile?.religion}
+                          roleColor={roleColor}
+                        />
+                      </>
+                    )}
+                    <FieldDisplay
+                      icon={<User className="w-4 h-4" />}
+                      label="লিঙ্গ"
+                      value={profile?.gender}
+                      roleColor={roleColor}
+                    />
+                  </>
+                ) : (
+                  <div className="px-6 py-4">
+                    <TextInput
+                      icon={<User className="w-4 h-4" />}
+                      label="পূর্ণ নাম"
+                      name="name"
+                      value={profile?.name}
+                      placeholder="পূর্ণ নাম বাংলায়"
+                      onChange={handleChange}
+                      roleColor={roleColor}
+                    />
+                    {!isHardcoded && (
+                      <>
+                        <TextInput
+                          icon={<User className="w-4 h-4" />}
+                          label="বাবার নাম"
+                          name="fatherName"
+                          value={profile?.fatherName}
+                          placeholder="বাবার পূর্ণ নাম"
+                          onChange={handleChange}
+                          roleColor={roleColor}
+                        />
+                        <TextInput
+                          icon={<User className="w-4 h-4" />}
+                          label="মায়ের নাম"
+                          name="motherName"
+                          value={profile?.motherName}
+                          placeholder="মায়ের পূর্ণ নাম"
+                          onChange={handleChange}
+                          roleColor={roleColor}
+                        />
+                        <div className="space-y-2 mb-4">
+                          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
+                            <CalendarDays className="w-3.5 h-3.5" />
+                            জন্ম তারিখ
+                          </label>
+                          <DatePicker
+                            value={
+                              dobDisplay ||
+                              (profile?.dateOfBirth
+                                ? (formatDOB(profile.dateOfBirth) ?? "")
+                                : "")
+                            }
+                            onChange={setDobDisplay}
+                            onDateChange={(date) => {
+                              if (!isNaN(date.getTime()))
+                                setDobIso(toLocalIso(date));
+                            }}
+                            placeholder="জন্ম তারিখ বেছে নিন"
+                            maxDate={new Date()}
+                          />
+                        </div>
+                        <div className="space-y-2 mb-4">
+                          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
+                            <Heart className="w-3.5 h-3.5" />
+                            ধর্ম
+                          </label>
+                          <SelectInput
+                            options={RELIGION_OPTIONS}
+                            value={formData.religion ?? profile?.religion ?? ""}
+                            onChange={(v) => handleSelectChange("religion", v)}
+                            placeholder="ধর্ম বেছে নিন"
+                          />
+                        </div>
+                      </>
+                    )}
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
+                        <User className="w-3.5 h-3.5" />
+                        লিঙ্গ
+                        <span className="normal-case tracking-normal opacity-50">
+                          (পরিবর্তনযোগ্য নয়)
+                        </span>
+                      </label>
+                      <div className="w-full text-sm rounded-2xl px-4 py-3 bangla opacity-60 cursor-not-allowed bg-[var(--color-active-bg)] border border-[var(--color-active-border)] text-[var(--color-text)]">
+                        {profile?.gender ?? "—"}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </GlassCard>
+
+            {/* Contact Info */}
+            <GlassCard delay={0.15}>
+              <SectionHeader
+                icon={<Phone className="w-5 h-5" />}
+                title="যোগাযোগ"
+              />
+              <div className="py-2">
+                {!editing ? (
+                  <>
+                    <FieldDisplay
+                      icon={<Phone className="w-4 h-4" />}
+                      label="ফোন নম্বর"
+                      value={profile?.phone}
+                      roleColor={roleColor}
+                    />
+                    <FieldDisplay
+                      icon={<Mail className="w-4 h-4" />}
+                      label="ইমেইল"
+                      value={
+                        isHardcoded
+                          ? (user?.email ?? null)
+                          : (profile?.email ?? user?.email)
+                      }
+                      optional={!isHardcoded}
+                      roleColor={roleColor}
+                    />
+                    {!isHardcoded && (
+                      <FieldDisplay
+                        icon={<PhoneCall className="w-4 h-4" />}
+                        label="জরুরি যোগাযোগ"
+                        value={profile?.emergencyContact}
+                        optional
+                        roleColor={roleColor}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <div className="px-6 py-4">
+                    <TextInput
+                      icon={<Phone className="w-4 h-4" />}
+                      label="ফোন নম্বর"
+                      name="phone"
+                      type="tel"
+                      value={profile?.phone}
+                      placeholder="01XXXXXXXXX"
+                      onChange={handleChange}
+                      roleColor={roleColor}
+                    />
+                    {!isStudent && (
+                      <TextInput
+                        icon={<Mail className="w-4 h-4" />}
+                        label="ইমেইল"
+                        name="email"
+                        type="email"
+                        value={profile?.email}
+                        placeholder="example@email.com"
+                        optional
+                        onChange={handleChange}
+                        roleColor={roleColor}
+                      />
+                    )}
+                    <TextInput
+                      icon={<PhoneCall className="w-4 h-4" />}
+                      label="জরুরি যোগাযোগ"
+                      name="emergencyContact"
+                      type="tel"
+                      value={profile?.emergencyContact}
+                      placeholder="অভিভাবকের নম্বর"
+                      optional
+                      onChange={handleChange}
+                      roleColor={roleColor}
+                    />
+                  </div>
+                )}
+              </div>
+            </GlassCard>
+
+            {/* Present Address */}
+            {!isHardcoded && (
+              <GlassCard delay={0.2}>
+                <SectionHeader
+                  icon={<MapPin className="w-5 h-5" />}
+                  title="বর্তমান ঠিকানা"
+                />
+                <div className="py-2">
+                  {!editing ? (
+                    <>
+                      <FieldDisplay
+                        icon={<MapPin className="w-4 h-4" />}
+                        label="গ্রাম/মহল্লা"
+                        value={profile?.gramNam}
+                        roleColor={roleColor}
+                      />
+                      <FieldDisplay
+                        icon={<MapPin className="w-4 h-4" />}
+                        label="পাড়া"
+                        value={profile?.para}
+                        optional
+                        roleColor={roleColor}
+                      />
+                      <FieldDisplay
+                        icon={<Building2 className="w-4 h-4" />}
+                        label="থানা/উপজেলা"
+                        value={profile?.thana}
+                        roleColor={roleColor}
+                      />
+                      <FieldDisplay
+                        icon={<MapPin className="w-4 h-4" />}
+                        label="জেলা"
+                        value={profile?.district}
+                        roleColor={roleColor}
+                      />
+                      <FieldDisplay
+                        icon={<MapPin className="w-4 h-4" />}
+                        label="বিভাগ"
+                        value={profile?.division}
+                        optional
+                        roleColor={roleColor}
+                      />
+                      <FieldDisplay
+                        icon={<MapPin className="w-4 h-4" />}
+                        label="পরিচিত স্থান"
+                        value={profile?.landmark}
+                        optional
+                        roleColor={roleColor}
+                      />
+                    </>
+                  ) : (
+                    <div className="px-6 py-4">
+                      <TextInput
+                        icon={<MapPin className="w-4 h-4" />}
+                        label="গ্রাম/মহল্লা"
+                        name="gramNam"
+                        value={profile?.gramNam}
+                        placeholder="গ্রাম বা মহল্লার নাম"
+                        onChange={handleChange}
+                        roleColor={roleColor}
+                      />
+                      <TextInput
+                        icon={<MapPin className="w-4 h-4" />}
+                        label="পাড়া"
+                        name="para"
+                        value={profile?.para}
+                        placeholder="পাড়ার নাম"
+                        optional
+                        onChange={handleChange}
+                        roleColor={roleColor}
+                      />
+                      <div className="space-y-2 mb-4">
+                        <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
+                          <MapPin className="w-3.5 h-3.5" />
+                          বিভাগ
+                        </label>
+                        <SelectInput
+                          options={divisionOptions}
+                          value={division}
+                          onChange={(v) => {
+                            setDivision(v);
+                            setDistrict("");
+                            setThana("");
+                          }}
+                          placeholder="বিভাগ নির্বাচন করুন"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div className="space-y-2">
+                          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
+                            <MapPin className="w-3.5 h-3.5" />
+                            জেলা
+                          </label>
+                          <SelectInput
+                            options={districtOptions}
+                            value={district}
+                            onChange={(v) => {
+                              setDistrict(v);
+                              setThana("");
+                            }}
+                            placeholder={division ? "জেলা বাছুন" : "বিভাগ আগে"}
+                            disabled={!division}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
+                            <Building2 className="w-3.5 h-3.5" />
+                            থানা
+                          </label>
+                          <SelectInput
+                            options={thanaOptions}
+                            value={thana}
+                            onChange={setThana}
+                            placeholder={district ? "থানা বাছুন" : "জেলা আগে"}
+                            disabled={!district}
+                          />
+                        </div>
+                      </div>
+                      <TextInput
+                        icon={<MapPin className="w-4 h-4" />}
+                        label="পরিচিত স্থান"
+                        name="landmark"
+                        value={profile?.landmark}
+                        placeholder="মসজিদ / বাজার / স্কুলের কাছে"
+                        optional
+                        onChange={handleChange}
+                        roleColor={roleColor}
+                      />
+                    </div>
+                  )}
+                </div>
+              </GlassCard>
+            )}
+
+            {/* Permanent Address */}
+            {!isHardcoded && !profile?.permanentSameAsPresent && (
+              <GlassCard delay={0.25}>
+                <SectionHeader
+                  icon={<MapPin className="w-5 h-5" />}
+                  title="স্থায়ী ঠিকানা"
+                />
+                <div className="py-2">
+                  {!editing ? (
+                    <>
+                      <FieldDisplay
+                        icon={<MapPin className="w-4 h-4" />}
+                        label="গ্রাম/মহল্লা"
+                        value={profile?.permanentGramNam}
+                        roleColor={roleColor}
+                      />
+                      <FieldDisplay
+                        icon={<MapPin className="w-4 h-4" />}
+                        label="পাড়া"
+                        value={profile?.permanentPara}
+                        optional
+                        roleColor={roleColor}
+                      />
+                      <FieldDisplay
+                        icon={<Building2 className="w-4 h-4" />}
+                        label="থানা/উপজেলা"
+                        value={profile?.permanentThana}
+                        roleColor={roleColor}
+                      />
+                      <FieldDisplay
+                        icon={<MapPin className="w-4 h-4" />}
+                        label="জেলা"
+                        value={profile?.permanentDistrict}
+                        roleColor={roleColor}
+                      />
+                      <FieldDisplay
+                        icon={<MapPin className="w-4 h-4" />}
+                        label="বিভাগ"
+                        value={profile?.permanentDivision}
+                        optional
+                        roleColor={roleColor}
+                      />
+                    </>
+                  ) : (
+                    <div className="px-6 py-4">
+                      <TextInput
+                        icon={<MapPin className="w-4 h-4" />}
+                        label="গ্রাম/মহল্লা"
+                        name="permanentGramNam"
+                        value={profile?.permanentGramNam}
+                        placeholder="গ্রাম বা মহল্লার নাম"
+                        onChange={handleChange}
+                        roleColor={roleColor}
+                      />
+                      <TextInput
+                        icon={<MapPin className="w-4 h-4" />}
+                        label="পাড়া"
+                        name="permanentPara"
+                        value={profile?.permanentPara}
+                        placeholder="পাড়ার নাম"
+                        optional
+                        onChange={handleChange}
+                        roleColor={roleColor}
+                      />
+                      <div className="space-y-2 mb-4">
+                        <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
+                          <MapPin className="w-3.5 h-3.5" />
+                          বিভাগ
+                        </label>
+                        <SelectInput
+                          options={divisionOptions}
+                          value={pDivision}
+                          onChange={(v) => {
+                            setPDivision(v);
+                            setPDistrict("");
+                            setPThana("");
+                          }}
+                          placeholder="বিভাগ নির্বাচন করুন"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
+                            <MapPin className="w-3.5 h-3.5" />
+                            জেলা
+                          </label>
+                          <SelectInput
+                            options={pDistrictOptions}
+                            value={pDistrict}
+                            onChange={(v) => {
+                              setPDistrict(v);
+                              setPThana("");
+                            }}
+                            placeholder={pDivision ? "জেলা বাছুন" : "বিভাগ আগে"}
+                            disabled={!pDivision}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
+                            <Building2 className="w-3.5 h-3.5" />
+                            থানা
+                          </label>
+                          <SelectInput
+                            options={pThanaOptions}
+                            value={pThana}
+                            onChange={setPThana}
+                            placeholder={pDistrict ? "থানা বাছুন" : "জেলা আগে"}
+                            disabled={!pDistrict}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </GlassCard>
+            )}
+
+            {/* Student Education */}
+            {isStudent && !isHardcoded && (
+              <GlassCard delay={0.3}>
+                <SectionHeader
+                  icon={<GraduationCap className="w-5 h-5" />}
+                  title="শিক্ষা তথ্য"
+                />
+                <div className="py-2">
+                  {!editing ? (
+                    <>
+                      <FieldDisplay
+                        icon={<GraduationCap className="w-4 h-4" />}
+                        label="শ্রেণি"
+                        value={profile?.studentClass}
+                        roleColor={roleColor}
+                      />
+                      {CLASSES_WITH_SUBJECT.includes(
+                        profile?.studentClass ?? "",
+                      ) && (
+                        <FieldDisplay
+                          icon={<BookOpen className="w-4 h-4" />}
+                          label="বিভাগ"
+                          value={profile?.studentSubject}
+                          optional
+                          roleColor={roleColor}
+                        />
+                      )}
+                      <FieldDisplay
+                        icon={<Hash className="w-4 h-4" />}
+                        label="রোল নম্বর"
+                        value={profile?.roll}
+                        optional
+                        roleColor={roleColor}
+                      />
+                      <FieldDisplay
+                        icon={<School className="w-4 h-4" />}
+                        label="বিদ্যালয়"
+                        value={profile?.schoolName}
+                        optional
+                        roleColor={roleColor}
+                      />
+                    </>
+                  ) : (
+                    <div className="px-6 py-4">
+                      <div className="space-y-2 mb-4">
+                        <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
+                          <GraduationCap className="w-3.5 h-3.5" />
+                          শ্রেণি
+                        </label>
+                        <SelectInput
+                          options={CLASS_OPTIONS}
+                          value={
+                            formData.studentClass ?? profile?.studentClass ?? ""
+                          }
+                          onChange={(v) =>
+                            handleSelectChange("studentClass", v)
+                          }
+                          placeholder="শ্রেণি বেছে নিন"
+                        />
+                      </div>
+                      {CLASSES_WITH_SUBJECT.includes(
+                        formData.studentClass ?? profile?.studentClass ?? "",
+                      ) && (
+                        <div className="space-y-2 mb-4">
+                          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
+                            <BookOpen className="w-3.5 h-3.5" />
+                            বিভাগ
+                          </label>
+                          <SelectInput
+                            options={SUBJECT_OPTIONS}
+                            value={
+                              formData.studentSubject ??
+                              profile?.studentSubject ??
+                              ""
+                            }
+                            onChange={(v) =>
+                              handleSelectChange("studentSubject", v)
+                            }
+                            placeholder="বিভাগ বেছে নিন"
+                          />
+                        </div>
+                      )}
+                      <TextInput
+                        icon={<Hash className="w-4 h-4" />}
+                        label="রোল নম্বর"
+                        name="roll"
+                        value={profile?.roll}
+                        placeholder="রোল নম্বর"
+                        optional
+                        onChange={handleChange}
+                        roleColor={roleColor}
+                      />
+                      <TextInput
+                        icon={<School className="w-4 h-4" />}
+                        label="বিদ্যালয়ের নাম"
+                        name="schoolName"
+                        value={profile?.schoolName}
+                        placeholder="বিদ্যালয়ের পূর্ণ নাম"
+                        optional
+                        onChange={handleChange}
+                        roleColor={roleColor}
+                      />
+                    </div>
+                  )}
+                </div>
+              </GlassCard>
+            )}
+
+            {/* Staff Education */}
+            {!isStudent && !isHardcoded && (
+              <GlassCard delay={0.3}>
+                <SectionHeader
+                  icon={<GraduationCap className="w-5 h-5" />}
+                  title="শিক্ষাগত যোগ্যতা"
+                />
+                <div className="py-2">
+                  {!editing ? (
+                    <>
+                      <FieldDisplay
+                        icon={<School className="w-4 h-4" />}
+                        label="কলেজ/বিশ্ববিদ্যালয়"
+                        value={profile?.collegeName}
+                        optional
+                        roleColor={roleColor}
+                      />
+                      <FieldDisplay
+                        icon={<BookOpen className="w-4 h-4" />}
+                        label="ডিগ্রি"
+                        value={
+                          profile?.degree ? DEGREE_LABEL[profile.degree] : null
+                        }
+                        roleColor={roleColor}
+                      />
+                      {profile?.currentYear && (
+                        <FieldDisplay
+                          icon={<BookOpen className="w-4 h-4" />}
+                          label="বর্তমান বর্ষ"
+                          value={profile.currentYear}
+                          roleColor={roleColor}
+                        />
+                      )}
+                    </>
+                  ) : (
+                    <div className="px-6 py-4">
+                      <TextInput
+                        icon={<School className="w-4 h-4" />}
+                        label="কলেজ/বিশ্ববিদ্যালয়ের নাম"
+                        name="collegeName"
+                        value={profile?.collegeName}
+                        placeholder="প্রতিষ্ঠানের পূর্ণ নাম"
+                        optional
+                        onChange={handleChange}
+                        roleColor={roleColor}
+                      />
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
+                          <BookOpen className="w-3.5 h-3.5" />
+                          ডিগ্রি
+                          <span className="normal-case tracking-normal opacity-50">
+                            (পরিবর্তনযোগ্য নয়)
+                          </span>
+                        </label>
+                        <div className="w-full text-sm rounded-2xl px-4 py-3 bangla opacity-60 cursor-not-allowed bg-[var(--color-active-bg)] border border-[var(--color-active-border)] text-[var(--color-text)]">
+                          {profile?.degree ? DEGREE_LABEL[profile.degree] : "—"}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </GlassCard>
+            )}
+
+            {/* Security */}
+            <GlassCard delay={0.35}>
+              <SectionHeader
+                icon={<Lock className="w-5 h-5" />}
+                title="নিরাপত্তা"
+              />
+              <div className="py-2">
+                {!editing ? (
+                  <div className="px-6 py-4">
+                    <p className="text-sm bangla text-[var(--color-gray)]">
+                      {isHardcoded ? (
+                        <span className="flex items-center gap-2">
+                          <ShieldCheck className="w-4 h-4 text-[var(--color-text-hover)]" />
+                          Owner অ্যাকাউন্টের পাসওয়ার্ড পরিবর্তন করা যাবে না
+                        </span>
+                      ) : (
+                        "পাসওয়ার্ড পরিবর্তনের জন্য সম্পাদনা মোডে যান"
+                      )}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="px-6 py-4">
+                    <PasswordInput
+                      onChange={handleChange}
+                      roleColor={roleColor}
+                    />
+                  </div>
+                )}
+              </div>
+            </GlassCard>
+
+            {/* Bottom Action Buttons (Edit Mode) */}
+            <AnimatePresence>
+              {editing && !isHardcoded && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 20 }}
+                  className="sticky bottom-6 mt-6"
+                >
+                  <div className="flex gap-3 p-4 rounded-3xl bg-[var(--color-bg)] border border-[var(--color-active-border)] shadow-2xl">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleSave}
+                      disabled={updateMutation.isPending}
+                      className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl 
+                        text-sm font-bold bangla text-white
+                        bg-[#10b981] hover:bg-[#059669] 
+                        shadow-lg shadow-emerald-500/20
+                        disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {updateMutation.isPending ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <Check className="w-5 h-5" />
+                      )}
+                      পরিবর্তন সংরক্ষণ করুন
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        setEditing(false);
+                        setFormData({});
+                      }}
+                      className="px-6 py-3.5 rounded-2xl text-sm font-bold bangla
+                        bg-red-500 border border-red-600 text-[var(--color-text)] hover:bg-red-800
+                        hover:red-800 transition-all"
+                    >
+                      বাতিল
+                    </motion.button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </LayoutGroup>
+      </main>
+    </div>
+  );
+};
+
+export default Profile;
