@@ -9,7 +9,7 @@ import DatePicker, {
   BN_MONTHS,
 } from "../../components/common/Datepicker";
 import Skeleton from "../../components/common/Skeleton";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, X, LogIn, UserPlus } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { CLASS_COLORS, DEFAULT_CLASS_COLOR, toBn } from "../../utility/shared";
 import { CLASS_ORDER } from "../../utility/Constants";
@@ -21,8 +21,7 @@ import {
   resolveTeacherSlug,
   type DailyLessonData,
 } from "./DailyLessonUpdateModals";
-import { useGuestPreview } from "../../hooks/useGuestPreview";
-import LoginPromptOverlay from "../Admin/Auth/LoginPromptOverlay";
+import { useNavigate } from "react-router";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const MANAGER_ROLES = ["principal", "admin", "owner"];
@@ -92,6 +91,114 @@ const actionButtonVariants: Variants = {
     scale: 1,
     transition: { duration: 0.2 },
   },
+};
+
+const modalVariants: Variants = {
+  hidden: { opacity: 0, scale: 0.9, y: 20 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] },
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.9,
+    y: 20,
+    transition: { duration: 0.2 },
+  },
+};
+
+const backdropVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { duration: 0.2 } },
+  exit: { opacity: 0, transition: { duration: 0.15 } },
+};
+
+// ─── Login Prompt Modal ───────────────────────────────────────────────────────
+const LoginPromptModal = ({ onClose }: { onClose: () => void }) => {
+  const navigate = useNavigate();
+
+  return (
+    <motion.div
+      variants={backdropVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        variants={modalVariants}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-md bg-[var(--color-card)] rounded-2xl shadow-2xl overflow-hidden"
+      >
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-[var(--color-bg)] hover:bg-[var(--color-active-bg)] transition-colors"
+        >
+          <X className="w-4 h-4 text-[var(--color-gray)]" />
+        </button>
+
+        {/* Content */}
+        <div className="p-6 sm:p-8 text-center bangla">
+          {/* Icon */}
+          <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 sm:mb-6 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
+            <LogIn className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+          </div>
+
+          {/* Title */}
+          <h2 className="text-xl sm:text-2xl font-bold text-[var(--color-text)] mb-2">
+            লগইন করুন
+          </h2>
+
+          {/* Description */}
+          <p className="text-sm sm:text-base text-[var(--color-gray)] mb-6 sm:mb-8 leading-relaxed">
+            সম্পূর্ণ কন্টেন্ট দেখতে ও ব্যবহার করতে আপনার অ্যাকাউন্টে লগইন করুন
+            অথবা নতুন অ্যাকাউন্ট খুলুন।
+          </p>
+
+          {/* Buttons */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                onClose();
+                navigate("/login");
+              }}
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold rounded-xl shadow-lg transition-all"
+            >
+              <LogIn className="w-5 h-5" />
+              <span>লগইন করুন</span>
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                onClose();
+                navigate("/register");
+              }}
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-[var(--color-bg)] hover:bg-[var(--color-active-bg)] text-[var(--color-text)] font-semibold rounded-xl border border-[var(--color-border)] transition-all"
+            >
+              <UserPlus className="w-5 h-5" />
+              <span>অ্যাকাউন্ট খুলুন</span>
+            </motion.button>
+          </div>
+
+          {/* Footer Note */}
+          <p className="mt-6 text-xs text-[var(--color-gray)]">
+            লগইন করলে সব পাঠ, নোটিশ ও ফিচার অ্যাক্সেস করতে পারবেন
+          </p>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
 };
 
 // ─── ClassGroupTitle ───────────────────────────────────────
@@ -202,9 +309,9 @@ const EnhancedLessonCard = ({
 
 // ─── Main Component ────────────────────────────────────────
 const DailyLesson = () => {
-  const { user } = useAuth();
+  const { user, token } = useAuth(); // ✅ token check করব
   const qc = useQueryClient();
-  const { isGuest, previewLimit } = useGuestPreview(); // ✅ guest check
+  const navigate = useNavigate();
 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [datePickerValue, setDatePickerValue] = useState<string>(todayBn());
@@ -212,6 +319,10 @@ const DailyLesson = () => {
   const [deleteTarget, setDeleteTarget] = useState<DailyLessonData | null>(
     null,
   );
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false); // ✅ login modal state
+
+  // ✅ Guest check - token না থাকলে guest
+  const isGuest = !token;
 
   const userRole = user?.role ?? "student";
   const userSlug = user?.slug ?? "";
@@ -269,6 +380,7 @@ const DailyLesson = () => {
   }, [filteredData]);
 
   const canEditLesson = (lesson: DailyLessonData): boolean => {
+    if (isGuest) return false; // ✅ guest can't edit
     if (isManager) return true;
     const lessonSlug = resolveTeacherSlug(lesson.teacher, lesson.teacherSlug);
     if (userRole === "teacher" && lessonSlug === userSlug) return true;
@@ -276,6 +388,7 @@ const DailyLesson = () => {
   };
 
   const canDeleteLesson = (lesson: DailyLessonData): boolean => {
+    if (isGuest) return false; // ✅ guest can't delete
     if (isManager) return true;
     const lessonSlug = resolveTeacherSlug(lesson.teacher, lesson.teacherSlug);
     if (userRole === "teacher" && lessonSlug === userSlug) return true;
@@ -300,53 +413,16 @@ const DailyLesson = () => {
     setDatePickerValue(todayBn());
   };
 
-  if (isLoading) return <Skeleton variant="daily-lesson" />;
-
-  // ✅ Guest হলে কতটা card দেখাবে সেটা calculate করার helper
-  const buildGuestContent = () => {
-    let cardCount = 0;
-    const elements: React.ReactNode[] = [];
-
-    for (const { className, lessons } of groupedByClass) {
-      if (cardCount >= previewLimit) break;
-
-      const color = CLASS_COLORS[className] ?? DEFAULT_CLASS_COLOR;
-      const remaining = previewLimit - cardCount;
-      const visibleLessons = lessons.slice(0, remaining);
-      cardCount += visibleLessons.length;
-
-      elements.push(
-        <div key={className}>
-          <ClassGroupTitle
-            className={className}
-            index={elements.length}
-            count={lessons.length}
-          />
-          <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
-            {visibleLessons.map((lesson, i) => (
-              <EnhancedLessonCard
-                key={lesson._id}
-                lesson={lesson}
-                index={i}
-                classColor={color}
-                canEdit={false}
-                canDelete={false}
-                onEdit={() => {}}
-                onDelete={() => {}}
-              />
-            ))}
-          </div>
-        </div>,
-      );
+  // ✅ Guest click handler - যেকোনো click এ login prompt দেখাবে
+  const handleGuestClick = (e: React.MouseEvent) => {
+    if (isGuest) {
+      e.preventDefault();
+      e.stopPropagation();
+      setShowLoginPrompt(true);
     }
-
-    return (
-      <>
-        {elements}
-        <LoginPromptOverlay />
-      </>
-    );
   };
+
+  if (isLoading) return <Skeleton variant="daily-lesson" />;
 
   return (
     <div className="relative">
@@ -370,7 +446,7 @@ const DailyLesson = () => {
         </motion.p>
       </header>
 
-      {/* Date Filter Bar */}
+      {/* Date Filter Bar - Guest এও কাজ করবে */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -407,8 +483,35 @@ const DailyLesson = () => {
         </AnimatePresence>
       </motion.div>
 
+      {/* Guest Banner */}
+      {isGuest && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.3 }}
+          className="mb-4 mx-2 sm:mx-0 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800"
+        >
+          <p className="text-xs sm:text-sm text-amber-700 dark:text-amber-300 bangla text-center">
+            👋 সম্পূর্ণ কন্টেন্ট দেখতে{" "}
+            <button
+              onClick={() => setShowLoginPrompt(true)}
+              className="font-bold underline hover:no-underline"
+            >
+              লগইন করুন
+            </button>{" "}
+            অথবা{" "}
+            <button
+              onClick={() => navigate("/register")}
+              className="font-bold underline hover:no-underline"
+            >
+              অ্যাকাউন্ট খুলুন
+            </button>
+          </p>
+        </motion.div>
+      )}
+
       {/* Staff indicator — শুধু logged in staff দেখবে */}
-      {isStaff && (
+      {!isGuest && isStaff && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -436,14 +539,20 @@ const DailyLesson = () => {
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="px-2 sm:px-3 md:px-0"
+            className="px-2 sm:px-3 md:px-0 relative"
           >
             {groupedByClass.length > 0 ? (
-              // ✅ Guest হলে preview, logged in হলে সব দেখাবে
-              isGuest ? (
-                buildGuestContent()
-              ) : (
-                groupedByClass.map(({ className, lessons }, groupIndex) => {
+              <>
+                {/* ✅ Guest Overlay - click করলে login prompt */}
+                {isGuest && (
+                  <div
+                    onClick={handleGuestClick}
+                    className="absolute inset-0 z-20 cursor-pointer"
+                    style={{ background: "transparent" }}
+                  />
+                )}
+
+                {groupedByClass.map(({ className, lessons }, groupIndex) => {
                   const color = CLASS_COLORS[className] ?? DEFAULT_CLASS_COLOR;
                   return (
                     <div key={className}>
@@ -468,8 +577,8 @@ const DailyLesson = () => {
                       </div>
                     </div>
                   );
-                })
-              )
+                })}
+              </>
             ) : (
               <EmptyState
                 message="এই তারিখে কোনো পাঠ নেই"
@@ -484,9 +593,16 @@ const DailyLesson = () => {
         </AnimatePresence>
       )}
 
-      {/* Modals — শুধু logged in user দেখবে */}
+      {/* Login Prompt Modal */}
       <AnimatePresence>
-        {editTarget && (
+        {showLoginPrompt && (
+          <LoginPromptModal onClose={() => setShowLoginPrompt(false)} />
+        )}
+      </AnimatePresence>
+
+      {/* Edit/Delete Modals — শুধু logged in user */}
+      <AnimatePresence>
+        {editTarget && !isGuest && (
           <EditModal
             key="edit"
             record={editTarget}
@@ -496,7 +612,7 @@ const DailyLesson = () => {
             }
           />
         )}
-        {deleteTarget && (
+        {deleteTarget && !isGuest && (
           <DeleteModal
             key="delete"
             record={deleteTarget}
