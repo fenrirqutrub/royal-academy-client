@@ -412,12 +412,9 @@ const WeeklyExam = () => {
     <div className="relative">
       {/* Header */}
       <header className="text-center bangla my-4 px-4">
-        <h1 className="text-xl sm:text-2xl md:text-5xl font-bold text-[var(--color-text)]">
-          সাপ্তাহিক পরীক্ষার ধারণা
+        <h1 className="text-2xl md:text-4xl font-bold text-[var(--color-text)]">
+          সাপ্তাহিক পরীক্ষার ধারণা - {toBn(activeExamNumber ?? "")}
         </h1>
-        <p className="text-base sm:text-lg md:text-3xl font-bold text-[var(--color-gray)] my-2 sm:my-3">
-          সাপ্তাহিক পরীক্ষা নং - {toBn(activeExamNumber ?? "")}
-        </p>
       </header>
 
       {/* Class Filter Tabs */}
@@ -451,13 +448,13 @@ const WeeklyExam = () => {
       {/* Marquee */}
       <div className="flex items-stretch rounded overflow-hidden bangla mt-6 sm:mt-8 mx-2 sm:mx-0">
         <div className="shrink-0 flex items-center justify-center px-3 sm:px-5 bg-[var(--color-text)]">
-          <span className="text-[var(--color-bg)] font-black text-sm sm:text-lg md:text-xl tracking-wide">
+          <span className="text-[var(--color-bg)] font-black text-md md:text-lg tracking-wide">
             বিজ্ঞপ্তি
           </span>
         </div>
-        <div className="flex-1 bg-[var(--color-active-bg)] overflow-hidden py-1 md:py-2 flex items-center">
+        <div className="flex-1 bg-[var(--color-active-bg)] overflow-hidden py-1 flex items-center">
           <Marquee speed={40} gradient={false} pauseOnHover>
-            <span className="flex items-center text-[var(--color-text)] text-sm sm:text-lg md:text-xl font-medium px-4 sm:px-6">
+            <span className="flex items-center text-[var(--color-text)] text-md md:text-lg  font-medium px-4 sm:px-6">
               লিখিত ৭০, বহুনির্বাচনী ৩০; পূর্ণমান ১০০; সময় ৩ ঘণ্টা; পরীক্ষার ফি
               ও অন্যন্য খরচ বাবদ ৩০ টাকা ধার্য করা হয়েছে। নির্ধারিত সময়ের
               মধ্যে উপস্থিত হওয়ার জন্য আদেশ করা হলো{" "}

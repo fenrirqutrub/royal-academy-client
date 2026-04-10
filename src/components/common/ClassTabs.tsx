@@ -1,4 +1,4 @@
-// src/components/ClassTabs.tsx
+// src/components/common/ClassTabs.tsx
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -10,7 +10,6 @@ import {
   ScrollText,
   Award,
   Users,
-  ChevronDown,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -22,15 +21,14 @@ interface ClassOption {
   color: string;
 }
 
-interface ExamData {
+interface ClassData {
   class: string;
-  [key: string]: unknown;
 }
 
 interface ClassTabsProps {
   activeId: string;
   onChange: (id: string) => void;
-  data?: ExamData[];
+  data?: ClassData[];
 }
 
 // ─── Default Classes ──────────────────────────────────────────────────────────
@@ -75,7 +73,7 @@ const getClassInfo = (
 };
 
 // ─── Helper: Generate classes from data ───────────────────────────────────────
-const getClassesFromData = (data: ExamData[]): ClassOption[] => {
+const getClassesFromData = (data: ClassData[]): ClassOption[] => {
   if (!data || data.length === 0) return DEFAULT_CLASSES;
 
   // Get unique classes from data
@@ -130,10 +128,8 @@ const ClassTabs = ({ activeId, onChange, data = [] }: ClassTabsProps) => {
       <motion.button
         onClick={() => setOpen((p) => !p)}
         whileTap={{ scale: 0.95 }}
-        className="flex items-center gap-2 bangla text-lg sm:text-xl opacity-70 hover:opacity-100
-          transition-all outline-none select-none text-[var(--color-text)]
-          px-4 py-2.5 rounded-xl border border-[var(--color-active-border)]
-          bg-[var(--color-active-bg)] hover:border-[var(--color-gray)]"
+        className="flex items-center gap-2 bangla text-md md:text-lg opacity-70 hover:opacity-100
+          transition-all outline-none select-none text-[var(--color-text)] px-4 py-2 rounded-xl border border-[var(--color-active-border)] bg-[var(--color-active-bg)] hover:border-[var(--color-gray)]"
       >
         <AnimatePresence mode="wait">
           <motion.span
@@ -151,7 +147,7 @@ const ClassTabs = ({ activeId, onChange, data = [] }: ClassTabsProps) => {
               className="inline-flex"
               style={{ color: active.color }}
             >
-              <ActiveIcon size={20} strokeWidth={2.2} />
+              <ActiveIcon size={18} strokeWidth={2.2} />
             </motion.span>
             <span className="font-semibold">{active.label}</span>
           </motion.span>
@@ -162,7 +158,7 @@ const ClassTabs = ({ activeId, onChange, data = [] }: ClassTabsProps) => {
           transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
           className="text-xs opacity-50 ml-1"
         >
-          <ChevronDown className="w-4 h-4" />
+          ▾
         </motion.span>
       </motion.button>
 

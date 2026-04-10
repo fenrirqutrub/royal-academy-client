@@ -1,3 +1,4 @@
+// src/pages/DailyLesson/DailyLesson.tsx
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useEffect, useState } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
@@ -23,6 +24,7 @@ import {
 } from "./DailyLessonUpdateModals";
 import { useGuestPreview } from "../../hooks/useGuestPreview";
 import LoginPromptOverlay from "../Admin/Auth/LoginPromptOverlay";
+import ClassTabs from "../../components/common/ClassTabs";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const MANAGER_ROLES = ["principal", "admin", "owner"];
@@ -211,6 +213,7 @@ const DailyLesson = () => {
 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [datePickerValue, setDatePickerValue] = useState<string>(todayBn());
+  const [selectedClass, setSelectedClass] = useState<string>("all");
   const [editTarget, setEditTarget] = useState<DailyLessonData | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DailyLessonData | null>(
     null,
@@ -249,11 +252,19 @@ const DailyLesson = () => {
     return set;
   }, [data]);
 
-  const filteredData = useMemo(() => {
+  // Filter by date first
+  const dateFilteredData = useMemo(() => {
     if (!data) return [];
     return data.filter((lesson) => isSameDay(lesson.date, selectedDate));
   }, [data, selectedDate]);
 
+  // Then filter by class
+  const filteredData = useMemo(() => {
+    if (selectedClass === "all") return dateFilteredData;
+    return dateFilteredData.filter((lesson) => lesson.class === selectedClass);
+  }, [dateFilteredData, selectedClass]);
+
+  // Group by class for display
   const groupedByClass = useMemo(() => {
     const map = new Map<string, DailyLessonData[]>();
     filteredData.forEach((lesson) => {
@@ -270,6 +281,9 @@ const DailyLesson = () => {
       .sort(([a], [b]) => (CLASS_ORDER[a] ?? 99) - (CLASS_ORDER[b] ?? 99))
       .map(([className, lessons]) => ({ className, lessons }));
   }, [filteredData]);
+
+  // Get total count before class filter (for display)
+  const totalLessonsForDate = dateFilteredData.length;
 
   const canEditLesson = (lesson: DailyLessonData): boolean => {
     if (isGuest) return false;
@@ -303,18 +317,31 @@ const DailyLesson = () => {
   const handleReset = () => {
     setSelectedDate(new Date());
     setDatePickerValue(todayBn());
+    setSelectedClass("all");
+  };
+
+  const handleResetClassFilter = () => {
+    setSelectedClass("all");
+  };
+
+  // Get class label for empty state message
+  const getClassLabel = (classId: string): string => {
+    if (classId.includes("৬ষ্ঠ")) return "ষষ্ঠ";
+    if (classId.includes("৭ম")) return "সপ্তম";
+    if (classId.includes("৮ম")) return "অষ্টম";
+    if (classId.includes("৯ম")) return "নবম";
+    if (classId.includes("১০ম")) return "দশম";
+    if (classId.includes("এসএসসি") || classId.includes("SSC")) return "এসএসসি";
+    return classId;
   };
 
   // ─── Guest Preview Builder ───────────────────────────────────────────────
-  // Shows only Class 6, max 3 items, then LoginPromptOverlay
   const buildGuestContent = () => {
-    // Find Class 6 group only
     const class6Group = groupedByClass.find(
       ({ className }) => className === GUEST_PREVIEW_CLASS,
     );
 
     if (!class6Group) {
-      // Class 6 has no lessons today → still show overlay
       return (
         <div>
           <p className="text-[var(--color-gray)] text-center py-8 bangla text-sm">
@@ -327,9 +354,6 @@ const DailyLesson = () => {
 
     const { className, lessons } = class6Group;
     const color = CLASS_COLORS[className] ?? DEFAULT_CLASS_COLOR;
-
-    // Take at most previewLimit (2) items
-
     const visibleLessons = lessons.slice(0, 2);
 
     return (
@@ -353,7 +377,6 @@ const DailyLesson = () => {
             />
           ))}
         </div>
-        {/* Login prompt below the preview cards */}
         <LoginPromptOverlay />
       </div>
     );
@@ -383,36 +406,53 @@ const DailyLesson = () => {
         </motion.p>
       </header>
 
-      {/* Date Filter Bar */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.12, duration: 0.4 }}
-        className="flex flex-wrap items-center gap-2 sm:gap-3 px-2 sm:px-3 md:px-0 mb-4 sm:mb-6 bangla"
-      >
-        <div className="w-full sm:w-72 relative">
+      {/* Filter Bar */}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 px-2 sm:px-3 md:px-0 mb-4 sm:mb-6">
+        {/* Date Filter */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.12, duration: 0.4 }}
+          className="w-full sm:w-72"
+        >
           <DatePicker
             value={datePickerValue}
-            onDateChange={(date) => setSelectedDate(date)}
+            onDateChange={(date) => {
+              setSelectedDate(date);
+              setSelectedClass("all");
+            }}
             onChange={(val) => setDatePickerValue(val)}
             placeholder="অন্য তারিখ বেছে নিন"
             maxDate={new Date()}
             activeDates={activeDates}
           />
-        </div>
+        </motion.div>
 
+        {/* Class Filter Tabs */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+        >
+          <ClassTabs
+            activeId={selectedClass}
+            onChange={isGuest ? () => {} : setSelectedClass}
+            data={dateFilteredData}
+          />
+        </motion.div>
+
+        {/* Merged Count Badge */}
         <AnimatePresence mode="wait">
-          {/* guests only see Class 6 count, logged-in see full count */}
-          {filteredData.length > 0 && (
-            <motion.span
-              key={selectedDate.toDateString()}
+          {dateFilteredData.length > 0 && (
+            <motion.div
+              key={`${selectedDate.toDateString()}-${selectedClass}`}
               initial={{ opacity: 0, scale: 0.85 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.85 }}
-              className="ml-auto text-xs sm:text-sm text-[var(--color-gray)]"
+              className="text-xs sm:text-sm bangla px-3 py-1.5 rounded-full bg-[var(--color-active-bg)] border border-[var(--color-active-border)] text-[var(--color-gray)]"
             >
               {isGuest ? (
-                <div>
+                <>
                   ৬ষ্ঠ শ্রেণির{" "}
                   <span className="font-bold text-[var(--color-text)]">
                     {toBn(
@@ -424,20 +464,31 @@ const DailyLesson = () => {
                     )}
                   </span>
                   টি পাঠ
-                </div>
-              ) : (
-                <div>
-                  মোট{" "}
+                </>
+              ) : selectedClass !== "all" ? (
+                <>
                   <span className="font-bold text-[var(--color-text)]">
                     {toBn(String(filteredData.length))}
                   </span>
+                  টি পাঠ পাওয়া গেছে (মোট{" "}
+                  <span className="font-bold text-[var(--color-text)]">
+                    {toBn(String(totalLessonsForDate))}
+                  </span>
+                  টির মধ্যে)
+                </>
+              ) : (
+                <>
+                  মোট{" "}
+                  <span className="font-bold text-[var(--color-text)]">
+                    {toBn(String(totalLessonsForDate))}
+                  </span>
                   টি পাঠ
-                </div>
+                </>
               )}
-            </motion.span>
+            </motion.div>
           )}
         </AnimatePresence>
-      </motion.div>
+      </div>
 
       {/* Staff indicator — logged in staff only */}
       {!isGuest && isStaff && (
@@ -463,7 +514,7 @@ const DailyLesson = () => {
       ) : (
         <AnimatePresence mode="wait">
           <motion.div
-            key={selectedDate.toDateString()}
+            key={`${selectedDate.toDateString()}-${selectedClass}`}
             variants={contentVariants}
             initial="hidden"
             animate="visible"
@@ -471,7 +522,6 @@ const DailyLesson = () => {
             className="px-2 sm:px-3 md:px-0"
           >
             {groupedByClass.length > 0 ? (
-              // ✅ Guest → preview only, logged-in → full content
               isGuest ? (
                 buildGuestContent()
               ) : (
@@ -502,8 +552,7 @@ const DailyLesson = () => {
                   );
                 })
               )
-            ) : // Empty state — guests also see this with overlay
-            isGuest ? (
+            ) : isGuest ? (
               <div>
                 <EmptyState
                   message="এই তারিখে কোনো পাঠ নেই"
@@ -516,20 +565,38 @@ const DailyLesson = () => {
                 <LoginPromptOverlay />
               </div>
             ) : (
-              <EmptyState
-                message="এই তারিখে কোনো পাঠ নেই"
-                action={
-                  <Button onClick={handleReset} className="btn">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center py-12 sm:py-16"
+              >
+                <div className="text-4xl sm:text-5xl mb-4">📭</div>
+                <p className="text-[var(--color-gray)] bangla text-sm sm:text-base mb-4">
+                  {selectedClass !== "all"
+                    ? `${getClassLabel(selectedClass)} শ্রেণির কোনো পাঠ পাওয়া যায়নি`
+                    : "এই তারিখে কোনো পাঠ নেই"}
+                </p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {selectedClass !== "all" && (
+                    <Button
+                      onClick={handleResetClassFilter}
+                      variant="secondary"
+                      className="bangla"
+                    >
+                      সকল শ্রেণি দেখুন
+                    </Button>
+                  )}
+                  <Button onClick={handleReset} className="bangla">
                     আজকের পাঠ দেখুন
                   </Button>
-                }
-              />
+                </div>
+              </motion.div>
             )}
           </motion.div>
         </AnimatePresence>
       )}
 
-      {/* Edit / Delete Modals — logged-in users only */}
+      {/* Edit / Delete Modals */}
       <AnimatePresence>
         {editTarget && !isGuest && (
           <EditModal
