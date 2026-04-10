@@ -7,6 +7,7 @@ import { type Teacher, TeacherCard } from "./TeacherFiles.Ui";
 import SearchBar from "../common/Searchbar";
 import EmptyState from "../common/Emptystate";
 import { useAuth } from "../../context/AuthContext";
+import { toBn } from "../../utility/shared";
 
 const TeacherFiles = () => {
   const [search, setSearch] = useState("");
@@ -61,17 +62,14 @@ const TeacherFiles = () => {
   });
 
   return (
-    <div className="min-h-screen px-4 sm:px-6 py-8 bg-[var(--color-bg)] relative">
+    <div className="min-h-screen px-4 sm:px-6 bg-[var(--color-bg)] relative">
       {/* header */}
-      <div className="mb-7 mt-10 lg:mt-0 flex items-end justify-between flex-wrap gap-4">
+      <div className=" flex items-end justify-center md:justify-between flex-wrap gap-4 mb-10">
         <div>
-          <h1 className="text-2xl font-bold bangla text-[var(--color-text)]">
-            শিক্ষক তালিকা
-          </h1>
-          <p className="text-sm bangla mt-1 text-[var(--color-gray)]">
+          <p className="text-xl text-[var(--color-gray)]">
             মোট{" "}
             <span className="font-semibold" style={{ color: "#3b82f6" }}>
-              {teachers.length}
+              {toBn(teachers.length)}
             </span>{" "}
             জন নিবন্ধিত
           </p>

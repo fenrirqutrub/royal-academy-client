@@ -7,6 +7,8 @@ import SearchBar from "../../components/common/Searchbar";
 import Skeleton from "../../components/common/Skeleton";
 import EmptyState from "../../components/common/Emptystate";
 import { useAuth } from "../../context/AuthContext";
+import Swal from "sweetalert2";
+import { toBn } from "../../utility/shared";
 
 const StudentsFiles = () => {
   const [search, setSearch] = useState("");
@@ -14,6 +16,7 @@ const StudentsFiles = () => {
   const { user } = useAuth();
 
   const canDelete = ["owner", "admin", "principal"].includes(user?.role ?? "");
+  const canEdit = ["owner", "admin", "principal"].includes(user?.role ?? "");
 
   const {
     data: students = [],
@@ -30,17 +33,118 @@ const StudentsFiles = () => {
     },
   });
 
+  // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       await axiosPublic.delete(`/api/users/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["students"] });
+      Swal.fire({
+        icon: "success",
+        title: "সফল!",
+        text: "ছাত্র/ছাত্রী সফলভাবে মুছে ফেলা হয়েছে",
+        confirmButtonColor: "#10b981",
+        customClass: {
+          popup: "bangla",
+          title: "bangla",
+          confirmButton: "bangla",
+        },
+      });
+    },
+    onError: () => {
+      Swal.fire({
+        icon: "error",
+        title: "ত্রুটি!",
+        text: "মুছে ফেলতে সমস্যা হয়েছে",
+        confirmButtonColor: "#ef4444",
+        customClass: {
+          popup: "bangla",
+          title: "bangla",
+          confirmButton: "bangla",
+        },
+      });
     },
   });
 
-  const handleDelete = async (id: string) => {
-    await deleteMutation.mutateAsync(id);
+  // Edit mutation
+  const editMutation = useMutation({
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Partial<Student>;
+    }) => {
+      await axiosPublic.patch(`/api/users/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+      Swal.fire({
+        icon: "success",
+        title: "সফল!",
+        text: "তথ্য সফলভাবে আপডেট করা হয়েছে",
+        confirmButtonColor: "#10b981",
+        customClass: {
+          popup: "bangla",
+          title: "bangla",
+          confirmButton: "bangla",
+        },
+      });
+    },
+    onError: () => {
+      Swal.fire({
+        icon: "error",
+        title: "ত্রুটি!",
+        text: "আপডেট করতে সমস্যা হয়েছে",
+        confirmButtonColor: "#ef4444",
+        customClass: {
+          popup: "bangla",
+          title: "bangla",
+          confirmButton: "bangla",
+        },
+      });
+    },
+  });
+
+  // Delete handler with SweetAlert2
+  const handleDelete = async (id: string, name: string) => {
+    const result = await Swal.fire({
+      title: "আপনি কি নিশ্চিত?",
+      html: `<p class="bangla"><strong>${name}</strong> কে স্থায়ীভাবে মুছে ফেলা হবে।</p>`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#64748b",
+      confirmButtonText: "হ্যাঁ, মুছুন",
+      cancelButtonText: "বাতিল",
+      reverseButtons: true,
+      customClass: {
+        popup: "bangla",
+        title: "bangla",
+        confirmButton: "bangla",
+        cancelButton: "bangla",
+      },
+      showLoaderOnConfirm: true,
+      preConfirm: async () => {
+        try {
+          await deleteMutation.mutateAsync(id);
+          return true;
+        } catch (error) {
+          Swal.showValidationMessage("মুছে ফেলতে ব্যর্থ হয়েছে");
+          console.error(error);
+          return false;
+        }
+      },
+      allowOutsideClick: () => !Swal.isLoading(),
+    });
+
+    return result.isConfirmed;
+  };
+
+  // Edit handler
+  const handleEdit = async (id: string, data: Partial<Student>) => {
+    await editMutation.mutateAsync({ id, data });
   };
 
   const filtered = students.filter((s) => {
@@ -55,20 +159,17 @@ const StudentsFiles = () => {
   });
 
   return (
-    <div className="min-h-screen px-4 sm:px-6 py-8 bg-[var(--color-bg)] relative">
+    <div className="min-h-screen px-4 sm:px-6 bg-[var(--color-bg)] relative">
       {/* header */}
-      <div className="mb-7 mt-10 lg:mt-0 flex items-end justify-between flex-wrap gap-4">
+      <div className="mb-7 flex items-end justify-center md:justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold bangla text-[var(--color-text)]">
-            ছাত্রছাত্রী তালিকা
-          </h1>
-          <p className="text-sm bangla mt-1 text-[var(--color-gray)]">
+          <h2 className="text-xl text-center text-[var(--color-gray)]">
             মোট{" "}
             <span className="font-semibold" style={{ color: "#3b82f6" }}>
-              {students.length}
+              {toBn(students.length)}
             </span>{" "}
             জন নিবন্ধিত
-          </p>
+          </h2>
         </div>
         <div className="w-full sm:w-72">
           <SearchBar
@@ -99,6 +200,7 @@ const StudentsFiles = () => {
               student={s}
               index={i}
               onDelete={canDelete ? handleDelete : undefined}
+              onEdit={canEdit ? handleEdit : undefined}
             />
           ))}
         </div>

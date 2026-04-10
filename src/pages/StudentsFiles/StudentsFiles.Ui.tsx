@@ -1,15 +1,20 @@
 // src/components/Students/StudentsFiles.Ui.tsx
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Phone,
   MapPin,
   BookOpen,
   Eye,
   Trash2,
-  AlertTriangle,
+  Edit3,
+  X,
+  Save,
+  User,
+  GraduationCap,
 } from "lucide-react";
+import { createPortal } from "react-dom";
 import PersonModal, {
   formatDOB,
   InfoRow,
@@ -55,127 +60,412 @@ const getAccent = (gender?: string | null) =>
   gender === "মেয়ে" || gender === "নারী" ? "#ec4899" : "#3b82f6";
 
 // ══════════════════════════════════════════════════
-// DELETE CONFIRM MODAL
+// EDIT MODAL
 // ══════════════════════════════════════════════════
-const DeleteConfirmModal = ({
-  student,
-  onConfirm,
-  onCancel,
-  isDeleting,
-}: {
+interface EditModalProps {
   student: Student;
-  onConfirm: () => void;
-  onCancel: () => void;
-  isDeleting: boolean;
-}) => {
+  onSave: (data: Partial<Student>) => Promise<void>;
+  onClose: () => void;
+}
+
+const EditModal = ({ student, onSave, onClose }: EditModalProps) => {
+  const [formData, setFormData] = useState({
+    name: student.name || "",
+    fatherName: student.fatherName || "",
+    motherName: student.motherName || "",
+    phone: student.phone || "",
+    gender: student.gender || "",
+    religion: student.religion || "",
+    dateOfBirth: student.dateOfBirth?.split("T")[0] || "",
+    emergencyContact: student.emergencyContact || "",
+    studentClass: student.studentClass || "",
+    studentSubject: student.studentSubject || "",
+    roll: student.roll || "",
+    schoolName: student.schoolName || "",
+    gramNam: student.gramNam || "",
+    para: student.para || "",
+    thana: student.thana || "",
+    district: student.district || "",
+    division: student.division || "",
+    landmark: student.landmark || "",
+  });
+  const [isSaving, setIsSaving] = useState(false);
+
   const accent = getAccent(student.gender);
 
-  return (
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      await onSave(formData);
+      onClose();
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const inputClass = `
+    w-full px-3 py-2.5 rounded-xl text-sm bangla
+    bg-[var(--color-active-bg)] 
+    border border-[var(--color-active-border)]
+    text-[var(--color-text)]
+    placeholder:text-[var(--color-gray)]
+    focus:outline-none focus:border-blue-500/50
+    transition-all duration-200
+  `;
+
+  const labelClass =
+    "text-xs font-semibold bangla text-[var(--color-gray)] mb-1.5 block";
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-      style={{
-        backgroundColor: "rgba(0,0,0,0.6)",
-        backdropFilter: "blur(6px)",
-      }}
-      onClick={onCancel}
+      className="fixed inset-0 z-[9999] flex items-start justify-center px-2 bg-black/60 backdrop-blur-xl overflow-y-auto py-4"
+      onClick={onClose}
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
         transition={{ type: "spring", stiffness: 320, damping: 28 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full rounded-2xl overflow-hidden shadow-2xl"
+        className="w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl my-auto"
         style={{
-          maxWidth: 380,
           backgroundColor: "var(--color-bg)",
           border: "1px solid var(--color-active-border)",
         }}
       >
-        <div className="h-[3px] bg-rose-500" />
+        {/* Header accent */}
+        <div
+          className="h-1.5"
+          style={{
+            background: `linear-gradient(90deg, ${accent}, ${accent}88, transparent)`,
+          }}
+        />
 
-        <div className="p-6">
-          <div className="flex items-center justify-center w-12 h-12 rounded-2xl mx-auto mb-4 bg-rose-500/10 border border-rose-500/20">
-            <AlertTriangle className="w-6 h-6 text-rose-500" />
-          </div>
-
-          <h3
-            className="text-lg font-bold text-center bangla mb-1"
-            style={{ color: "var(--color-text)" }}
-          >
-            ছাত্র/ছাত্রী মুছে ফেলবেন?
-          </h3>
-          <p
-            className="text-sm text-center bangla mb-1"
-            style={{ color: "var(--color-gray)" }}
-          >
-            নিচের ছাত্র/ছাত্রীকে স্থায়ীভাবে মুছে ফেলা হবে:
-          </p>
-
-          {/* Student preview */}
-          <div
-            className="flex items-center gap-3 rounded-xl p-3 mt-3 mb-5"
-            style={{
-              backgroundColor: "var(--color-active-bg)",
-              border: "1px solid var(--color-active-border)",
-            }}
-          >
-            <Avatar
-              name={student.name}
-              url={student.avatar?.url}
-              color={accent}
-              size={40}
-            />
-            <div className="min-w-0">
-              <p
-                className="text-sm font-semibold bangla truncate"
-                style={{ color: "var(--color-text)" }}
-              >
+        {/* Header */}
+        <div className="p-4 border-b border-[var(--color-active-border)] flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center"
+              style={{ backgroundColor: accent + "18" }}
+            >
+              <Edit3 className="w-5 h-5" style={{ color: accent }} />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold bangla text-[var(--color-text)]">
+                তথ্য সম্পাদনা
+              </h2>
+              <p className="text-xs bangla text-[var(--color-gray)]">
                 {student.name}
-              </p>
-              <p
-                className="text-xs font-mono"
-                style={{ color: "var(--color-gray)" }}
-              >
-                {student.phone ?? student.slug ?? "—"}
               </p>
             </div>
           </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--color-active-bg)] hover:bg-red-500/20 transition-colors"
+          >
+            <X className="w-4 h-4 text-[var(--color-gray)]" />
+          </button>
+        </div>
 
-          <div className="flex gap-3">
+        {/* Form */}
+        <form
+          onSubmit={handleSubmit}
+          className="p-5 space-y-5 max-h-[70vh] overflow-y-auto"
+        >
+          {/* Basic Info Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 pb-2 border-b border-[var(--color-active-border)]">
+              <User className="w-4 h-4 text-blue-500" />
+              <span className="text-sm font-bold bangla text-[var(--color-text)]">
+                ব্যক্তিগত তথ্য
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>নাম *</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  required
+                  className={inputClass}
+                  placeholder="পূর্ণ নাম"
+                />
+              </div>
+              <div>
+                <label className={labelClass}>ফোন</label>
+                <input
+                  type="text"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  className={inputClass}
+                  placeholder="০১XXXXXXXXX"
+                />
+              </div>
+              <div>
+                <label className={labelClass}>পিতার নাম</label>
+                <input
+                  type="text"
+                  name="fatherName"
+                  value={formData.fatherName}
+                  onChange={handleChange}
+                  className={inputClass}
+                  placeholder="পিতার নাম"
+                />
+              </div>
+              <div>
+                <label className={labelClass}>মাতার নাম</label>
+                <input
+                  type="text"
+                  name="motherName"
+                  value={formData.motherName}
+                  onChange={handleChange}
+                  className={inputClass}
+                  placeholder="মাতার নাম"
+                />
+              </div>
+              <div>
+                <label className={labelClass}>লিঙ্গ</label>
+                <select
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleChange}
+                  className={inputClass}
+                >
+                  <option value="">নির্বাচন করুন</option>
+                  <option value="ছেলে">ছেলে</option>
+                  <option value="মেয়ে">মেয়ে</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>ধর্ম</label>
+                <select
+                  name="religion"
+                  value={formData.religion}
+                  onChange={handleChange}
+                  className={inputClass}
+                >
+                  <option value="">নির্বাচন করুন</option>
+                  <option value="ইসলাম">ইসলাম</option>
+                  <option value="হিন্দু">হিন্দু</option>
+                  <option value="খ্রিস্টান">খ্রিস্টান</option>
+                  <option value="বৌদ্ধ">বৌদ্ধ</option>
+                  <option value="অন্যান্য">অন্যান্য</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>জন্ম তারিখ</label>
+                <input
+                  type="date"
+                  name="dateOfBirth"
+                  value={formData.dateOfBirth}
+                  onChange={handleChange}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>জরুরি যোগাযোগ</label>
+                <input
+                  type="text"
+                  name="emergencyContact"
+                  value={formData.emergencyContact}
+                  onChange={handleChange}
+                  className={inputClass}
+                  placeholder="জরুরি ফোন নম্বর"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Academic Info Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 pb-2 border-b border-[var(--color-active-border)]">
+              <GraduationCap className="w-4 h-4 text-purple-500" />
+              <span className="text-sm font-bold bangla text-[var(--color-text)]">
+                শিক্ষা সম্পর্কিত
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>শ্রেণি</label>
+                <input
+                  type="text"
+                  name="studentClass"
+                  value={formData.studentClass}
+                  onChange={handleChange}
+                  className={inputClass}
+                  placeholder="যেমন: দশম"
+                />
+              </div>
+              <div>
+                <label className={labelClass}>বিভাগ</label>
+                <select
+                  name="studentSubject"
+                  value={formData.studentSubject}
+                  onChange={handleChange}
+                  className={inputClass}
+                >
+                  <option value="">নির্বাচন করুন</option>
+                  <option value="বিজ্ঞান">বিজ্ঞান</option>
+                  <option value="মানবিক">মানবিক</option>
+                  <option value="ব্যবসায় শিক্ষা">ব্যবসায় শিক্ষা</option>
+                  <option value="সাধারণ">সাধারণ</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>রোল</label>
+                <input
+                  type="text"
+                  name="roll"
+                  value={formData.roll}
+                  onChange={handleChange}
+                  className={inputClass}
+                  placeholder="রোল নম্বর"
+                />
+              </div>
+              <div>
+                <label className={labelClass}>বিদ্যালয়</label>
+                <input
+                  type="text"
+                  name="schoolName"
+                  value={formData.schoolName}
+                  onChange={handleChange}
+                  className={inputClass}
+                  placeholder="বিদ্যালয়ের নাম"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Address Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 pb-2 border-b border-[var(--color-active-border)]">
+              <MapPin className="w-4 h-4 text-red-500" />
+              <span className="text-sm font-bold bangla text-[var(--color-text)]">
+                ঠিকানা
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>গ্রাম</label>
+                <input
+                  type="text"
+                  name="gramNam"
+                  value={formData.gramNam}
+                  onChange={handleChange}
+                  className={inputClass}
+                  placeholder="গ্রামের নাম"
+                />
+              </div>
+              <div>
+                <label className={labelClass}>পাড়া/মহল্লা</label>
+                <input
+                  type="text"
+                  name="para"
+                  value={formData.para}
+                  onChange={handleChange}
+                  className={inputClass}
+                  placeholder="পাড়া/মহল্লা"
+                />
+              </div>
+              <div>
+                <label className={labelClass}>থানা</label>
+                <input
+                  type="text"
+                  name="thana"
+                  value={formData.thana}
+                  onChange={handleChange}
+                  className={inputClass}
+                  placeholder="থানা/উপজেলা"
+                />
+              </div>
+              <div>
+                <label className={labelClass}>জেলা</label>
+                <input
+                  type="text"
+                  name="district"
+                  value={formData.district}
+                  onChange={handleChange}
+                  className={inputClass}
+                  placeholder="জেলা"
+                />
+              </div>
+              <div>
+                <label className={labelClass}>বিভাগ</label>
+                <select
+                  name="division"
+                  value={formData.division}
+                  onChange={handleChange}
+                  className={inputClass}
+                >
+                  <option value="">নির্বাচন করুন</option>
+                  <option value="ঢাকা">ঢাকা</option>
+                  <option value="চট্টগ্রাম">চট্টগ্রাম</option>
+                  <option value="রাজশাহী">রাজশাহী</option>
+                  <option value="খুলনা">খুলনা</option>
+                  <option value="বরিশাল">বরিশাল</option>
+                  <option value="সিলেট">সিলেট</option>
+                  <option value="রংপুর">রংপুর</option>
+                  <option value="ময়মনসিংহ">ময়মনসিংহ</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>চিহ্ন</label>
+                <input
+                  type="text"
+                  name="landmark"
+                  value={formData.landmark}
+                  onChange={handleChange}
+                  className={inputClass}
+                  placeholder="নিকটবর্তী চিহ্ন"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-4 border-t border-[var(--color-active-border)]">
             <button
-              onClick={onCancel}
-              className="flex-1 py-2.5 rounded-xl text-sm font-semibold bangla transition-all"
-              style={{
-                backgroundColor: "var(--color-active-bg)",
-                border: "1px solid var(--color-active-border)",
-                color: "var(--color-gray)",
-              }}
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-3 rounded-xl text-sm font-semibold bangla transition-all bg-[var(--color-active-bg)] border border-[var(--color-active-border)] text-[var(--color-gray)] hover:bg-[var(--color-active-border)]"
             >
               বাতিল
             </button>
             <button
-              onClick={onConfirm}
-              disabled={isDeleting}
-              className="flex-1 py-2.5 rounded-xl text-sm font-semibold bangla transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+              type="submit"
+              disabled={isSaving}
+              className="flex-1 py-3 rounded-xl text-sm font-semibold bangla transition-all flex items-center justify-center gap-2 disabled:opacity-60"
               style={{
-                backgroundColor: isDeleting
-                  ? "rgb(239,68,68,0.6)"
-                  : "rgb(239,68,68)",
+                backgroundColor: isSaving ? accent + "88" : accent,
                 color: "#fff",
               }}
             >
-              {isDeleting ? (
+              {isSaving ? (
                 <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
               ) : (
-                <Trash2 className="w-4 h-4" />
+                <Save className="w-4 h-4" />
               )}
-              {isDeleting ? "মুছছে..." : "হ্যাঁ, মুছুন"}
+              {isSaving ? "সংরক্ষণ হচ্ছে..." : "সংরক্ষণ করুন"}
             </button>
           </div>
-        </div>
+        </form>
       </motion.div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 
@@ -231,7 +521,7 @@ export const StudentModal = ({
             )}
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
               {student.slug && (
-                <span className="text-sm md:text-md font-mono px-1.5 py-0.5 rounded bg-[var(--color-active-bg)] text-[var(--color-gray)] ">
+                <span className="text-sm md:text-md font-mono px-1.5 py-0.5 rounded bg-[var(--color-active-bg)] text-[var(--color-gray)]">
                   #{student.slug}
                 </span>
               )}
@@ -323,25 +613,25 @@ export const StudentCard = ({
   student,
   index,
   onDelete,
+  onEdit,
 }: {
   student: Student;
   index: number;
-  onDelete?: (id: string) => Promise<void>;
+  onDelete?: (id: string, name: string) => Promise<boolean>;
+  onEdit?: (id: string, data: Partial<Student>) => Promise<void>;
 }) => {
   const [modalOpen, setModalOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const accent = getAccent(student.gender);
 
   const handleDelete = async () => {
     if (!onDelete) return;
-    setIsDeleting(true);
-    try {
-      await onDelete(student._id);
-    } finally {
-      setIsDeleting(false);
-      setDeleteOpen(false);
-    }
+    await onDelete(student._id, student.name);
+  };
+
+  const handleEdit = async (data: Partial<Student>) => {
+    if (!onEdit) return;
+    await onEdit(student._id, data);
   };
 
   return (
@@ -459,7 +749,7 @@ export const StudentCard = ({
             <button
               type="button"
               onClick={() => setModalOpen(true)}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bangla cursor-pointer transition-all bg-transparent text-[var(--color-gray)] border border-[var(--color-active-border)] "
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bangla cursor-pointer transition-all bg-transparent text-[var(--color-gray)] border border-[var(--color-active-border)]"
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = accent + "88";
                 e.currentTarget.style.color = accent;
@@ -476,10 +766,40 @@ export const StudentCard = ({
               বিস্তারিত
             </button>
 
+            {onEdit && (
+              <motion.button
+                type="button"
+                onClick={() => setEditOpen(true)}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="flex items-center justify-center w-10 h-10 rounded-xl cursor-pointer transition-all shrink-0"
+                style={{
+                  border: "1px solid rgba(59,130,246,0.25)",
+                  color: "rgba(59,130,246,0.7)",
+                  backgroundColor: "rgba(59,130,246,0.05)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "rgba(59,130,246,0.6)";
+                  e.currentTarget.style.color = "rgb(59,130,246)";
+                  e.currentTarget.style.backgroundColor =
+                    "rgba(59,130,246,0.1)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "rgba(59,130,246,0.25)";
+                  e.currentTarget.style.color = "rgba(59,130,246,0.7)";
+                  e.currentTarget.style.backgroundColor =
+                    "rgba(59,130,246,0.05)";
+                }}
+                title="সম্পাদনা"
+              >
+                <Edit3 className="w-4 h-4" />
+              </motion.button>
+            )}
+
             {onDelete && (
               <motion.button
                 type="button"
-                onClick={() => setDeleteOpen(true)}
+                onClick={handleDelete}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className="flex items-center justify-center w-10 h-10 rounded-xl cursor-pointer transition-all shrink-0"
@@ -512,16 +832,13 @@ export const StudentCard = ({
         <StudentModal student={student} onClose={() => setModalOpen(false)} />
       )}
 
-      <AnimatePresence>
-        {deleteOpen && (
-          <DeleteConfirmModal
-            student={student}
-            onConfirm={handleDelete}
-            onCancel={() => setDeleteOpen(false)}
-            isDeleting={isDeleting}
-          />
-        )}
-      </AnimatePresence>
+      {editOpen && onEdit && (
+        <EditModal
+          student={student}
+          onSave={handleEdit}
+          onClose={() => setEditOpen(false)}
+        />
+      )}
     </>
   );
 };

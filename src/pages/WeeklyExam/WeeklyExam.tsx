@@ -1,3 +1,4 @@
+// src/components/WeeklyExam.tsx
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
@@ -18,6 +19,7 @@ import {
 } from "./WeeklyExamUpdateModals";
 import { useGuestPreview } from "../../hooks/useGuestPreview";
 import LoginPromptOverlay from "../Admin/Auth/LoginPromptOverlay";
+import ClassTabs from "../../components/common/ClassTabs";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface NormalizedImage {
@@ -30,14 +32,6 @@ type RawImage = string | { imageUrl?: string; url?: string; publicId?: string };
 // ─── Constants ────────────────────────────────────────────────────────────────
 const MANAGER_ROLES = ["principal", "admin", "owner"];
 const STAFF_ROLES = ["teacher", "principal", "admin", "owner"];
-
-const CLASS_ORDER: Record<string, number> = {
-  "৬ষ্ঠ শ্রেণি": 1,
-  "৭ম শ্রেণি": 2,
-  "৮ম শ্রেণি": 3,
-  "৯ম শ্রেণি": 4,
-  "১০ম শ্রেণি": 5,
-};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const toBn = (n: number | string) =>
@@ -53,8 +47,6 @@ const normalizeImages = (images: RawImage[]): NormalizedImage[] =>
     if (typeof img === "string") return { url: img, publicId: "" };
     return { url: img.imageUrl ?? img.url ?? "", publicId: img.publicId ?? "" };
   });
-
-const classOrder = (cls: string) => CLASS_ORDER[cls] ?? 99;
 
 const sortExamNumbers = (nums: string[]): string[] =>
   [...nums].sort((a, b) => Number(a) - Number(b));
@@ -244,6 +236,7 @@ const WeeklyExam = () => {
   const [selectedExamNumber, setSelectedExamNumber] = useState<string | null>(
     null,
   );
+  const [selectedClass, setSelectedClass] = useState<string>("all");
   const [editTarget, setEditTarget] = useState<WeeklyExamData | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<WeeklyExamData | null>(null);
 
@@ -279,9 +272,21 @@ const WeeklyExam = () => {
     return examNumbers[examNumbers.length - 1] ?? null;
   }, [examNumbers, selectedExamNumber]);
 
+  // In your WeeklyExam component, update the filter logic:
+
   const groupedByClass = useMemo(() => {
     if (!data || !activeExamNumber) return [];
-    const filtered = data.filter((e) => e.ExamNumber === activeExamNumber);
+
+    let filtered = data.filter((e) => e.ExamNumber === activeExamNumber);
+
+    // Apply class filter if not "all"
+    if (selectedClass !== "all") {
+      filtered = filtered.filter((e) => {
+        // Exact match for all classes including SSC
+        return e.class === selectedClass;
+      });
+    }
+
     const map = new Map<string, WeeklyExamData[]>();
     filtered.forEach((exam) => {
       if (!map.has(exam.class)) map.set(exam.class, []);
@@ -294,9 +299,33 @@ const WeeklyExam = () => {
       ),
     );
     return Array.from(map.entries())
-      .sort(([a], [b]) => classOrder(a) - classOrder(b))
+      .sort(([a], [b]) => {
+        // Sort classes in order: 6th, 7th, 8th, 9th, 10th, SSC
+        const getOrder = (className: string) => {
+          if (className.includes("৬ষ্ঠ")) return 1;
+          if (className.includes("৭ম")) return 2;
+          if (className.includes("৮ম")) return 3;
+          if (className.includes("৯ম")) return 4;
+          if (className.includes("১০ম")) return 5;
+          if (className.includes("এসএসসি") || className.includes("SSC"))
+            return 6;
+          return 99;
+        };
+        return getOrder(a) - getOrder(b);
+      })
       .map(([className, exams]) => ({ className, exams }));
+  }, [data, activeExamNumber, selectedClass]);
+
+  // Get total count for selected exam number (before class filter)
+  const totalExamsInNumber = useMemo(() => {
+    if (!data || !activeExamNumber) return 0;
+    return data.filter((e) => e.ExamNumber === activeExamNumber).length;
   }, [data, activeExamNumber]);
+
+  // Get filtered count
+  const filteredCount = useMemo(() => {
+    return groupedByClass.reduce((acc, g) => acc + g.exams.length, 0);
+  }, [groupedByClass]);
 
   const canEditExam = (exam: WeeklyExamData): boolean => {
     if (isManager) return true;
@@ -391,8 +420,36 @@ const WeeklyExam = () => {
         </p>
       </header>
 
+      {/* Class Filter Tabs */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
+        className="flex justify-center mt-4 sm:mt-6 px-2"
+      >
+        <ClassTabs
+          activeId={selectedClass}
+          onChange={isGuest ? () => {} : setSelectedClass}
+        />
+      </motion.div>
+
+      {/* Filter Info */}
+      {selectedClass !== "all" && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          className="flex justify-center mt-3"
+        >
+          <span className="text-xs sm:text-sm bangla px-3 py-1.5 rounded-full bg-[var(--color-active-bg)] border border-[var(--color-active-border)] text-[var(--color-gray)]">
+            {toBn(filteredCount)}টি পরীক্ষা পাওয়া গেছে (মোট{" "}
+            {toBn(totalExamsInNumber)}টির মধ্যে)
+          </span>
+        </motion.div>
+      )}
+
       {/* Marquee */}
-      <div className="flex items-stretch rounded overflow-hidden bangla mt-6 sm:mt-10 mx-2 sm:mx-0">
+      <div className="flex items-stretch rounded overflow-hidden bangla mt-6 sm:mt-8 mx-2 sm:mx-0">
         <div className="shrink-0 flex items-center justify-center px-3 sm:px-5 bg-[var(--color-text)]">
           <span className="text-[var(--color-bg)] font-black text-sm sm:text-lg md:text-xl tracking-wide">
             বিজ্ঞপ্তি
@@ -429,7 +486,7 @@ const WeeklyExam = () => {
       {/* Content */}
       <AnimatePresence mode="wait">
         <motion.div
-          key={activeExamNumber}
+          key={`${activeExamNumber}-${selectedClass}`}
           variants={contentVariants}
           initial="hidden"
           animate="visible"
@@ -466,9 +523,41 @@ const WeeklyExam = () => {
               ))
             )
           ) : (
-            <p className="text-[var(--color-gray)] text-center py-12 sm:py-16 bangla text-sm sm:text-base">
-              এই পরীক্ষার কোনো তথ্য পাওয়া যায়নি।
-            </p>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center py-12 sm:py-16"
+            >
+              <div className="text-4xl sm:text-5xl mb-4">📭</div>
+              <p className="text-[var(--color-gray)] bangla text-sm sm:text-base">
+                {selectedClass !== "all"
+                  ? `${
+                      selectedClass === "Class 6"
+                        ? "ষষ্ঠ"
+                        : selectedClass === "Class 7"
+                          ? "সপ্তম"
+                          : selectedClass === "Class 8"
+                            ? "অষ্টম"
+                            : selectedClass === "Class 9"
+                              ? "নবম"
+                              : selectedClass === "Class 10"
+                                ? "দশম"
+                                : "এসএসসি"
+                    } শ্রেণির কোনো পরীক্ষা পাওয়া যায়নি`
+                  : "এই পরীক্ষার কোনো তথ্য পাওয়া যায়নি।"}
+              </p>
+              {selectedClass !== "all" && (
+                <button
+                  onClick={() => setSelectedClass("all")}
+                  className="mt-4 px-4 py-2 rounded-lg text-sm bangla font-medium
+                    bg-[var(--color-active-bg)] border border-[var(--color-active-border)]
+                    text-[var(--color-text)] hover:bg-[var(--color-active-border)]
+                    transition-colors"
+                >
+                  সকল শ্রেণি দেখুন
+                </button>
+              )}
+            </motion.div>
           )}
         </motion.div>
       </AnimatePresence>

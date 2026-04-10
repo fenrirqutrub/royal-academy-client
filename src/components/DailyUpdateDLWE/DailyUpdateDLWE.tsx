@@ -165,11 +165,7 @@ const ExamCard = ({
       }}
       whileHover={{ y: -2, transition: { duration: 0.15 } }}
       onClick={onClick}
-      className="relative flex-shrink-0 w-[280px] h-[140px] rounded-xl overflow-hidden cursor-pointer bangla"
-      style={{
-        border: "1px solid var(--color-active-border)",
-        background: "var(--color-bg)",
-      }}
+      className="relative flex-shrink-0 w-[280px] h-[140px] pb-4 rounded-md overflow-hidden cursor-pointer bg-[var(--color-bg)] border border-[var(--color-active-border)] bangla"
     >
       {/* accent top bar */}
       <div
@@ -198,7 +194,7 @@ const ExamCard = ({
         </div>
 
         {/* Topics */}
-        <p className="text-xs leading-relaxed text-[var(--color-gray)] line-clamp-2 whitespace-pre-line flex-1">
+        <p className="text-xs leading-relaxed text-[var(--color-gray)] line-clamp-1 whitespace-pre-line flex-1 ">
           {exam.topics}
         </p>
       </div>

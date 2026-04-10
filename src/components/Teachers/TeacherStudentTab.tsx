@@ -1,7 +1,8 @@
 // src/components/TeacherStudentTab.tsx
+import { useState, useRef, useEffect } from "react";
 import { NavLink, Outlet, useLocation } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
-import { GraduationCap, BookOpen } from "lucide-react";
+import { GraduationCap, BookOpen, ChevronDown } from "lucide-react";
 
 const tabs = [
   {
@@ -16,110 +17,177 @@ const tabs = [
   },
 ] as const;
 
-/* ── Tab Item ────────────────────────────────────────────────────────────── */
-const TabItem = ({
-  tab,
-  isActive,
-}: {
-  tab: (typeof tabs)[number];
-  isActive: boolean;
-}) => {
-  const { Icon } = tab;
-
-  return (
-    <NavLink to={tab.to} className="relative group">
-      <motion.div
-        className={`
-          relative flex items-center gap-2.5 px-5 py-3 cursor-pointer select-none
-          rounded-xl transition-colors duration-200
-          ${
-            isActive
-              ? "bg-[var(--color-active-bg)] text-[var(--color-active-text)]"
-              : "text-[var(--color-gray)] hover:text-[var(--color-text)] hover:bg-[var(--color-active-bg)]"
-          }
-        `}
-        whileTap={{ scale: 0.96 }}
-        transition={{ type: "spring", stiffness: 400, damping: 28 }}
-      >
-        {/* Animated icon */}
-        <motion.div
-          animate={
-            isActive
-              ? { scale: 1.12, rotate: -5, y: -1 }
-              : { scale: 1, rotate: 0, y: 0 }
-          }
-          transition={{ type: "spring", stiffness: 320, damping: 22 }}
-        >
-          <Icon
-            size={17}
-            strokeWidth={isActive ? 2.3 : 1.7}
-            className={`transition-colors duration-200 ${
-              isActive
-                ? "text-[var(--color-active-text)]"
-                : "text-[var(--color-gray)] group-hover:text-[var(--color-text)]"
-            }`}
-          />
-        </motion.div>
-
-        {/* Labels */}
-        <div className="flex flex-col items-start gap-0.5 leading-none">
-          <span
-            className={`bangla text-sm font-semibold tracking-wide transition-colors duration-200 ${
-              isActive
-                ? "text-[var(--color-active-text)]"
-                : "text-[var(--color-gray)] group-hover:text-[var(--color-text)]"
-            }`}
-          >
-            {tab.label}
-          </span>
-        </div>
-
-        {/* Sliding underline indicator */}
-        {isActive && (
-          <motion.span
-            layoutId="active-tab-bar"
-            className="absolute bottom-0 left-2 right-2 h-[2.5px] rounded-full bg-[var(--color-active-text)]"
-            transition={{ type: "spring", stiffness: 420, damping: 34 }}
-          />
-        )}
-      </motion.div>
-    </NavLink>
-  );
-};
-
 /* ── Main ────────────────────────────────────────────────────────────────── */
 const TeacherStudentTab = () => {
   const location = useLocation();
+  const [open, setOpen] = useState(false);
+  const [hoveredTo, setHoveredTo] = useState<string | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Find active tab based on current path
+  const activeTab =
+    tabs.find((t) => location.pathname.includes(t.to)) ?? tabs[0];
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
       {/* ── Sticky header ── */}
       <div className="sticky top-0 z-20 bg-[var(--color-bg)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-14 lg:pt-4 pb-0">
-          {/* Tab row */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-14 lg:pt-4 pb-4">
           <motion.div
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.06, ease: "easeOut" }}
-            className="flex items-center gap-0.5"
+            className="flex justify-center"
           >
-            {/* Pill wrapper */}
-            <div
-              className="flex items-stretch gap-0.5 p-[3px] rounded-[14px]"
-              style={{
-                background: "var(--color-active-bg)",
-                border: "1px solid var(--color-active-border)",
-              }}
-            >
-              {tabs.map((tab) => {
-                const isActive = location.pathname.includes(tab.to);
-                return <TabItem key={tab.to} tab={tab} isActive={isActive} />;
-              })}
+            {/* Dropdown container */}
+            <div ref={ref} className="relative inline-flex justify-center">
+              {/* Trigger Button */}
+              <motion.button
+                onClick={() => setOpen((p) => !p)}
+                whileTap={{ scale: 0.95 }}
+                className="flex items-center gap-2 bangla text-xl opacity-60 hover:opacity-100
+                  transition-opacity outline-none select-none text-[var(--color-text)] border border-[var(--color-active-border)] px-3 py-2 rounded-lg"
+              >
+                <AnimatePresence mode="wait">
+                  <motion.span
+                    key={activeTab.to}
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 8 }}
+                    transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                    className="flex items-center gap-2"
+                  >
+                    <motion.span
+                      initial={{ rotate: -15, scale: 0.7 }}
+                      animate={{ rotate: 0, scale: 1 }}
+                      transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                      className="inline-flex"
+                    >
+                      <activeTab.Icon size={20} strokeWidth={2} />
+                    </motion.span>
+                    <span>{activeTab.label}</span>
+                  </motion.span>
+                </AnimatePresence>
+
+                <motion.span
+                  animate={{ rotate: open ? 180 : 0 }}
+                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                  className="text-xs opacity-60"
+                >
+                  <ChevronDown className="w-4 h-4" />
+                </motion.span>
+              </motion.button>
+
+              {/* Dropdown Menu */}
+              <AnimatePresence>
+                {open && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                    transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                    className="absolute top-full mt-2 left-1/2 -translate-x-1/2
+                      bg-[var(--color-bg)] border border-[var(--color-active-border)]
+                      rounded-xl p-1.5 flex flex-col gap-0.5 min-w-[180px] z-50
+                      shadow-lg"
+                  >
+                    {tabs.map((tab, i) => {
+                      const isActive = location.pathname.includes(tab.to);
+                      const Icon = tab.Icon;
+
+                      return (
+                        <motion.div
+                          key={tab.to}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{
+                            delay: i * 0.05,
+                            duration: 0.2,
+                            ease: [0.22, 1, 0.36, 1],
+                          }}
+                        >
+                          <NavLink
+                            to={tab.to}
+                            onClick={() => setOpen(false)}
+                            onMouseEnter={() => setHoveredTo(tab.to)}
+                            onMouseLeave={() => setHoveredTo(null)}
+                            className="relative flex items-center gap-2.5 px-3 py-2.5 rounded-lg
+                              text-sm bangla text-[var(--color-text)] text-left w-full outline-none"
+                          >
+                            {/* Hover / active background */}
+                            {(hoveredTo === tab.to || isActive) && (
+                              <motion.span
+                                layoutId="tab-hover-bg"
+                                className="absolute inset-0 rounded-lg bg-[var(--color-active-bg)]"
+                                transition={{
+                                  duration: 0.18,
+                                  ease: [0.22, 1, 0.36, 1],
+                                }}
+                              />
+                            )}
+
+                            {/* Icon */}
+                            <motion.span
+                              animate={{
+                                scale: hoveredTo === tab.to ? 1.2 : 1,
+                                rotate: hoveredTo === tab.to ? 8 : 0,
+                              }}
+                              transition={{ duration: 0.2 }}
+                              className="relative inline-flex text-[var(--color-gray)]"
+                            >
+                              <Icon
+                                size={16}
+                                strokeWidth={isActive ? 2.2 : 1.8}
+                              />
+                            </motion.span>
+
+                            {/* Label */}
+                            <motion.span
+                              animate={{ x: hoveredTo === tab.to ? 2 : 0 }}
+                              transition={{ duration: 0.15 }}
+                              className={`relative flex-1 ${
+                                isActive
+                                  ? "font-semibold text-[var(--color-active-text)]"
+                                  : "text-[var(--color-text)]"
+                              }`}
+                            >
+                              {tab.label}
+                            </motion.span>
+
+                            {/* Active checkmark */}
+                            <AnimatePresence>
+                              {isActive && (
+                                <motion.span
+                                  initial={{ opacity: 0, scale: 0.5 }}
+                                  animate={{ opacity: 0.5, scale: 1 }}
+                                  exit={{ opacity: 0, scale: 0.5 }}
+                                  transition={{ duration: 0.15 }}
+                                  className="relative text-xs text-[var(--color-active-text)]"
+                                >
+                                  ✓
+                                </motion.span>
+                              )}
+                            </AnimatePresence>
+                          </NavLink>
+                        </motion.div>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </motion.div>
-
-          {/* Spacer so border doesn't collide with tab underline */}
-          <div className="h-0" />
         </div>
       </div>
 
