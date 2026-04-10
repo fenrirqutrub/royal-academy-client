@@ -9,7 +9,7 @@ import DatePicker, {
   BN_MONTHS,
 } from "../../components/common/Datepicker";
 import Skeleton from "../../components/common/Skeleton";
-import { Pencil, Trash2, X, LogIn, UserPlus } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { CLASS_COLORS, DEFAULT_CLASS_COLOR, toBn } from "../../utility/shared";
 import { CLASS_ORDER } from "../../utility/Constants";
@@ -21,11 +21,15 @@ import {
   resolveTeacherSlug,
   type DailyLessonData,
 } from "./DailyLessonUpdateModals";
-import { useNavigate } from "react-router";
+import { useGuestPreview } from "../../hooks/useGuestPreview";
+import LoginPromptOverlay from "../Admin/Auth/LoginPromptOverlay";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const MANAGER_ROLES = ["principal", "admin", "owner"];
 const STAFF_ROLES = ["teacher", "principal", "admin", "owner"];
+
+// The class shown to guests
+const GUEST_PREVIEW_CLASS = "৬ষ্ঠ শ্রেণি";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 export const formatDate = (iso: string) => {
@@ -91,114 +95,6 @@ const actionButtonVariants: Variants = {
     scale: 1,
     transition: { duration: 0.2 },
   },
-};
-
-const modalVariants: Variants = {
-  hidden: { opacity: 0, scale: 0.9, y: 20 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    y: 0,
-    transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] },
-  },
-  exit: {
-    opacity: 0,
-    scale: 0.9,
-    y: 20,
-    transition: { duration: 0.2 },
-  },
-};
-
-const backdropVariants: Variants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 0.2 } },
-  exit: { opacity: 0, transition: { duration: 0.15 } },
-};
-
-// ─── Login Prompt Modal ───────────────────────────────────────────────────────
-const LoginPromptModal = ({ onClose }: { onClose: () => void }) => {
-  const navigate = useNavigate();
-
-  return (
-    <motion.div
-      variants={backdropVariants}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <motion.div
-        variants={modalVariants}
-        initial="hidden"
-        animate="visible"
-        exit="exit"
-        onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-md bg-[var(--color-card)] rounded-2xl shadow-2xl overflow-hidden"
-      >
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-[var(--color-bg)] hover:bg-[var(--color-active-bg)] transition-colors"
-        >
-          <X className="w-4 h-4 text-[var(--color-gray)]" />
-        </button>
-
-        {/* Content */}
-        <div className="p-6 sm:p-8 text-center bangla">
-          {/* Icon */}
-          <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 sm:mb-6 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
-            <LogIn className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
-          </div>
-
-          {/* Title */}
-          <h2 className="text-xl sm:text-2xl font-bold text-[var(--color-text)] mb-2">
-            লগইন করুন
-          </h2>
-
-          {/* Description */}
-          <p className="text-sm sm:text-base text-[var(--color-gray)] mb-6 sm:mb-8 leading-relaxed">
-            সম্পূর্ণ কন্টেন্ট দেখতে ও ব্যবহার করতে আপনার অ্যাকাউন্টে লগইন করুন
-            অথবা নতুন অ্যাকাউন্ট খুলুন।
-          </p>
-
-          {/* Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => {
-                onClose();
-                navigate("/login");
-              }}
-              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold rounded-xl shadow-lg transition-all"
-            >
-              <LogIn className="w-5 h-5" />
-              <span>লগইন করুন</span>
-            </motion.button>
-
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => {
-                onClose();
-                navigate("/register");
-              }}
-              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-[var(--color-bg)] hover:bg-[var(--color-active-bg)] text-[var(--color-text)] font-semibold rounded-xl border border-[var(--color-border)] transition-all"
-            >
-              <UserPlus className="w-5 h-5" />
-              <span>অ্যাকাউন্ট খুলুন</span>
-            </motion.button>
-          </div>
-
-          {/* Footer Note */}
-          <p className="mt-6 text-xs text-[var(--color-gray)]">
-            লগইন করলে সব পাঠ, নোটিশ ও ফিচার অ্যাক্সেস করতে পারবেন
-          </p>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
 };
 
 // ─── ClassGroupTitle ───────────────────────────────────────
@@ -309,9 +205,9 @@ const EnhancedLessonCard = ({
 
 // ─── Main Component ────────────────────────────────────────
 const DailyLesson = () => {
-  const { user, token } = useAuth(); // ✅ token check করব
+  const { user } = useAuth();
   const qc = useQueryClient();
-  const navigate = useNavigate();
+  const { isGuest } = useGuestPreview();
 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [datePickerValue, setDatePickerValue] = useState<string>(todayBn());
@@ -319,10 +215,6 @@ const DailyLesson = () => {
   const [deleteTarget, setDeleteTarget] = useState<DailyLessonData | null>(
     null,
   );
-  const [showLoginPrompt, setShowLoginPrompt] = useState(false); // ✅ login modal state
-
-  // ✅ Guest check - token না থাকলে guest
-  const isGuest = !token;
 
   const userRole = user?.role ?? "student";
   const userSlug = user?.slug ?? "";
@@ -380,7 +272,7 @@ const DailyLesson = () => {
   }, [filteredData]);
 
   const canEditLesson = (lesson: DailyLessonData): boolean => {
-    if (isGuest) return false; // ✅ guest can't edit
+    if (isGuest) return false;
     if (isManager) return true;
     const lessonSlug = resolveTeacherSlug(lesson.teacher, lesson.teacherSlug);
     if (userRole === "teacher" && lessonSlug === userSlug) return true;
@@ -388,7 +280,7 @@ const DailyLesson = () => {
   };
 
   const canDeleteLesson = (lesson: DailyLessonData): boolean => {
-    if (isGuest) return false; // ✅ guest can't delete
+    if (isGuest) return false;
     if (isManager) return true;
     const lessonSlug = resolveTeacherSlug(lesson.teacher, lesson.teacherSlug);
     if (userRole === "teacher" && lessonSlug === userSlug) return true;
@@ -413,13 +305,58 @@ const DailyLesson = () => {
     setDatePickerValue(todayBn());
   };
 
-  // ✅ Guest click handler - যেকোনো click এ login prompt দেখাবে
-  const handleGuestClick = (e: React.MouseEvent) => {
-    if (isGuest) {
-      e.preventDefault();
-      e.stopPropagation();
-      setShowLoginPrompt(true);
+  // ─── Guest Preview Builder ───────────────────────────────────────────────
+  // Shows only Class 6, max 3 items, then LoginPromptOverlay
+  const buildGuestContent = () => {
+    // Find Class 6 group only
+    const class6Group = groupedByClass.find(
+      ({ className }) => className === GUEST_PREVIEW_CLASS,
+    );
+
+    if (!class6Group) {
+      // Class 6 has no lessons today → still show overlay
+      return (
+        <div>
+          <p className="text-[var(--color-gray)] text-center py-8 bangla text-sm">
+            আজকের ৬ষ্ঠ শ্রেণির কোনো পাঠ পাওয়া যায়নি।
+          </p>
+          <LoginPromptOverlay />
+        </div>
+      );
     }
+
+    const { className, lessons } = class6Group;
+    const color = CLASS_COLORS[className] ?? DEFAULT_CLASS_COLOR;
+
+    // Take at most previewLimit (2) items
+
+    const visibleLessons = lessons.slice(0, 2);
+
+    return (
+      <div>
+        <ClassGroupTitle
+          className={className}
+          index={0}
+          count={lessons.length}
+        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
+          {visibleLessons.map((lesson, i) => (
+            <EnhancedLessonCard
+              key={lesson._id}
+              lesson={lesson}
+              index={i}
+              classColor={color}
+              canEdit={false}
+              canDelete={false}
+              onEdit={() => {}}
+              onDelete={() => {}}
+            />
+          ))}
+        </div>
+        {/* Login prompt below the preview cards */}
+        <LoginPromptOverlay />
+      </div>
+    );
   };
 
   if (isLoading) return <Skeleton variant="daily-lesson" />;
@@ -446,7 +383,7 @@ const DailyLesson = () => {
         </motion.p>
       </header>
 
-      {/* Date Filter Bar - Guest এও কাজ করবে */}
+      {/* Date Filter Bar */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -465,6 +402,7 @@ const DailyLesson = () => {
         </div>
 
         <AnimatePresence mode="wait">
+          {/* guests only see Class 6 count, logged-in see full count */}
           {filteredData.length > 0 && (
             <motion.span
               key={selectedDate.toDateString()}
@@ -473,44 +411,35 @@ const DailyLesson = () => {
               exit={{ opacity: 0, scale: 0.85 }}
               className="ml-auto text-xs sm:text-sm text-[var(--color-gray)]"
             >
-              মোট{" "}
-              <span className="font-bold text-[var(--color-text)]">
-                {toBn(String(filteredData.length))}
-              </span>
-              টি পাঠ
+              {isGuest ? (
+                <>
+                  ৬ষ্ঠ শ্রেণির{" "}
+                  <span className="font-bold text-[var(--color-text)]">
+                    {toBn(
+                      String(
+                        groupedByClass.find(
+                          ({ className }) => className === GUEST_PREVIEW_CLASS,
+                        )?.lessons.length ?? 0,
+                      ),
+                    )}
+                  </span>
+                  টি পাঠ
+                </>
+              ) : (
+                <>
+                  মোট{" "}
+                  <span className="font-bold text-[var(--color-text)]">
+                    {toBn(String(filteredData.length))}
+                  </span>
+                  টি পাঠ
+                </>
+              )}
             </motion.span>
           )}
         </AnimatePresence>
       </motion.div>
 
-      {/* Guest Banner */}
-      {isGuest && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.3 }}
-          className="mb-4 mx-2 sm:mx-0 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800"
-        >
-          <p className="text-xs sm:text-sm text-amber-700 dark:text-amber-300 bangla text-center">
-            👋 সম্পূর্ণ কন্টেন্ট দেখতে{" "}
-            <button
-              onClick={() => setShowLoginPrompt(true)}
-              className="font-bold underline hover:no-underline"
-            >
-              লগইন করুন
-            </button>{" "}
-            অথবা{" "}
-            <button
-              onClick={() => navigate("/register")}
-              className="font-bold underline hover:no-underline"
-            >
-              অ্যাকাউন্ট খুলুন
-            </button>
-          </p>
-        </motion.div>
-      )}
-
-      {/* Staff indicator — শুধু logged in staff দেখবে */}
+      {/* Staff indicator — logged in staff only */}
       {!isGuest && isStaff && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -539,20 +468,14 @@ const DailyLesson = () => {
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="px-2 sm:px-3 md:px-0 relative"
+            className="px-2 sm:px-3 md:px-0"
           >
             {groupedByClass.length > 0 ? (
-              <>
-                {/* ✅ Guest Overlay - click করলে login prompt */}
-                {isGuest && (
-                  <div
-                    onClick={handleGuestClick}
-                    className="absolute inset-0 z-20 cursor-pointer"
-                    style={{ background: "transparent" }}
-                  />
-                )}
-
-                {groupedByClass.map(({ className, lessons }, groupIndex) => {
+              // ✅ Guest → preview only, logged-in → full content
+              isGuest ? (
+                buildGuestContent()
+              ) : (
+                groupedByClass.map(({ className, lessons }, groupIndex) => {
                   const color = CLASS_COLORS[className] ?? DEFAULT_CLASS_COLOR;
                   return (
                     <div key={className}>
@@ -577,8 +500,21 @@ const DailyLesson = () => {
                       </div>
                     </div>
                   );
-                })}
-              </>
+                })
+              )
+            ) : // Empty state — guests also see this with overlay
+            isGuest ? (
+              <div>
+                <EmptyState
+                  message="এই তারিখে কোনো পাঠ নেই"
+                  action={
+                    <Button onClick={handleReset} className="btn">
+                      আজকের পাঠ দেখুন
+                    </Button>
+                  }
+                />
+                <LoginPromptOverlay />
+              </div>
             ) : (
               <EmptyState
                 message="এই তারিখে কোনো পাঠ নেই"
@@ -593,14 +529,7 @@ const DailyLesson = () => {
         </AnimatePresence>
       )}
 
-      {/* Login Prompt Modal */}
-      <AnimatePresence>
-        {showLoginPrompt && (
-          <LoginPromptModal onClose={() => setShowLoginPrompt(false)} />
-        )}
-      </AnimatePresence>
-
-      {/* Edit/Delete Modals — শুধু logged in user */}
+      {/* Edit / Delete Modals — logged-in users only */}
       <AnimatePresence>
         {editTarget && !isGuest && (
           <EditModal
