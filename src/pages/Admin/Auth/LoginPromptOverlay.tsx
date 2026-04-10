@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router";
 import { motion } from "framer-motion";
-import { LogIn, UserPlus } from "lucide-react";
+import { Key, LockKeyhole, UserPlus } from "lucide-react";
 
 const LoginPromptOverlay = () => {
   const navigate = useNavigate();
@@ -16,8 +16,9 @@ const LoginPromptOverlay = () => {
       <div className="absolute -top-24 left-0 right-0 h-24 bg-gradient-to-b from-transparent to-[var(--color-bg)] z-10 pointer-events-none" />
 
       {/* Prompt box */}
-      <div className="relative z-20 mx-2 sm:mx-0 rounded-2xl border border-[var(--color-active-border)] bg-[var(--color-active-bg)] px-6 py-8 text-center bangla shadow-xl">
-        <div className="text-3xl mb-3">🔒</div>
+      <div className="relative z-20 mx-2 sm:mx-0 rounded-2xl border border-[var(--color-active-border)] bg-[var(--color-active-bg)] px-6 py-8 flex flex-col justify-center items-center bangla shadow-xl">
+        <LockKeyhole className="w-10 h-10 my-5" />
+
         <h3 className="text-lg sm:text-xl font-extrabold text-[var(--color-text)] mb-2">
           সব তথ্য দেখতে লগইন করুন
         </h3>
@@ -30,7 +31,7 @@ const LoginPromptOverlay = () => {
             onClick={() => navigate("/login")}
             className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-[var(--color-text)] text-[var(--color-bg)] font-bold text-sm hover:opacity-90 transition-opacity"
           >
-            <LogIn className="w-4 h-4" />
+            <Key className="w-4 h-4" />
             লগইন করুন
           </button>
           <button

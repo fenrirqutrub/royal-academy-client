@@ -13,8 +13,8 @@ import {
   HelpCircle,
   Fan,
   X,
-  LogIn,
   UserPlus,
+  Key,
 } from "lucide-react";
 import "swiper/css";
 import "swiper/css/pagination";
@@ -82,9 +82,9 @@ const LoginPromptModal = ({ onClose }: { onClose: () => void }) => {
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-5 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-[var(--color-active-bg)] hover:bg-[var(--color-active-border)] transition-colors group"
+          className="absolute top-5 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-red-500 hover:bg-red-400 transition-colors group"
         >
-          <X className="w-4 h-4 text-[var(--color-gray)] group-hover:text-[var(--color-text)]" />
+          <X className="w-4 h-4 text-white" />
         </button>
 
         {/* Content */}
@@ -93,7 +93,7 @@ const LoginPromptModal = ({ onClose }: { onClose: () => void }) => {
           <div className="relative w-20 h-20 mx-auto mb-6">
             <div className="absolute inset-0 rounded-full bg-violet-500/20 blur-xl" />
             <div className="relative w-full h-full rounded-full bg-[var(--color-active-bg)] border-2 border-[var(--color-active-border)] flex items-center justify-center">
-              <LogIn className="w-9 h-9 text-[var(--color-text-hover)]" />
+              <Key className="w-9 h-9 text-[var(--color-text)]" />
             </div>
           </div>
 
@@ -118,7 +118,7 @@ const LoginPromptModal = ({ onClose }: { onClose: () => void }) => {
               }}
               className="w-full flex items-center justify-center gap-2.5 px-6 py-3.5 bg-[var(--color-text)] hover:bg-[var(--color-active-text)] text-[var(--color-bg)] font-semibold rounded-xl transition-all duration-200"
             >
-              <LogIn className="w-5 h-5" />
+              <Key className="w-5 h-5" />
               <span>লগইন করুন</span>
             </motion.button>
 
