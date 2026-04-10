@@ -59,6 +59,27 @@ const classOrder = (cls: string) => CLASS_ORDER[cls] ?? 99;
 const sortExamNumbers = (nums: string[]): string[] =>
   [...nums].sort((a, b) => Number(a) - Number(b));
 
+// ─── Custom Hook for Responsive Guest Limit ───────────────────────────────────
+const useResponsiveGuestLimit = (): number => {
+  const [limit, setLimit] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth < 640 ? 2 : 3;
+    }
+    return 3;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setLimit(window.innerWidth < 640 ? 2 : 3);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return limit;
+};
+
 // ─── Animation Variants ───────────────────────────────────────────────────────
 const cardVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -217,7 +238,8 @@ const EnhancedExamCard = ({
 const WeeklyExam = () => {
   const { user } = useAuth();
   const qc = useQueryClient();
-  const { isGuest, previewLimit } = useGuestPreview(); // ✅ guest check
+  const { isGuest } = useGuestPreview();
+  const responsiveLimit = useResponsiveGuestLimit();
 
   const [selectedExamNumber, setSelectedExamNumber] = useState<string | null>(
     null,
@@ -301,25 +323,15 @@ const WeeklyExam = () => {
       ),
   });
 
-  if (isLoading) return <Skeleton variant="daily-lesson" />;
-
-  if (isError) {
-    return (
-      <div className="text-center py-20 text-rose-400 text-sm bangla">
-        ডেটা লোড করতে সমস্যা হয়েছে। পুনরায় চেষ্টা করুন।
-      </div>
-    );
-  }
-
-  // ✅ Guest হলে preview content বানানোর helper
+  // ✅ Guest preview content builder
   const buildGuestContent = () => {
     let cardCount = 0;
     const elements: React.ReactNode[] = [];
 
     for (const { className, exams } of groupedByClass) {
-      if (cardCount >= previewLimit) break;
+      if (cardCount >= responsiveLimit) break;
 
-      const remaining = previewLimit - cardCount;
+      const remaining = responsiveLimit - cardCount;
       const visibleExams = exams.slice(0, remaining);
       cardCount += visibleExams.length;
 
@@ -350,12 +362,22 @@ const WeeklyExam = () => {
     }
 
     return (
-      <div>
+      <div className="relative">
         {elements}
         <LoginPromptOverlay />
       </div>
     );
   };
+
+  if (isLoading) return <Skeleton variant="daily-lesson" />;
+
+  if (isError) {
+    return (
+      <div className="text-center py-20 text-rose-400 text-sm bangla">
+        ডেটা লোড করতে সমস্যা হয়েছে। পুনরায় চেষ্টা করুন।
+      </div>
+    );
+  }
 
   return (
     <div className="relative">
@@ -415,7 +437,6 @@ const WeeklyExam = () => {
           className="mt-6 sm:mt-8 px-2 sm:px-3 md:px-0"
         >
           {groupedByClass.length > 0 ? (
-            // ✅ Guest হলে preview, logged in হলে সব
             isGuest ? (
               buildGuestContent()
             ) : (
@@ -452,7 +473,7 @@ const WeeklyExam = () => {
         </motion.div>
       </AnimatePresence>
 
-      {/* Pagination — guest দেখবে কিন্তু click করলে login prompt আসবে */}
+      {/* Pagination */}
       {examNumbers.length > 0 && activeExamNumber && (
         <ExamPagination
           examNumbers={examNumbers}

@@ -412,7 +412,7 @@ const DailyLesson = () => {
               className="ml-auto text-xs sm:text-sm text-[var(--color-gray)]"
             >
               {isGuest ? (
-                <>
+                <div>
                   ৬ষ্ঠ শ্রেণির{" "}
                   <span className="font-bold text-[var(--color-text)]">
                     {toBn(
@@ -424,15 +424,15 @@ const DailyLesson = () => {
                     )}
                   </span>
                   টি পাঠ
-                </>
+                </div>
               ) : (
-                <>
+                <div>
                   মোট{" "}
                   <span className="font-bold text-[var(--color-text)]">
                     {toBn(String(filteredData.length))}
                   </span>
                   টি পাঠ
-                </>
+                </div>
               )}
             </motion.span>
           )}
