@@ -9,6 +9,7 @@ import { ROLE_CONFIG, type Screen } from "../../utility/Constants";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 export interface TeacherData {
+  handle: string;
   degree: string;
   collegeName: string;
   para: string;
@@ -22,6 +23,7 @@ export interface TeacherData {
   image?: string;
 }
 
+// ── Config ─────────────────────────────────────────────────────────────────────
 const CFG: Record<
   Screen,
   {
@@ -30,36 +32,40 @@ const CFG: Record<
     gap: number;
     visible: number;
     rotY: number;
-    tz: number;
     scaleStep: number;
+    fontSize: { name: string; sub: string; badge: string };
+    infoRatio: number;
   }
 > = {
   mobile: {
-    cardW: 170,
-    cardH: 250,
-    gap: 82,
+    cardW: 160,
+    cardH: 230,
+    gap: 80,
     visible: 1,
     rotY: 28,
-    tz: 1,
-    scaleStep: 0.22,
+    scaleStep: 0.2,
+    fontSize: { name: "0.78rem", sub: "0.67rem", badge: "9px" },
+    infoRatio: 0.28,
   },
   tablet: {
-    cardW: 190,
-    cardH: 270,
-    gap: 108,
+    cardW: 200,
+    cardH: 280,
+    gap: 115,
     visible: 2,
     rotY: 22,
-    tz: 1,
-    scaleStep: 0.16,
+    scaleStep: 0.15,
+    fontSize: { name: "0.875rem", sub: "0.75rem", badge: "10px" },
+    infoRatio: 0.27,
   },
   desktop: {
-    cardW: 260,
-    cardH: 335,
-    gap: 138,
+    cardW: 255,
+    cardH: 340,
+    gap: 140,
     visible: 3,
     rotY: 18,
-    tz: 1,
     scaleStep: 0.12,
+    fontSize: { name: "1rem", sub: "0.825rem", badge: "10px" },
+    infoRatio: 0.26,
   },
 };
 
@@ -71,7 +77,7 @@ const resolveImg = (t: TeacherData): string => {
   return raw.startsWith("/") ? raw : `/${raw}`;
 };
 
-// ── Hooks ──────────────────────────────────────────────────────────────────────
+// ── useScreen ──────────────────────────────────────────────────────────────────
 const useScreen = (): Screen => {
   const get = (): Screen => {
     const w = window.innerWidth;
@@ -79,14 +85,21 @@ const useScreen = (): Screen => {
   };
   const [s, setS] = useState<Screen>(get);
   useEffect(() => {
-    const h = () => setS(get());
+    let raf: number;
+    const h = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setS(get()));
+    };
     window.addEventListener("resize", h);
-    return () => window.removeEventListener("resize", h);
+    return () => {
+      window.removeEventListener("resize", h);
+      cancelAnimationFrame(raf);
+    };
   }, []);
   return s;
 };
 
-// ── Card ───────────────────────────────────────────────────────────────────────
+// ── TeacherCard ────────────────────────────────────────────────────────────────
 interface CardProps {
   teacher: TeacherData;
   offset: number;
@@ -111,18 +124,24 @@ const TeacherCard = ({ teacher, offset, cfg, onClick }: CardProps) => {
 
   const showImg = !!imgSrc && !failed;
 
+  // transform values
   const tx = offset * cfg.gap;
-  const tz = -abs * cfg.tz;
   const ry = offset * -cfg.rotY;
-  const scale = isCenter ? 1 : Math.max(0.58, 1 - abs * cfg.scaleStep);
-  const opacity = abs > cfg.visible ? 0 : Math.max(0.35, 1 - abs * 0.22);
+  const scale = isCenter ? 1 : Math.max(0.6, 1 - abs * cfg.scaleStep);
+  const opacity = abs > cfg.visible ? 0 : Math.max(0.38, 1 - abs * 0.2);
   const zIndex = 20 - abs;
+
+  const roleColor = ROLE_CONFIG[teacher.role]?.color ?? "#6b7280";
+  const RoleIcon = ROLE_CONFIG[teacher.role]?.Icon;
+  const roleHandle = ROLE_CONFIG[teacher.role]?.handle ?? teacher.role;
+  const infoH = cfg.cardH * cfg.infoRatio;
+  const imgH = cfg.cardH - infoH;
 
   return (
     <motion.div
       onClick={onClick}
-      animate={{ x: tx, z: tz, rotateY: ry, scale, opacity }}
-      transition={{ type: "spring", stiffness: 260, damping: 30, mass: 0.8 }}
+      animate={{ x: tx, rotateY: ry, scale, opacity }}
+      transition={{ type: "spring", stiffness: 280, damping: 32, mass: 0.75 }}
       style={{
         position: "absolute",
         width: cfg.cardW,
@@ -132,27 +151,36 @@ const TeacherCard = ({ teacher, offset, cfg, onClick }: CardProps) => {
         cursor: isCenter ? "default" : "pointer",
         willChange: "transform",
         transformStyle: "preserve-3d",
+        left: "50%",
+        top: "50%",
+        marginLeft: -(cfg.cardW / 2),
+        marginTop: -(cfg.cardH / 2),
       }}
-      className="rounded-3xl overflow-hidden shadow-2xl select-none flex flex-col
+      className="rounded-2xl overflow-hidden shadow-2xl select-none flex flex-col
                  bg-[var(--color-bg)] border border-[var(--color-active-border)]"
     >
-      {/* Center card glow */}
+      {/* Glow for center card */}
       <AnimatePresence>
         {isCenter && (
           <motion.div
             key="glow"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 0.55, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.4 }}
-            className="absolute -inset-1 -z-10 rounded-3xl blur-xl pointer-events-none
-                       bg-gradient-to-br from-indigo-400/50 to-purple-500/50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            style={{
+              background: `radial-gradient(ellipse at center, ${roleColor}30 0%, transparent 70%)`,
+            }}
+            className="absolute -inset-3 -z-10 pointer-events-none blur-2xl"
           />
         )}
       </AnimatePresence>
 
-      {/* ── Image area ── */}
-      <div className="relative flex-1 overflow-hidden bg-[var(--color-active-bg)]">
+      {/* ── Image ── */}
+      <div
+        className="relative overflow-hidden bg-[var(--color-active-bg)] flex-shrink-0"
+        style={{ height: imgH }}
+      >
         {/* Shimmer */}
         <AnimatePresence>
           {showImg && !loaded && (
@@ -166,6 +194,7 @@ const TeacherCard = ({ teacher, offset, cfg, onClick }: CardProps) => {
           )}
         </AnimatePresence>
 
+        {/* Image */}
         {showImg && (
           <motion.img
             key={imgKey}
@@ -176,8 +205,8 @@ const TeacherCard = ({ teacher, offset, cfg, onClick }: CardProps) => {
             decoding="async"
             onLoad={() => setLoaded(true)}
             onError={() => setFailed(true)}
-            initial={{ opacity: 0, scale: 1.06 }}
-            animate={{ opacity: loaded ? 1 : 0, scale: loaded ? 1 : 1.06 }}
+            initial={{ opacity: 0, scale: 1.05 }}
+            animate={{ opacity: loaded ? 1 : 0, scale: loaded ? 1 : 1.05 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
             className="absolute inset-0 w-full h-full object-cover object-center"
           />
@@ -192,52 +221,73 @@ const TeacherCard = ({ teacher, offset, cfg, onClick }: CardProps) => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="absolute inset-0 flex items-center justify-center
-                         bg-gradient-to-br from-indigo-50 to-purple-50"
+              className="absolute inset-0 flex items-center justify-center"
+              style={{
+                background: `linear-gradient(135deg, ${roleColor}15, ${roleColor}08)`,
+              }}
             >
               <UserCircle2
                 strokeWidth={1}
-                className="text-indigo-300"
-                style={{ width: cfg.cardW * 0.38, height: cfg.cardW * 0.38 }}
+                style={{
+                  width: cfg.cardW * 0.42,
+                  height: cfg.cardW * 0.42,
+                  color: `${roleColor}80`,
+                }}
               />
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Bottom fade */}
-        <div
-          className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent
-                        to-black/25 pointer-events-none"
-        />
+        {/* Bottom fade overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/20 pointer-events-none" />
 
+        {/* Role badge */}
         <motion.span
-          initial={{ opacity: 0, y: -6 }}
+          initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15, duration: 0.3 }}
-          className="absolute top-2.5 left-2.5 rounded-full text-[10px] font-medium
-                     leading-snug bg-purple-500 backdrop-blur-sm text-purple-300 border border-[var(--color-active-border)] shadow-sm py-0.5 px-2"
+          transition={{ delay: 0.12, duration: 0.3 }}
+          style={{
+            fontSize: cfg.fontSize.badge,
+            backgroundColor: `${roleColor}25`,
+            color: roleColor,
+            borderColor: `${roleColor}50`,
+          }}
+          className="absolute top-2 left-2 rounded-full font-semibold
+                     leading-none backdrop-blur-md border shadow-sm
+                     py-1 px-2.5 flex items-center gap-1"
         >
-          {ROLE_CONFIG[teacher.role]?.label ?? teacher.role}
+          {RoleIcon && <RoleIcon size={9} />}
+          {roleHandle}
         </motion.span>
       </div>
 
       {/* ── Info strip ── */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1, duration: 0.35 }}
-        className="flex-shrink-0 flex flex-col items-center justify-center gap-0.5
-                   bg-[var(--color-active-bg)] text-center"
-        style={{ height: cfg.cardH * 0.27 }}
+      <div
+        className="flex-1 flex flex-col items-center justify-center gap-1
+                   px-3 bg-[var(--color-active-bg)] text-center"
       >
-        <p className="bangla font-bold text-[var(--color-text)] truncate w-full leading-snug text-center text-sm lg:text-lg">
+        <p
+          className="bangla font-bold text-[var(--color-text)] w-full text-center
+                     leading-snug line-clamp-1"
+          style={{ fontSize: cfg.fontSize.name }}
+        >
           {teacher.name}
         </p>
-        <p className="bangla text-gray-400 truncate w-full text-center text-xs lg:text-sm">
-          {teacher.collegeName ? teacher.collegeName : teacher.degree}
+        <p
+          className="bangla text-[var(--color-gray)] w-full text-center line-clamp-1"
+          style={{ fontSize: cfg.fontSize.sub }}
+        >
+          {teacher.collegeName || teacher.degree || "—"}
         </p>
-        <div className="mt-1.5 w-7 h-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500" />
-      </motion.div>
+
+        {/* Accent line with role color */}
+        <div
+          className="mt-1 h-0.5 w-8 rounded-full"
+          style={{
+            background: `linear-gradient(90deg, ${roleColor}60, ${roleColor})`,
+          }}
+        />
+      </div>
     </motion.div>
   );
 };
@@ -267,13 +317,8 @@ const Teacher = () => {
   );
   const N = teachers.length;
 
-  const next = useCallback(() => {
-    if (N > 0) setCurrent((c) => (c + 1) % N);
-  }, [N]);
-
-  const prev = useCallback(() => {
-    if (N > 0) setCurrent((c) => (c - 1 + N) % N);
-  }, [N]);
+  const next = useCallback(() => setCurrent((c) => (c + 1) % N), [N]);
+  const prev = useCallback(() => setCurrent((c) => (c - 1 + N) % N), [N]);
 
   const stopAuto = useCallback(() => {
     if (autoRef.current) {
@@ -288,11 +333,17 @@ const Teacher = () => {
     autoRef.current = setInterval(next, 4000);
   }, [N, next, stopAuto]);
 
+  // reset on data change
+  useEffect(() => {
+    setCurrent(0);
+  }, [N]);
+
   useEffect(() => {
     startAuto();
     return stopAuto;
   }, [startAuto, stopAuto]);
 
+  // keyboard nav
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight") {
@@ -310,6 +361,7 @@ const Teacher = () => {
     return () => window.removeEventListener("keydown", h);
   }, [next, prev, startAuto, stopAuto]);
 
+  // drag / swipe
   const onStart = (x: number) => {
     setDragging(true);
     dragStart.current = x;
@@ -319,16 +371,17 @@ const Teacher = () => {
   const onMove = (x: number) => {
     if (dragging) dragNow.current = x;
   };
-  const onEnd = () => {
+  const onEnd = useCallback(() => {
     if (!dragging) return;
     setDragging(false);
     const dx = dragNow.current - dragStart.current;
-    if (Math.abs(dx) > (screen === "mobile" ? 30 : 50)) {
+    const threshold = screen === "mobile" ? 30 : 48;
+    if (Math.abs(dx) > threshold) {
       if (dx < 0) next();
       else prev();
     }
     startAuto();
-  };
+  }, [dragging, next, prev, screen, startAuto]);
 
   const getOffset = (i: number) => {
     let o = i - current;
@@ -338,108 +391,124 @@ const Teacher = () => {
   };
 
   return (
-    <section className="relative overflow-hidden">
+    <section className="relative overflow-hidden ">
       <Border />
 
-      {/* Header and heda */}
+      {/* ── Header ── */}
       <motion.div
-        initial={{ opacity: 0, y: -24 }}
+        initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        className=" text-center bangla relative z-10"
+        transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+        className="text-center bangla relative z-10 mb-5 "
       >
-        <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-[var(--color-text)]">
+        <h2
+          className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold
+                       text-[var(--color-text)]"
+        >
           শিক্ষক মন্ডলী
         </h2>
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.25, duration: 0.6 }}
-          className="text-lg sm:text-xl mt-3 text-[var(--color-gray)]"
+          className="text-sm sm:text-base md:text-lg mt-2 sm:mt-3
+                     text-[var(--color-gray)]"
         >
           আমাদের অভিজ্ঞ ও দক্ষ শিক্ষকবৃন্দ
         </motion.p>
       </motion.div>
 
-      {/* Error */}
+      {/* ── Error ── */}
       <AnimatePresence>
         {isError && (
           <motion.p
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="text-center text-sm bangla text-red-500 bg-red-50 py-4 rounded-lg"
+            className="text-center text-sm bangla text-red-500 bg-red-50
+                       py-4 rounded-lg mx-4"
           >
             তথ্য লোড করতে সমস্যা হয়েছে।
           </motion.p>
         )}
       </AnimatePresence>
 
+      {/* ── Skeleton ── */}
       <AnimatePresence>
         {isLoading && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex justify-center gap-4 overflow-hidden"
+            className="flex justify-center items-center gap-4 overflow-hidden px-4"
           >
-            {Array.from({ length: screen === "mobile" ? 2 : 4 }).map((_, i) => (
+            {Array.from({
+              length: screen === "mobile" ? 1 : screen === "tablet" ? 3 : 4,
+            }).map((_, i) => (
               <Skeleton
                 key={i}
                 variant="rect"
                 width={`${cfg.cardW}px`}
                 height={`${cfg.cardH}px`}
-                rounded="1.5rem"
+                rounded="1rem"
               />
             ))}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Empty */}
+      {/* ── Empty ── */}
       <AnimatePresence>
         {!isLoading && !isError && N === 0 && (
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="text-center text-sm bangla text-[var(--color-gray)] py-8"
+            className="text-center text-sm bangla text-[var(--color-gray)] py-12"
           >
             কোনো শিক্ষক পাওয়া যায়নি।
           </motion.p>
         )}
       </AnimatePresence>
 
-      {/* Carousel */}
+      {/* ── Carousel ── */}
       <AnimatePresence>
         {!isLoading && !isError && N > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
+            exit={{ opacity: 0, y: 24 }}
             transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
             className="relative z-10"
           >
             <div
-              className="relative flex items-center justify-center cursor-pointer"
               style={{
-                height: cfg.cardH + 80,
-                perspective: "1500px",
-                perspectiveOrigin: "center center",
+                height: cfg.cardH + 40,
+                perspective: "1400px",
+                perspectiveOrigin: "50% 50%",
                 cursor: dragging ? "grabbing" : "grab",
+                touchAction: "none",
+                position: "relative",
               }}
               onMouseDown={(e) => onStart(e.clientX)}
               onMouseMove={(e) => onMove(e.clientX)}
               onMouseUp={onEnd}
+              onMouseLeave={onEnd}
               onTouchStart={(e) => onStart(e.touches[0].clientX)}
-              onTouchMove={(e) => onMove(e.touches[0].clientX)}
+              onTouchMove={(e) => {
+                e.preventDefault();
+                onMove(e.touches[0].clientX);
+              }}
               onTouchEnd={onEnd}
             >
+              {/* Centered stage */}
               <div
                 style={{
-                  position: "relative",
-                  width: cfg.cardW,
-                  height: cfg.cardH,
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  width: 0,
+                  height: 0,
                   transformStyle: "preserve-3d",
                 }}
               >
