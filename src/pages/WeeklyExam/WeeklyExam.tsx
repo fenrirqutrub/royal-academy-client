@@ -10,7 +10,7 @@ import Marquee from "react-fast-marquee";
 import Skeleton from "../../components/common/Skeleton";
 import { BN_DAYS_FULL, BN_MONTHS } from "../../components/common/Datepicker";
 import { TfiLayoutLineSolid } from "react-icons/tfi";
-import { Pencil, Trash2 } from "lucide-react";
+import { Fan, Pencil, Trash2 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import {
   DeleteModal,
@@ -577,35 +577,41 @@ const WeeklyExam = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-center py-12 sm:py-16"
+              className=" text-center py-12 sm:py-16"
             >
-              <div className="text-4xl sm:text-5xl mb-4">
-                {isAwaitingNextExam ? "⏳" : "📭"}
+              <div className="flex items-center justify-center gap-x-2 text-[var(--color-gray)] bangla">
+                <div className="text-4xl sm:text-5xl ">
+                  {isAwaitingNextExam ? (
+                    <Fan className="w-4 h-4 md:w-6 md:h-6 animate-spin" />
+                  ) : (
+                    "📭"
+                  )}
+                </div>
+                <p className=" text-lg md:text-2xl">
+                  {isAwaitingNextExam ? (
+                    <div>
+                      পরীক্ষা নং {toBn(activeExamNumber ?? "")} — এখনো কেউ ধারণা
+                      দেয়নি
+                    </div>
+                  ) : selectedClass !== "all" ? (
+                    `${
+                      selectedClass === "Class 6"
+                        ? "ষষ্ঠ"
+                        : selectedClass === "Class 7"
+                          ? "সপ্তম"
+                          : selectedClass === "Class 8"
+                            ? "অষ্টম"
+                            : selectedClass === "Class 9"
+                              ? "নবম"
+                              : selectedClass === "Class 10"
+                                ? "দশম"
+                                : "এসএসসি"
+                    } শ্রেণির কোনো পরীক্ষা পাওয়া যায়নি`
+                  ) : (
+                    "এই পরীক্ষার কোনো তথ্য পাওয়া যায়নি।"
+                  )}
+                </p>
               </div>
-              <p className="text-[var(--color-gray)] bangla text-lg md:text-2xl">
-                {isAwaitingNextExam ? (
-                  <div>
-                    পরীক্ষা নং {toBn(activeExamNumber ?? "")} — এখনো কেউ ধারণা
-                    দেয়নি
-                  </div>
-                ) : selectedClass !== "all" ? (
-                  `${
-                    selectedClass === "Class 6"
-                      ? "ষষ্ঠ"
-                      : selectedClass === "Class 7"
-                        ? "সপ্তম"
-                        : selectedClass === "Class 8"
-                          ? "অষ্টম"
-                          : selectedClass === "Class 9"
-                            ? "নবম"
-                            : selectedClass === "Class 10"
-                              ? "দশম"
-                              : "এসএসসি"
-                  } শ্রেণির কোনো পরীক্ষা পাওয়া যায়নি`
-                ) : (
-                  "এই পরীক্ষার কোনো তথ্য পাওয়া যায়নি।"
-                )}
-              </p>
               {selectedClass !== "all" && !isAwaitingNextExam && (
                 <button
                   onClick={() => setSelectedClass("all")}
