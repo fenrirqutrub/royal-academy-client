@@ -216,8 +216,8 @@ const Hero = () => {
       </AnimatePresence>
 
       {/* ── Overlays ── */}
-      <div className="absolute inset-0 z-[1] bg-black/30" />
-      <div className="absolute inset-0 z-[2] bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
+      <div className="absolute inset-0 z-[1] bg-black/15" />
+      <div className="absolute inset-0 z-[2] bg-gradient-to-t from-black/35 via-black/15 to-transparent" />
       <div className="absolute inset-0 z-[2] bg-gradient-to-r from-black/55 via-transparent to-transparent" />
 
       {/* ── Animated corner bracket top-left ── */}
