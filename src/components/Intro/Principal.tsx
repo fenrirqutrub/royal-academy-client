@@ -53,11 +53,11 @@ const Principal = () => {
         </div>
 
         {/* image */}
-        <figure className="md:w-1/3">
+        <figure className="md:w-1/3 border-8 border-[var(--color-active-bg)] rounded-lg ">
           <img
             src={p}
             alt="principal"
-            className="rounded-xl shadow-lg w-full object-cover"
+            className=" shadow-xl w-full object-cover"
           />
         </figure>
       </div>

@@ -12,9 +12,9 @@ const VicePrincipal = () => {
         </h2>
         <p className="text-[var(--color-gray)] text-2xl mt-2">রয়েল একাডেমি</p>
       </div>
-      <div className="flex flex-col md:flex-row gap-10 items-center">
+      <div className="flex flex-col md:flex-row gap-10 items-center  ">
         {/* image */}
-        <figure className="md:w-1/3">
+        <figure className="md:w-1/3 border-8 border-[var(--color-active-bg)] rounded-lg">
           <img
             src={vp}
             alt="vice principal"
