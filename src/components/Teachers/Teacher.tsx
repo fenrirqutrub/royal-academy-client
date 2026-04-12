@@ -215,8 +215,7 @@ const TeacherCard = ({ teacher, offset, cfg, onClick }: CardProps) => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15, duration: 0.3 }}
           className="absolute top-2.5 left-2.5 rounded-full text-[10px] font-medium
-                     leading-snug bg-white/90 backdrop-blur-sm text-gray-700
-                     border border-gray-200 shadow-sm py-0.5 px-2"
+                     leading-snug bg-purple-500 backdrop-blur-sm text-purple-300 border border-[var(--color-active-border)] shadow-sm py-0.5 px-2"
         >
           {ROLE_CONFIG[teacher.role]?.label ?? teacher.role}
         </motion.span>
@@ -228,19 +227,13 @@ const TeacherCard = ({ teacher, offset, cfg, onClick }: CardProps) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.35 }}
         className="flex-shrink-0 flex flex-col items-center justify-center gap-0.5
-                   py-3 bg-white text-center"
+                   bg-[var(--color-active-bg)] text-center"
         style={{ height: cfg.cardH * 0.27 }}
       >
-        <p
-          className="bangla font-bold text-gray-800 truncate w-full leading-snug text-center"
-          style={{ fontSize: cfg.cardW < 175 ? 13 : 15 }}
-        >
+        <p className="bangla font-bold text-[var(--color-text)] truncate w-full leading-snug text-center text-sm lg:text-lg">
           {teacher.name}
         </p>
-        <p
-          className="bangla text-gray-400 truncate w-full text-center"
-          style={{ fontSize: cfg.cardW < 175 ? 10 : 11 }}
-        >
+        <p className="bangla text-gray-400 truncate w-full text-center text-xs lg:text-sm">
           {teacher.collegeName ? teacher.collegeName : teacher.degree}
         </p>
         <div className="mt-1.5 w-7 h-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500" />
