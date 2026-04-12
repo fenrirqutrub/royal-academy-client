@@ -9,6 +9,8 @@ import { ROLE_CONFIG, type Screen } from "../../utility/Constants";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 export interface TeacherData {
+  degree: string;
+  collegeName: string;
   para: string;
   gramNam: string;
   _id: string;
@@ -239,7 +241,7 @@ const TeacherCard = ({ teacher, offset, cfg, onClick }: CardProps) => {
           className="bangla text-gray-400 truncate w-full text-center"
           style={{ fontSize: cfg.cardW < 175 ? 10 : 11 }}
         >
-          {teacher.para ? teacher.para : teacher.gramNam}
+          {teacher.collegeName ? teacher.collegeName : teacher.degree}
         </p>
         <div className="mt-1.5 w-7 h-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500" />
       </motion.div>
