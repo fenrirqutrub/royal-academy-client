@@ -40,7 +40,7 @@ const CFG: Record<
     gap: 82,
     visible: 1,
     rotY: 28,
-    tz: 50,
+    tz: 1,
     scaleStep: 0.22,
   },
   tablet: {
@@ -49,7 +49,7 @@ const CFG: Record<
     gap: 108,
     visible: 2,
     rotY: 22,
-    tz: 68,
+    tz: 1,
     scaleStep: 0.16,
   },
   desktop: {
@@ -58,7 +58,7 @@ const CFG: Record<
     gap: 138,
     visible: 3,
     rotY: 18,
-    tz: 78,
+    tz: 1,
     scaleStep: 0.12,
   },
 };

@@ -176,7 +176,7 @@ const Hero = () => {
 
   return (
     <section
-      className="w-full h-60 md:h-[470px] relative overflow-hidden bg-neutral-950"
+      className="w-full h-60 sm:h-72 lg:h-[470px] xl:h-[480px] relative overflow-hidden bg-neutral-950"
       aria-label="Hero slider"
     >
       {/* Ghost Swiper */}
