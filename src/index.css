@@ -3,17 +3,17 @@
 /* tailwind css */
 @import "tailwindcss";
 
-/* ← color variables */
-@import "./styles/colors.css";
-
 /* custom && google fonts */
 @import "./styles/fonts.css";
+
+/* ← color variables */
+@import "./styles/colors.css";
 
 /* swiper slider */
 @import "swiper/swiper-bundle.css";
 
 /* dark mode */
-@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+/* @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *)); */
 
 /* Hide scrollbar inside modal scroll container */
 .modal-scroll::-webkit-scrollbar {

@@ -9,6 +9,11 @@ ClassName=" text-[var(--color-text)] hover:text-[var(--color-text-hover)] bg-[va
 
 [always use as like this in tailwind class]
 
+
+// only for darkmode
+  darkMode: ["class", '[data-theme="dark"]'],
+  add this in tailwind.config.js
+
 */
 
 /* ── Light (default) ── */

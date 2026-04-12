@@ -7,6 +7,8 @@ export default {
     "app/**/*.{ts,tsx}",
     "components/**/*.{ts,tsx}",
   ],
+  // only for darkmode
+  darkMode: ["class", '[data-theme="dark"]'],
   theme: {
     extend: {
       colors: {},
