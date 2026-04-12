@@ -348,7 +348,7 @@ const Teacher = () => {
     <section className="relative overflow-hidden">
       <Border />
 
-      {/* Header */}
+      {/* Header and heda */}
       <motion.div
         initial={{ opacity: 0, y: -24 }}
         animate={{ opacity: 1, y: 0 }}
