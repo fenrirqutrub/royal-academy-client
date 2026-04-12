@@ -208,7 +208,6 @@ const TeacherCard = ({ teacher, offset, cfg, onClick }: CardProps) => {
                         to-black/25 pointer-events-none"
         />
 
-        {/* Role badge — ✅ now correctly reads .label from the imported ROLE_CONFIG */}
         <motion.span
           initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
@@ -352,7 +351,7 @@ const Teacher = () => {
         initial={{ opacity: 0, y: -24 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        className="mt-16 mb-12 text-center bangla relative z-10"
+        className=" text-center bangla relative z-10"
       >
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-[var(--color-text)]">
           শিক্ষক মন্ডলী
