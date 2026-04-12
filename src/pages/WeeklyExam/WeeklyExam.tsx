@@ -20,6 +20,7 @@ import {
 import { useGuestPreview } from "../../hooks/useGuestPreview";
 import LoginPromptOverlay from "../Admin/Auth/LoginPromptOverlay";
 import ClassTabs from "../../components/common/ClassTabs";
+import { toBn } from "../../utility/shared";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface NormalizedImage {
@@ -34,8 +35,6 @@ const MANAGER_ROLES = ["principal", "admin", "owner"];
 const STAFF_ROLES = ["teacher", "principal", "admin", "owner"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const toBn = (n: number | string) =>
-  String(n).replace(/\d/g, (d) => "০১২৩৪৫৬৭৮৯"[+d]);
 
 const formatCreatedAt = (iso: string): string => {
   const d = new Date(iso);
@@ -50,6 +49,24 @@ const normalizeImages = (images: RawImage[]): NormalizedImage[] =>
 
 const sortExamNumbers = (nums: string[]): string[] =>
   [...nums].sort((a, b) => Number(a) - Number(b));
+
+// ─── Time-phase helper ────────────────────────────────────────────────────────
+// Returns 'current' during Thu 12:00 → Sat 12:00 (Dhaka time), 'next' otherwise
+const getExamTimePhase = (): "current" | "next" => {
+  const dhaka = new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka" }),
+  );
+  const day = dhaka.getDay(); // 0=Sun 1=Mon … 4=Thu 5=Fri 6=Sat
+  const mins = dhaka.getHours() * 60 + dhaka.getMinutes();
+  const noon = 12 * 60;
+
+  const inWindow =
+    (day === 4 && mins >= noon) || // Thu >= 12:00
+    day === 5 || // Fri all day
+    (day === 6 && mins < noon); // Sat < 12:00
+
+  return inWindow ? "current" : "next";
+};
 
 // ─── Custom Hook for Responsive Guest Limit ───────────────────────────────────
 const useResponsiveGuestLimit = (): number => {
@@ -260,31 +277,67 @@ const WeeklyExam = () => {
     window.scrollTo({ top: 0, behavior: "instant" });
   }, []);
 
+  // ─── Exam number lists ──────────────────────────────────────────────────────
   const examNumbers = useMemo(() => {
     if (!data) return [];
     const unique = new Set(data.map((e) => e.ExamNumber));
     return sortExamNumbers(Array.from(unique));
   }, [data]);
 
+  // The exam number expected after the latest one
+  const nextExpectedExamNumber = useMemo(() => {
+    if (examNumbers.length === 0) return "1";
+    return String(Number(examNumbers[examNumbers.length - 1]) + 1);
+  }, [examNumbers]);
+
+  // Phase computed once on mount (page refresh picks up time changes)
+  const examTimePhase = useMemo(() => getExamTimePhase(), []);
+
+  // Pagination list — adds the "next" number virtually when in 'next' phase
+  const displayExamNumbers = useMemo(() => {
+    if (
+      examTimePhase === "next" &&
+      !examNumbers.includes(nextExpectedExamNumber)
+    ) {
+      return [...examNumbers, nextExpectedExamNumber];
+    }
+    return examNumbers;
+  }, [examNumbers, examTimePhase, nextExpectedExamNumber]);
+
+  // The exam number currently shown
   const activeExamNumber = useMemo(() => {
-    if (selectedExamNumber && examNumbers.includes(selectedExamNumber))
+    // Manual user selection always wins
+    if (selectedExamNumber && displayExamNumbers.includes(selectedExamNumber)) {
       return selectedExamNumber;
+    }
+    // Auto-select based on time phase
+    if (examTimePhase === "next") return nextExpectedExamNumber;
     return examNumbers[examNumbers.length - 1] ?? null;
-  }, [examNumbers, selectedExamNumber]);
+  }, [
+    examNumbers,
+    displayExamNumbers,
+    selectedExamNumber,
+    examTimePhase,
+    nextExpectedExamNumber,
+  ]);
 
-  // In your WeeklyExam component, update the filter logic:
+  // True when we're on the upcoming exam slot and no data exists yet
+  const isAwaitingNextExam = useMemo(
+    () =>
+      examTimePhase === "next" &&
+      activeExamNumber === nextExpectedExamNumber &&
+      !examNumbers.includes(nextExpectedExamNumber),
+    [examTimePhase, activeExamNumber, nextExpectedExamNumber, examNumbers],
+  );
 
+  // ─── Grouped & filtered exam data ──────────────────────────────────────────
   const groupedByClass = useMemo(() => {
     if (!data || !activeExamNumber) return [];
 
     let filtered = data.filter((e) => e.ExamNumber === activeExamNumber);
 
-    // Apply class filter if not "all"
     if (selectedClass !== "all") {
-      filtered = filtered.filter((e) => {
-        // Exact match for all classes including SSC
-        return e.class === selectedClass;
-      });
+      filtered = filtered.filter((e) => e.class === selectedClass);
     }
 
     const map = new Map<string, WeeklyExamData[]>();
@@ -300,7 +353,6 @@ const WeeklyExam = () => {
     );
     return Array.from(map.entries())
       .sort(([a], [b]) => {
-        // Sort classes in order: 6th, 7th, 8th, 9th, 10th, SSC
         const getOrder = (className: string) => {
           if (className.includes("৬ষ্ঠ")) return 1;
           if (className.includes("৭ম")) return 2;
@@ -316,17 +368,16 @@ const WeeklyExam = () => {
       .map(([className, exams]) => ({ className, exams }));
   }, [data, activeExamNumber, selectedClass]);
 
-  // Get total count for selected exam number (before class filter)
   const totalExamsInNumber = useMemo(() => {
     if (!data || !activeExamNumber) return 0;
     return data.filter((e) => e.ExamNumber === activeExamNumber).length;
   }, [data, activeExamNumber]);
 
-  // Get filtered count
   const filteredCount = useMemo(() => {
     return groupedByClass.reduce((acc, g) => acc + g.exams.length, 0);
   }, [groupedByClass]);
 
+  // ─── Permissions ────────────────────────────────────────────────────────────
   const canEditExam = (exam: WeeklyExamData): boolean => {
     if (isManager) return true;
     if (userRole === "teacher" && exam.teacherSlug === userSlug) return true;
@@ -339,6 +390,7 @@ const WeeklyExam = () => {
     return false;
   };
 
+  // ─── Mutations ──────────────────────────────────────────────────────────────
   const deleteMutation = useMutation({
     mutationFn: (id: string) => axiosPublic.delete(`/api/weekly-exams/${id}`),
     onSuccess: () => {
@@ -352,7 +404,7 @@ const WeeklyExam = () => {
       ),
   });
 
-  // ✅ Guest preview content builder
+  // ─── Guest preview builder ──────────────────────────────────────────────────
   const buildGuestContent = () => {
     let cardCount = 0;
     const elements: React.ReactNode[] = [];
@@ -398,6 +450,7 @@ const WeeklyExam = () => {
     );
   };
 
+  // ─── Render guards ──────────────────────────────────────────────────────────
   if (isLoading) return <Skeleton variant="daily-lesson" />;
 
   if (isError) {
@@ -408,6 +461,7 @@ const WeeklyExam = () => {
     );
   }
 
+  // ─── JSX ────────────────────────────────────────────────────────────────────
   return (
     <div className="relative">
       {/* Header */}
@@ -454,7 +508,7 @@ const WeeklyExam = () => {
         </div>
         <div className="flex-1 bg-[var(--color-active-bg)] overflow-hidden py-1 flex items-center">
           <Marquee speed={40} gradient={false} pauseOnHover>
-            <span className="flex items-center text-[var(--color-text)] text-md md:text-lg  font-medium px-4 sm:px-6">
+            <span className="flex items-center text-[var(--color-text)] text-md md:text-lg font-medium px-4 sm:px-6">
               লিখিত ৭০, বহুনির্বাচনী ৩০; পূর্ণমান ১০০; সময় ৩ ঘণ্টা; পরীক্ষার ফি
               ও অন্যন্য খরচ বাবদ ৩০ টাকা ধার্য করা হয়েছে। নির্ধারিত সময়ের
               মধ্যে উপস্থিত হওয়ার জন্য আদেশ করা হলো{" "}
@@ -525,25 +579,34 @@ const WeeklyExam = () => {
               animate={{ opacity: 1, y: 0 }}
               className="text-center py-12 sm:py-16"
             >
-              <div className="text-4xl sm:text-5xl mb-4">📭</div>
-              <p className="text-[var(--color-gray)] bangla text-sm sm:text-base">
-                {selectedClass !== "all"
-                  ? `${
-                      selectedClass === "Class 6"
-                        ? "ষষ্ঠ"
-                        : selectedClass === "Class 7"
-                          ? "সপ্তম"
-                          : selectedClass === "Class 8"
-                            ? "অষ্টম"
-                            : selectedClass === "Class 9"
-                              ? "নবম"
-                              : selectedClass === "Class 10"
-                                ? "দশম"
-                                : "এসএসসি"
-                    } শ্রেণির কোনো পরীক্ষা পাওয়া যায়নি`
-                  : "এই পরীক্ষার কোনো তথ্য পাওয়া যায়নি।"}
+              <div className="text-4xl sm:text-5xl mb-4">
+                {isAwaitingNextExam ? "⏳" : "📭"}
+              </div>
+              <p className="text-[var(--color-gray)] bangla text-lg md:text-2xl">
+                {isAwaitingNextExam ? (
+                  <div>
+                    পরীক্ষা নং {toBn(activeExamNumber ?? "")} — এখনো কেউ ধারণা
+                    দেয়নি
+                  </div>
+                ) : selectedClass !== "all" ? (
+                  `${
+                    selectedClass === "Class 6"
+                      ? "ষষ্ঠ"
+                      : selectedClass === "Class 7"
+                        ? "সপ্তম"
+                        : selectedClass === "Class 8"
+                          ? "অষ্টম"
+                          : selectedClass === "Class 9"
+                            ? "নবম"
+                            : selectedClass === "Class 10"
+                              ? "দশম"
+                              : "এসএসসি"
+                  } শ্রেণির কোনো পরীক্ষা পাওয়া যায়নি`
+                ) : (
+                  "এই পরীক্ষার কোনো তথ্য পাওয়া যায়নি।"
+                )}
               </p>
-              {selectedClass !== "all" && (
+              {selectedClass !== "all" && !isAwaitingNextExam && (
                 <button
                   onClick={() => setSelectedClass("all")}
                   className="mt-4 px-4 py-2 rounded-lg text-sm bangla font-medium
@@ -559,10 +622,10 @@ const WeeklyExam = () => {
         </motion.div>
       </AnimatePresence>
 
-      {/* Pagination */}
-      {examNumbers.length > 0 && activeExamNumber && (
+      {/* Pagination — uses displayExamNumbers so the "next" slot appears */}
+      {displayExamNumbers.length > 0 && activeExamNumber && (
         <ExamPagination
-          examNumbers={examNumbers}
+          examNumbers={displayExamNumbers}
           selected={activeExamNumber}
           onSelect={isGuest ? () => {} : setSelectedExamNumber}
         />

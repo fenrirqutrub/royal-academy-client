@@ -19,6 +19,8 @@ import { PiMosqueDuotone } from "react-icons/pi";
 import type { SelectOption } from "../components/common/SelectInput";
 import { Crown, GraduationCap, ShieldCheck } from "lucide-react";
 
+export type Screen = "mobile" | "tablet" | "desktop";
+
 export const CLASS_OPTIONS: SelectOption[] = [
   ...["৬ষ্ঠ", "৭ম", "৮ম", "৯ম", "১০ম"].map((c) => ({
     value: `${c} শ্রেণি`,
