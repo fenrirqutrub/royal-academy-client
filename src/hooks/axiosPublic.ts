@@ -26,7 +26,7 @@ export const multipartConfig = {
 
 const axiosPublic = axios.create({
   baseURL: API_URL,
-  timeout: 1500000,
+  timeout: 10 * 60 * 1000,
   withCredentials: false,
   headers: { "X-Requested-With": "XMLHttpRequest" },
 });

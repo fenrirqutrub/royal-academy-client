@@ -10,7 +10,7 @@ import Marquee from "react-fast-marquee";
 import Skeleton from "../../components/common/Skeleton";
 import { BN_DAYS_FULL, BN_MONTHS } from "../../components/common/Datepicker";
 import { TfiLayoutLineSolid } from "react-icons/tfi";
-import { Fan, Pencil, Trash2 } from "lucide-react";
+import { Fan } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import {
   DeleteModal,
@@ -35,7 +35,6 @@ const MANAGER_ROLES = ["principal", "admin", "owner"];
 const STAFF_ROLES = ["teacher", "principal", "admin", "owner"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
 const formatCreatedAt = (iso: string): string => {
   const d = new Date(iso);
   return `${BN_DAYS_FULL[d.getDay()]}, ${toBn(d.getDate())} ${BN_MONTHS[d.getMonth()]} ${toBn(d.getFullYear())}`;
@@ -44,28 +43,26 @@ const formatCreatedAt = (iso: string): string => {
 const normalizeImages = (images: RawImage[]): NormalizedImage[] =>
   images.map((img) => {
     if (typeof img === "string") return { url: img, publicId: "" };
-    return { url: img.imageUrl ?? img.url ?? "", publicId: img.publicId ?? "" };
+    return {
+      url: img.imageUrl ?? img.url ?? "",
+      publicId: img.publicId ?? "",
+    };
   });
 
 const sortExamNumbers = (nums: string[]): string[] =>
   [...nums].sort((a, b) => Number(a) - Number(b));
 
-// ─── Time-phase helper ────────────────────────────────────────────────────────
-// Returns 'current' during Thu 12:00 → Sat 12:00 (Dhaka time), 'next' otherwise
-const getExamTimePhase = (): "current" | "next" => {
+// ─── Get most recent Saturday midnight (Dhaka time) ───────────────────────────
+const getLastSaturdayMidnight = (): Date => {
   const dhaka = new Date(
     new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka" }),
   );
-  const day = dhaka.getDay(); // 0=Sun 1=Mon … 4=Thu 5=Fri 6=Sat
-  const mins = dhaka.getHours() * 60 + dhaka.getMinutes();
-  const noon = 12 * 60;
-
-  const inWindow =
-    (day === 4 && mins >= noon) || // Thu >= 12:00
-    day === 5 || // Fri all day
-    (day === 6 && mins < noon); // Sat < 12:00
-
-  return inWindow ? "current" : "next";
+  const day = dhaka.getDay();
+  const daysBack = day === 6 ? 0 : day + 1;
+  const sat = new Date(dhaka);
+  sat.setDate(sat.getDate() - daysBack);
+  sat.setHours(0, 0, 0, 0);
+  return sat;
 };
 
 // ─── Custom Hook for Responsive Guest Limit ───────────────────────────────────
@@ -81,7 +78,6 @@ const useResponsiveGuestLimit = (): number => {
     const handleResize = () => {
       setLimit(window.innerWidth < 640 ? 2 : 3);
     };
-
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
@@ -90,15 +86,6 @@ const useResponsiveGuestLimit = (): number => {
 };
 
 // ─── Animation Variants ───────────────────────────────────────────────────────
-const cardVariants: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: { delay: i * 0.05, duration: 0.3 },
-  }),
-};
-
 const groupTitleVariants: Variants = {
   hidden: { opacity: 0, x: -20 },
   visible: (i: number) => ({
@@ -122,15 +109,6 @@ const contentVariants: Variants = {
   exit: {
     opacity: 0,
     y: -10,
-    transition: { duration: 0.2 },
-  },
-};
-
-const actionButtonVariants: Variants = {
-  hidden: { opacity: 0, scale: 0.8 },
-  visible: {
-    opacity: 1,
-    scale: 1,
     transition: { duration: 0.2 },
   },
 };
@@ -163,87 +141,9 @@ const ClassGroupTitle = ({
   </motion.div>
 );
 
-// ─── Enhanced Exam Card ───────────────────────────────────────────────────────
-const EnhancedExamCard = ({
-  exam,
-  normalizedImages,
-  date,
-  index,
-  canEdit,
-  canDelete,
-  onEdit,
-  onDelete,
-}: {
-  exam: WeeklyExamData;
-  normalizedImages: NormalizedImage[];
-  date: string;
-  index: number;
-  canEdit: boolean;
-  canDelete: boolean;
-  onEdit: () => void;
-  onDelete: () => void;
-}) => {
-  const showActions = canEdit || canDelete;
-
-  return (
-    <motion.div
-      custom={index}
-      variants={cardVariants}
-      initial="hidden"
-      animate="visible"
-      className="relative group"
-    >
-      {showActions && (
-        <motion.div
-          variants={actionButtonVariants}
-          initial="hidden"
-          animate="visible"
-          className="absolute top-2 sm:top-3 right-2 sm:right-3 z-10 flex items-center gap-1 sm:gap-1.5"
-        >
-          {canEdit && (
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit();
-              }}
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center bg-violet-500/90 hover:bg-violet-600 text-white shadow-lg transition-colors"
-              title="সম্পাদনা করুন"
-            >
-              <Pencil className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-            </motion.button>
-          )}
-          {canDelete && (
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center bg-rose-500/90 hover:bg-rose-600 text-white shadow-lg transition-colors"
-              title="মুছে ফেলুন"
-            >
-              <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-            </motion.button>
-          )}
-        </motion.div>
-      )}
-
-      <WeeklyExamCard
-        exam={{
-          ...exam,
-          date,
-          images: normalizedImages,
-        }}
-        index={index}
-      />
-    </motion.div>
-  );
-};
-
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// Main Component
+// ═════════════════════════════════════════════════════════════════════════════
 const WeeklyExam = () => {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -262,6 +162,7 @@ const WeeklyExam = () => {
   const isManager = MANAGER_ROLES.includes(userRole);
   const isStaff = STAFF_ROLES.includes(userRole);
 
+  // ─── Fetch exams ─────────────────────────────────────────────────────────
   const { data, isLoading, isError } = useQuery<WeeklyExamData[]>({
     queryKey: ["weekly-exams"],
     queryFn: async () => {
@@ -277,65 +178,72 @@ const WeeklyExam = () => {
     window.scrollTo({ top: 0, behavior: "instant" });
   }, []);
 
-  // ─── Exam number lists ──────────────────────────────────────────────────────
+  // ─── Exam numbers ─────────────────────────────────────────────────────────
   const examNumbers = useMemo(() => {
     if (!data) return [];
     const unique = new Set(data.map((e) => e.ExamNumber));
     return sortExamNumbers(Array.from(unique));
   }, [data]);
 
-  // The exam number expected after the latest one
   const nextExpectedExamNumber = useMemo(() => {
     if (examNumbers.length === 0) return "1";
     return String(Number(examNumbers[examNumbers.length - 1]) + 1);
   }, [examNumbers]);
 
-  // Phase computed once on mount (page refresh picks up time changes)
-  const examTimePhase = useMemo(() => getExamTimePhase(), []);
+  // ─── Core Logic ───────────────────────────────────────────────────────────
+  const latestExamCreatedAt = useMemo(() => {
+    if (!data || examNumbers.length === 0) return null;
+    const latestNumber = examNumbers[examNumbers.length - 1];
+    const examsWithLatestNumber = data.filter(
+      (e) => e.ExamNumber === latestNumber,
+    );
+    if (examsWithLatestNumber.length === 0) return null;
+    const dates = examsWithLatestNumber.map((e) =>
+      new Date(e.createdAt).getTime(),
+    );
+    return new Date(Math.max(...dates));
+  }, [data, examNumbers]);
 
-  // Pagination list — adds the "next" number virtually when in 'next' phase
+  const shouldShowNextExam = useMemo(() => {
+    if (!latestExamCreatedAt) return false;
+    const lastSat = getLastSaturdayMidnight();
+    return latestExamCreatedAt.getTime() < lastSat.getTime();
+  }, [latestExamCreatedAt]);
+
   const displayExamNumbers = useMemo(() => {
-    if (
-      examTimePhase === "next" &&
-      !examNumbers.includes(nextExpectedExamNumber)
-    ) {
+    if (shouldShowNextExam) {
       return [...examNumbers, nextExpectedExamNumber];
     }
     return examNumbers;
-  }, [examNumbers, examTimePhase, nextExpectedExamNumber]);
+  }, [examNumbers, shouldShowNextExam, nextExpectedExamNumber]);
 
-  // The exam number currently shown
   const activeExamNumber = useMemo(() => {
-    // Manual user selection always wins
     if (selectedExamNumber && displayExamNumbers.includes(selectedExamNumber)) {
       return selectedExamNumber;
     }
-    // Auto-select based on time phase
-    if (examTimePhase === "next") return nextExpectedExamNumber;
+    if (shouldShowNextExam) return nextExpectedExamNumber;
     return examNumbers[examNumbers.length - 1] ?? null;
   }, [
     examNumbers,
     displayExamNumbers,
     selectedExamNumber,
-    examTimePhase,
+    shouldShowNextExam,
     nextExpectedExamNumber,
   ]);
 
-  // True when we're on the upcoming exam slot and no data exists yet
   const isAwaitingNextExam = useMemo(
     () =>
-      examTimePhase === "next" &&
+      shouldShowNextExam &&
       activeExamNumber === nextExpectedExamNumber &&
       !examNumbers.includes(nextExpectedExamNumber),
-    [examTimePhase, activeExamNumber, nextExpectedExamNumber, examNumbers],
+    [shouldShowNextExam, activeExamNumber, nextExpectedExamNumber, examNumbers],
   );
 
-  // ─── Grouped & filtered exam data ──────────────────────────────────────────
+  // ─── Grouped data ─────────────────────────────────────────────────────────
   const groupedByClass = useMemo(() => {
     if (!data || !activeExamNumber) return [];
 
     let filtered = data.filter((e) => e.ExamNumber === activeExamNumber);
-
     if (selectedClass !== "all") {
       filtered = filtered.filter((e) => e.class === selectedClass);
     }
@@ -345,22 +253,23 @@ const WeeklyExam = () => {
       if (!map.has(exam.class)) map.set(exam.class, []);
       map.get(exam.class)!.push(exam);
     });
+
     map.forEach((exams) =>
       exams.sort(
         (a, b) =>
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
       ),
     );
+
     return Array.from(map.entries())
       .sort(([a], [b]) => {
-        const getOrder = (className: string) => {
-          if (className.includes("৬ষ্ঠ")) return 1;
-          if (className.includes("৭ম")) return 2;
-          if (className.includes("৮ম")) return 3;
-          if (className.includes("৯ম")) return 4;
-          if (className.includes("১০ম")) return 5;
-          if (className.includes("এসএসসি") || className.includes("SSC"))
-            return 6;
+        const getOrder = (cn: string) => {
+          if (cn.includes("৬ষ্ঠ")) return 1;
+          if (cn.includes("৭ম")) return 2;
+          if (cn.includes("৮ম")) return 3;
+          if (cn.includes("৯ম")) return 4;
+          if (cn.includes("১০ম")) return 5;
+          if (cn.includes("এসএসসি") || cn.includes("SSC")) return 6;
           return 99;
         };
         return getOrder(a) - getOrder(b);
@@ -373,11 +282,12 @@ const WeeklyExam = () => {
     return data.filter((e) => e.ExamNumber === activeExamNumber).length;
   }, [data, activeExamNumber]);
 
-  const filteredCount = useMemo(() => {
-    return groupedByClass.reduce((acc, g) => acc + g.exams.length, 0);
-  }, [groupedByClass]);
+  const filteredCount = useMemo(
+    () => groupedByClass.reduce((acc, g) => acc + g.exams.length, 0),
+    [groupedByClass],
+  );
 
-  // ─── Permissions ────────────────────────────────────────────────────────────
+  // ─── Permissions ──────────────────────────────────────────────────────────
   const canEditExam = (exam: WeeklyExamData): boolean => {
     if (isManager) return true;
     if (userRole === "teacher" && exam.teacherSlug === userSlug) return true;
@@ -390,7 +300,7 @@ const WeeklyExam = () => {
     return false;
   };
 
-  // ─── Mutations ──────────────────────────────────────────────────────────────
+  // ─── Delete mutation ──────────────────────────────────────────────────────
   const deleteMutation = useMutation({
     mutationFn: (id: string) => axiosPublic.delete(`/api/weekly-exams/${id}`),
     onSuccess: () => {
@@ -404,14 +314,30 @@ const WeeklyExam = () => {
       ),
   });
 
-  // ─── Guest preview builder ──────────────────────────────────────────────────
+  // ─── Card renderer (DRY) ──────────────────────────────────────────────────
+  const renderCard = (exam: WeeklyExamData, i: number) => (
+    <WeeklyExamCard
+      key={exam._id}
+      exam={{
+        ...exam,
+        date: formatCreatedAt(exam.createdAt),
+        images: normalizeImages(exam.images),
+      }}
+      index={i}
+      canEdit={canEditExam(exam)}
+      canDelete={canDeleteExam(exam)}
+      onEdit={() => setEditTarget(exam)}
+      onDelete={() => setDeleteTarget(exam)}
+    />
+  );
+
+  // ─── Guest content ────────────────────────────────────────────────────────
   const buildGuestContent = () => {
     let cardCount = 0;
     const elements: React.ReactNode[] = [];
 
     for (const { className, exams } of groupedByClass) {
       if (cardCount >= responsiveLimit) break;
-
       const remaining = responsiveLimit - cardCount;
       const visibleExams = exams.slice(0, remaining);
       cardCount += visibleExams.length;
@@ -424,19 +350,7 @@ const WeeklyExam = () => {
             count={exams.length}
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4 mb-8 sm:mb-10">
-            {visibleExams.map((exam, i) => (
-              <EnhancedExamCard
-                key={exam._id}
-                exam={exam}
-                normalizedImages={normalizeImages(exam.images)}
-                date={formatCreatedAt(exam.createdAt)}
-                index={i}
-                canEdit={false}
-                canDelete={false}
-                onEdit={() => {}}
-                onDelete={() => {}}
-              />
-            ))}
+            {visibleExams.map((exam, i) => renderCard(exam, i))}
           </div>
         </div>,
       );
@@ -450,9 +364,8 @@ const WeeklyExam = () => {
     );
   };
 
-  // ─── Render guards ──────────────────────────────────────────────────────────
+  // ─── Guards ───────────────────────────────────────────────────────────────
   if (isLoading) return <Skeleton variant="daily-lesson" />;
-
   if (isError) {
     return (
       <div className="text-center py-20 text-rose-400 text-sm bangla">
@@ -461,7 +374,7 @@ const WeeklyExam = () => {
     );
   }
 
-  // ─── JSX ────────────────────────────────────────────────────────────────────
+  // ─── JSX ──────────────────────────────────────────────────────────────────
   return (
     <div className="relative">
       {/* Header */}
@@ -556,19 +469,7 @@ const WeeklyExam = () => {
                     count={exams.length}
                   />
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4 mb-8 sm:mb-10">
-                    {exams.map((exam, i) => (
-                      <EnhancedExamCard
-                        key={exam._id}
-                        exam={exam}
-                        normalizedImages={normalizeImages(exam.images)}
-                        date={formatCreatedAt(exam.createdAt)}
-                        index={i}
-                        canEdit={canEditExam(exam)}
-                        canDelete={canDeleteExam(exam)}
-                        onEdit={() => setEditTarget(exam)}
-                        onDelete={() => setDeleteTarget(exam)}
-                      />
-                    ))}
+                    {exams.map((exam, i) => renderCard(exam, i))}
                   </div>
                 </div>
               ))
@@ -577,22 +478,22 @@ const WeeklyExam = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className=" text-center py-12 sm:py-16"
+              className="text-center py-12 sm:py-16"
             >
               <div className="flex items-center justify-center gap-x-2 text-[var(--color-gray)] bangla">
-                <div className="text-4xl sm:text-5xl ">
+                <span className="text-4xl sm:text-5xl">
                   {isAwaitingNextExam ? (
                     <Fan className="w-4 h-4 md:w-6 md:h-6 animate-spin" />
                   ) : (
                     "📭"
                   )}
-                </div>
-                <p className=" text-lg md:text-2xl">
+                </span>
+                <span className="text-lg md:text-2xl">
                   {isAwaitingNextExam ? (
-                    <div>
+                    <>
                       পরীক্ষা নং {toBn(activeExamNumber ?? "")} — এখনো কেউ ধারণা
                       দেয়নি
-                    </div>
+                    </>
                   ) : selectedClass !== "all" ? (
                     `${
                       selectedClass === "Class 6"
@@ -610,7 +511,7 @@ const WeeklyExam = () => {
                   ) : (
                     "এই পরীক্ষার কোনো তথ্য পাওয়া যায়নি।"
                   )}
-                </p>
+                </span>
               </div>
               {selectedClass !== "all" && !isAwaitingNextExam && (
                 <button
@@ -628,7 +529,7 @@ const WeeklyExam = () => {
         </motion.div>
       </AnimatePresence>
 
-      {/* Pagination — uses displayExamNumbers so the "next" slot appears */}
+      {/* Pagination */}
       {displayExamNumbers.length > 0 && activeExamNumber && (
         <ExamPagination
           examNumbers={displayExamNumbers}
@@ -637,7 +538,7 @@ const WeeklyExam = () => {
         />
       )}
 
-      {/* Modals */}
+      {/* ✅ Modals — lagbe, ekhane thakbe */}
       <AnimatePresence>
         {editTarget && (
           <EditModal

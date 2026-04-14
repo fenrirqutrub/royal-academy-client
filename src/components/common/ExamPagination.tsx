@@ -46,7 +46,7 @@ const ExamPagination = ({
 
   const arrowCls =
     "inline-flex h-10 w-10 items-center justify-center rounded-xl " +
-    "text-slate-500 dark:text-slate-400 transition-all duration-200 " +
+    "text-[var(--color-gray)] transition-all duration-200 " +
     "hover:bg-violet-50 dark:hover:bg-violet-900/30 " +
     "hover:text-violet-600 dark:hover:text-violet-400 " +
     "disabled:opacity-30 disabled:pointer-events-none";
