@@ -67,8 +67,8 @@ const getCroppedBlob = (
         if (blob) resolve(blob);
         else reject(new Error("Canvas toBlob failed"));
       },
-      "image/jpeg",
-      0.95,
+      "image/webp",
+      0.85,
     );
   });
 };

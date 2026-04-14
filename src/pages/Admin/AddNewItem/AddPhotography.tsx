@@ -30,13 +30,11 @@ export default function AddPhotography() {
   // ── Mutation ───────────────────────────────────────────────────────────────
   const mutation = useMutation({
     mutationFn: async (filesToUpload: File[]) => {
-      // 1. Browser → Cloudinary directly
       const uploaded = await uploadMultipleToCloudinary(filesToUpload, {
         folder: "photography",
         onProgress: setUploadProgress,
       });
 
-      // 2. শুধু URLs backend-এ পাঠাও
       const res = await axiosPublic.post("/api/photography/save-urls", {
         images: uploaded.map((r) => ({
           imageUrl: r.secure_url,
@@ -166,7 +164,7 @@ export default function AddPhotography() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-[var(--color-bg)]">
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
@@ -180,8 +178,10 @@ export default function AddPhotography() {
           transition={{ delay: 0.2 }}
           className="text-center mb-10"
         >
-          <h1 className="text-5xl md:text-6xl font-bold mb-4">Upload Photos</h1>
-          <p className="text-gray-600 dark:text-gray-400 text-lg">
+          <h1 className="text-5xl md:text-6xl font-bold mb-4 text-[var(--color-text)]">
+            Upload Photos
+          </h1>
+          <p className="text-[var(--color-gray)] text-lg">
             Share your beautiful moments — Upload up to 10 photos at once
           </p>
         </motion.div>
@@ -191,7 +191,7 @@ export default function AddPhotography() {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.3 }}
-          className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-8 md:p-12 border border-gray-200 dark:border-gray-700"
+          className="bg-[var(--color-bg)] border border-[var(--color-active-border)] rounded-3xl shadow-2xl p-8 md:p-12"
         >
           <div className="space-y-8">
             {/* Drag & Drop Zone */}
@@ -202,10 +202,10 @@ export default function AddPhotography() {
               onClick={() => fileInputRef.current?.click()}
               className={`relative border-4 border-dashed rounded-2xl h-64 flex items-center justify-center cursor-pointer transition-all duration-300 overflow-hidden ${
                 isDragging
-                  ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 scale-105"
+                  ? "border-purple-500 bg-[var(--color-active-bg)] scale-105"
                   : files.length > 0
-                    ? "border-green-400 dark:border-green-600"
-                    : "border-gray-300 dark:border-gray-600 hover:border-purple-400 dark:hover:border-purple-500"
+                    ? "border-green-400"
+                    : "border-[var(--color-active-border)] hover:border-[var(--color-text-hover)]"
               }`}
             >
               <motion.div
@@ -220,15 +220,15 @@ export default function AddPhotography() {
                   {files.length > 0 ? (
                     <IoCheckmarkCircle className="mx-auto text-8xl text-green-500 mb-4" />
                   ) : (
-                    <IoCloudUploadOutline className="mx-auto text-8xl text-gray-400 dark:text-gray-500 mb-6" />
+                    <IoCloudUploadOutline className="mx-auto text-8xl text-[var(--color-gray)] mb-6" />
                   )}
                 </motion.div>
-                <p className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                <p className="text-xl font-semibold text-[var(--color-text)] mb-2">
                   {files.length > 0
                     ? `${files.length} photo${files.length > 1 ? "s" : ""} selected`
                     : "Drop your photos here"}
                 </p>
-                <p className="text-gray-500 dark:text-gray-400">
+                <p className="text-[var(--color-gray)]">
                   {files.length > 0
                     ? "Click to add more (Max 10 total)"
                     : "or click to browse (Max 20MB each, 10 photos total)"}
@@ -253,11 +253,11 @@ export default function AddPhotography() {
                   exit={{ opacity: 0, height: 0 }}
                   className="space-y-2"
                 >
-                  <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                  <div className="flex justify-between text-sm text-[var(--color-gray)]">
                     <span>Uploading to Cloudinary...</span>
                     <span>{uploadProgress}%</span>
                   </div>
-                  <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div className="w-full h-3 bg-[var(--color-active-bg)] rounded-full overflow-hidden">
                     <motion.div
                       className="h-full bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 rounded-full"
                       initial={{ width: "0%" }}
@@ -284,7 +284,7 @@ export default function AddPhotography() {
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.8 }}
-                      className="relative group aspect-square rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-600 hover:border-purple-400 dark:hover:border-purple-500 transition-all duration-300"
+                      className="relative group aspect-square rounded-xl overflow-hidden border-2 border-[var(--color-active-border)] hover:border-[var(--color-text-hover)] transition-all duration-300"
                     >
                       <img
                         src={fileWithPreview.preview}
@@ -324,7 +324,7 @@ export default function AddPhotography() {
                 }}
                 className={`flex-1 py-4 px-8 rounded-xl font-bold text-white shadow-lg transition-all duration-300 ${
                   mutation.isPending || files.length === 0
-                    ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
+                    ? "bg-[var(--color-gray)] cursor-not-allowed"
                     : "bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 hover:shadow-2xl hover:scale-105"
                 }`}
               >
@@ -346,7 +346,7 @@ export default function AddPhotography() {
                   animate={{ opacity: 1, scale: 1 }}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="px-8 py-4 bg-gray-500 hover:bg-gray-600 text-white rounded-xl font-semibold shadow-lg transition-all duration-300"
+                  className="px-8 py-4 bg-[var(--color-active-bg)] hover:bg-[var(--color-active-border)] text-[var(--color-text)] border border-[var(--color-active-border)] rounded-xl font-semibold shadow-lg transition-all duration-300"
                 >
                   Clear All
                 </motion.button>
@@ -360,12 +360,12 @@ export default function AddPhotography() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8 }}
-          className="mt-8 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-gray-800 dark:to-gray-700 rounded-2xl p-6 border border-purple-200 dark:border-gray-600"
+          className="mt-8 bg-[var(--color-active-bg)] border border-[var(--color-active-border)] rounded-2xl p-6"
         >
-          <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-3">
+          <h3 className="text-lg font-bold text-[var(--color-text)] mb-3">
             📸 Upload Tips
           </h3>
-          <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+          <ul className="space-y-2 text-sm text-[var(--color-gray)]">
             <li>• Upload multiple photos at once (up to 10 photos)</li>
             <li>• Use high-quality images for best results</li>
             <li>• Maximum file size: 20MB per photo</li>
