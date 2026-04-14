@@ -84,11 +84,9 @@ const validatePositiveNumber = (
   fieldLabel: string,
 ): string | true => {
   if (!raw) return `${fieldLabel} আবশ্যিক`;
-
   const ascii = toAsciiDigits(raw).trim();
   if (!/^\d+$/.test(ascii)) return "শুধু পূর্ণসংখ্যা দিন (যেমন: ১, ২, ৩)";
   if (parseInt(ascii) <= 0) return "নম্বর ০-এর চেয়ে বড় হতে হবে";
-
   return true;
 };
 
@@ -97,23 +95,18 @@ const validateNumberValue = (
   fieldLabel: string,
 ): string | true => {
   if (!raw?.trim()) return `${fieldLabel} আবশ্যিক`;
-
   const ascii = toAsciiDigits(raw).trim();
-
   if (!/^[\d.\-–, ]+$/.test(ascii)) {
     return "শুধু সংখ্যা, দশমিক (.), হাইফেন (-) এবং কমা (,) ব্যবহার করুন";
   }
-
   const parts = ascii
     .split(",")
     .map((p) => p.trim())
     .filter(Boolean);
-
   for (const part of parts) {
     if (!/^\d+\.?\d*$|^\d+\.?\d*-\d+\.?\d*$/.test(part)) {
       return "সঠিক ফরম্যাট দিন। উদাহরণ: ২.৬, ১৫-২০, ২৫-৩০";
     }
-
     if (part.includes("-")) {
       const [start, end] = part.split("-").map(Number);
       if (isNaN(start) || isNaN(end) || start >= end) {
@@ -121,7 +114,6 @@ const validateNumberValue = (
       }
     }
   }
-
   return true;
 };
 
@@ -153,11 +145,7 @@ const fadeUp: Variants = {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: {
-      delay: i * 0.06,
-      duration: 0.5,
-      ease: [0.22, 1, 0.36, 1],
-    },
+    transition: { delay: i * 0.06, duration: 0.5, ease: [0.22, 1, 0.36, 1] },
   }),
 };
 
@@ -165,10 +153,7 @@ const staggerContainer: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: {
-      staggerChildren: 0.08,
-      delayChildren: 0.1,
-    },
+    transition: { staggerChildren: 0.08, delayChildren: 0.1 },
   },
 };
 
@@ -349,6 +334,7 @@ const AddWeeklyExam = () => {
   const [submitted, setSubmitted] = useState(false);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
+  const [uploadProgress, setUploadProgress] = useState(0); // ✅ Progress state
   const fileInputRef = useRef<HTMLInputElement>(null);
   const qc = useQueryClient();
 
@@ -441,13 +427,17 @@ const AddWeeklyExam = () => {
       formData: WeeklyExamFormData;
       images: File[];
     }) => {
-      // 1️⃣ Images direct Cloudinary te pathao (Vercel skip!)
+      // ── Step 1: Images direct Cloudinary te upload ──────
       let uploadedImages: { imageUrl: string; publicId: string }[] = [];
 
       if (data.images.length > 0) {
+        setUploadProgress(0); // reset
         const cloudinaryResults = await uploadMultipleToCloudinary(
           data.images,
-          { folder: "weekly-exams" },
+          {
+            folder: "weekly-exams",
+            onProgress: setUploadProgress, // ✅ Progress callback
+          },
         );
         uploadedImages = cloudinaryResults.map((r) => ({
           imageUrl: r.secure_url,
@@ -455,7 +445,7 @@ const AddWeeklyExam = () => {
         }));
       }
 
-      // 2️⃣ Server e shudhu JSON data + URLs pathao (NO files!)
+      // ── Step 2: Server e shudhu JSON + URLs ────────────
       const payload = {
         subject: data.formData.subject,
         teacher: data.formData.teacher,
@@ -479,13 +469,16 @@ const AddWeeklyExam = () => {
       reset();
       setImageFiles([]);
       setPreviews([]);
+      setUploadProgress(0); // ✅ Reset progress
       setSubmitted(true);
       setTimeout(() => setSubmitted(false), 2500);
     },
-    onError: (err: Error & { response?: { data?: { message?: string } } }) =>
+    onError: (err: Error & { response?: { data?: { message?: string } } }) => {
       toast.error(
         err?.response?.data?.message || err?.message || "Failed to create exam",
-      ),
+      );
+      setUploadProgress(0); // ✅ Reset on error
+    },
   });
 
   const onSubmit: SubmitHandler<WeeklyExamFormData> = (data) => {
@@ -499,6 +492,7 @@ const AddWeeklyExam = () => {
     reset();
     setImageFiles([]);
     setPreviews([]);
+    setUploadProgress(0);
   };
 
   // ── Guards ─────────────────────────────────────────────
@@ -518,7 +512,7 @@ const AddWeeklyExam = () => {
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full "
+        className="w-full"
       >
         {/* Header */}
         <motion.div
@@ -558,8 +552,7 @@ const AddWeeklyExam = () => {
           variants={pulseGlow}
           initial="initial"
           animate="animate"
-          className="relative bg-[var(--color-bg)] rounded-2xl border-2 border-[var(--color-active-border)] 
-            overflow-hidden shadow-xl"
+          className="relative bg-[var(--color-bg)] rounded-2xl border-2 border-[var(--color-active-border)] overflow-hidden shadow-xl"
         >
           {/* Animated gradient border effect */}
           <motion.div
@@ -569,9 +562,7 @@ const AddWeeklyExam = () => {
                 "linear-gradient(45deg, transparent 30%, rgba(139,92,246,0.1) 50%, transparent 70%)",
               backgroundSize: "200% 200%",
             }}
-            animate={{
-              backgroundPosition: ["0% 0%", "100% 100%", "0% 0%"],
-            }}
+            animate={{ backgroundPosition: ["0% 0%", "100% 100%", "0% 0%"] }}
             transition={{ duration: 5, repeat: Infinity }}
           />
 
@@ -839,7 +830,7 @@ const AddWeeklyExam = () => {
                 <ErrorMsg msg={errors.topics?.message} />
               </AnimatedCard>
 
-              {/* ── Row 6: Question (NEW) ── */}
+              {/* ── Row 6: Question ── */}
               <AnimatedCard index={8}>
                 <label className={labelCls}>
                   <HelpCircle className="w-4 h-4" />
@@ -904,14 +895,12 @@ const AddWeeklyExam = () => {
                     hover:border-violet-400 rounded-xl p-8 flex flex-col items-center gap-3 
                     transition-all duration-300 group relative overflow-hidden"
                 >
-                  {/* Shimmer effect */}
                   <motion.div
                     variants={shimmer}
                     initial="initial"
                     animate="animate"
                     className="absolute inset-0 bg-gradient-to-r from-transparent via-violet-500/5 to-transparent"
                   />
-
                   <motion.div
                     whileHover={{ rotate: 15, scale: 1.1 }}
                     transition={{ type: "spring", stiffness: 400 }}
@@ -987,6 +976,38 @@ const AddWeeklyExam = () => {
                 )}
               </AnimatedCard>
 
+              {/* ── Upload Progress Bar ── */}
+              <AnimatePresence>
+                {mutation.isPending && imageFiles.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="space-y-2 px-1"
+                  >
+                    <div className="flex justify-between items-center text-xs bangla text-[var(--color-gray)]">
+                      <span className="flex items-center gap-1.5">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-500" />
+                        {uploadProgress < 100
+                          ? `ছবি আপলোড হচ্ছে (${toBanglaDigits(String(imageFiles.length))}টি)…`
+                          : "ডেটা সংরক্ষণ হচ্ছে…"}
+                      </span>
+                      <span className="font-bold text-violet-500">
+                        {toBanglaDigits(String(uploadProgress))}%
+                      </span>
+                    </div>
+                    <div className="w-full h-2.5 bg-[var(--color-active-bg)] rounded-full overflow-hidden border border-[var(--color-active-border)]">
+                      <motion.div
+                        className="h-full rounded-full bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500"
+                        initial={{ width: "0%" }}
+                        animate={{ width: `${uploadProgress}%` }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {/* Divider */}
               <motion.div
                 initial={{ scaleX: 0 }}
@@ -1027,7 +1048,10 @@ const AddWeeklyExam = () => {
                           className="flex items-center gap-2"
                         >
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          সংরক্ষণ হচ্ছে…
+                          {/* ✅ Dynamic text based on progress */}
+                          {imageFiles.length > 0 && uploadProgress < 100
+                            ? `ছবি আপলোড… ${toBanglaDigits(String(uploadProgress))}%`
+                            : "সংরক্ষণ হচ্ছে…"}
                         </motion.span>
                       ) : submitted ? (
                         <motion.span
