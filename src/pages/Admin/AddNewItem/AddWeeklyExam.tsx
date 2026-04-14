@@ -24,6 +24,7 @@ import Skeleton from "../../../components/common/Skeleton";
 import ErrorState from "../../../components/common/ErrorState";
 import { useAuth } from "../../../context/AuthContext";
 import { CLASS_OPTIONS, getSubjects } from "../../../utility/Constants";
+import { uploadMultipleToCloudinary } from "../../../hooks/useCloudinaryUpload";
 
 // ─── Types ────────────────────────────────────────────────
 interface WeeklyExamFormData {
@@ -436,10 +437,42 @@ const AddWeeklyExam = () => {
 
   // ── Mutation ───────────────────────────────────────────
   const mutation = useMutation({
-    mutationFn: (fd: FormData) =>
-      axiosPublic.post("/api/weekly-exams", fd, {
-        headers: { "Content-Type": "multipart/form-data" },
-      }),
+    mutationFn: async (data: {
+      formData: WeeklyExamFormData;
+      images: File[];
+    }) => {
+      // 1️⃣ Images direct Cloudinary te pathao (Vercel skip!)
+      let uploadedImages: { imageUrl: string; publicId: string }[] = [];
+
+      if (data.images.length > 0) {
+        const cloudinaryResults = await uploadMultipleToCloudinary(
+          data.images,
+          { folder: "weekly-exams" },
+        );
+        uploadedImages = cloudinaryResults.map((r) => ({
+          imageUrl: r.secure_url,
+          publicId: r.public_id,
+        }));
+      }
+
+      // 2️⃣ Server e shudhu JSON data + URLs pathao (NO files!)
+      const payload = {
+        subject: data.formData.subject,
+        teacher: data.formData.teacher,
+        class: data.formData.class,
+        mark: data.formData.mark,
+        ExamNumber: toAsciiDigits(data.formData.ExamNumber),
+        numberType: data.formData.numberType,
+        [data.formData.numberType]: toAsciiDigits(data.formData.numberValue),
+        topics: data.formData.topics,
+        question: data.formData.question,
+        teacherSlug: user?.slug,
+        images: uploadedImages,
+      };
+
+      const res = await axiosPublic.post("/api/weekly-exams", payload);
+      return res.data;
+    },
     onSuccess: () => {
       toast.success("পরীক্ষা সফলভাবে যোগ হয়েছে!");
       qc.invalidateQueries({ queryKey: ["weekly-exams"] });
@@ -456,32 +489,10 @@ const AddWeeklyExam = () => {
   });
 
   const onSubmit: SubmitHandler<WeeklyExamFormData> = (data) => {
-    const fd = new FormData();
-
-    // Map numberType + numberValue to appropriate field
-    const payload = {
-      subject: data.subject,
-      teacher: data.teacher,
-      class: data.class,
-      mark: data.mark,
-      ExamNumber: toAsciiDigits(data.ExamNumber),
-      numberType: data.numberType,
-      [data.numberType]: toAsciiDigits(data.numberValue),
-      topics: data.topics,
-      question: data.question,
-    };
-
-    Object.entries(payload).forEach(([key, value]) => {
-      if (value !== undefined && value !== "") {
-        fd.append(key, String(value));
-      }
-    });
-
-    if (!isAdmin && user?.name) fd.set("teacher", user.name);
-    if (user?.slug) fd.append("teacherSlug", user.slug);
-    imageFiles.forEach((f) => fd.append("images", f));
-
-    mutation.mutate(fd);
+    if (!isAdmin && user?.name) {
+      data.teacher = user.name;
+    }
+    mutation.mutate({ formData: data, images: imageFiles });
   };
 
   const handleReset = () => {

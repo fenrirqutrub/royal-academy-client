@@ -12,8 +12,9 @@ import {
   Crop as CropIcon,
   Check,
 } from "lucide-react";
-import axiosPublic, { multipartConfig } from "../../../hooks/axiosPublic";
+import axiosPublic from "../../../hooks/axiosPublic";
 import Button from "../../../components/common/Button";
+import { uploadToCloudinaryDirect } from "../../../hooks/useCloudinaryUpload";
 
 interface HeroFormData {
   title: string;
@@ -171,15 +172,14 @@ const AddHero = () => {
     mutationFn: async (data: HeroFormData) => {
       if (!croppedBlob) throw new Error("Please crop the image first");
 
-      const formData = new FormData();
-      formData.append("title", data.title);
-      formData.append("img", croppedBlob, "hero.jpg");
+      const cloudResult = await uploadToCloudinaryDirect(croppedBlob, "heroes");
 
-      const response = await axiosPublic.post(
-        "/api/heroes",
-        formData,
-        multipartConfig,
-      );
+      const response = await axiosPublic.post("/api/heroes", {
+        title: data.title,
+        imageUrl: cloudResult.secure_url,
+        imagePublicId: cloudResult.public_id,
+      });
+
       return response.data;
     },
     onSuccess: () => {

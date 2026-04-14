@@ -16,7 +16,7 @@ export interface TeacherData {
   gramNam: string;
   _id: string;
   name: string;
-  role: "teacher" | "admin" | "principal";
+  role: "teacher" | "admin" | "principal" | "student";
   subject?: string;
   designation?: string;
   avatar?: { url?: string };

@@ -36,6 +36,7 @@ import SelectInput from "../../../components/common/SelectInput";
 import Skeleton from "../../../components/common/Skeleton";
 import { getDivisions, getDistricts, getThanas } from "../../../data/bd-geo";
 import { AnimatedAvatar } from "../../../components/common/AnimatedAvatar";
+import { uploadToCloudinaryDirect } from "../../../hooks/useCloudinaryUpload";
 
 /* ─── Constants ───────────────────────────────────────────────────────────── */
 const ROLE_COLOR: Record<string, string> = {
@@ -479,9 +480,16 @@ const Profile = () => {
   /* ── Avatar mutation ── */
   const avatarMutation = useMutation({
     mutationFn: async (file: File) => {
-      const fd = new FormData();
-      fd.append("image", file);
-      return (await axiosPublic.post(`/api/users/${slug}/avatar`, fd)).data;
+      const cloudResult = await uploadToCloudinaryDirect(file, "avatars");
+
+      return (
+        await axiosPublic.patch(`/api/users/${slug}/profile`, {
+          avatar: {
+            url: cloudResult.secure_url,
+            publicId: cloudResult.public_id,
+          },
+        })
+      ).data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile", slug] });

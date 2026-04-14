@@ -1,8 +1,14 @@
 // src/pages/Admin/Auth/AuthPage.tsx
+import { useState } from "react";
 import { motion, type Variants } from "framer-motion";
 import { TypeAnimation } from "react-type-animation";
 import { useNavigate, Link } from "react-router";
 import ThemeToggle from "../../../components/Navbar/ThemeToggle";
+import axiosPublic from "../../../hooks/axiosPublic";
+import type { TeacherData } from "../../../components/Teachers/Teacher";
+import { useQuery } from "@tanstack/react-query";
+import { TriangleAlert } from "lucide-react";
+import { toBn } from "../../../utility/shared";
 
 const stagger: Variants = {
   hidden: {},
@@ -24,7 +30,7 @@ interface ChoiceCardProps {
   subtitle: string;
   icon: string;
   gradientBg: string;
-  hoverBorder: string;
+  hoverBorderColor: string;
   navigateTo: string;
 }
 
@@ -33,18 +39,24 @@ const ChoiceCard = ({
   subtitle,
   icon,
   gradientBg,
-  hoverBorder,
+  hoverBorderColor,
   navigateTo,
 }: ChoiceCardProps) => {
   const navigate = useNavigate();
+  const [hovered, setHovered] = useState(false);
+
   return (
     <motion.button
       variants={fadeUp}
       whileHover={{ x: 6, transition: { duration: 0.2 } }}
       whileTap={{ scale: 0.985 }}
       onClick={() => navigate(navigateTo)}
-      className={`group w-full relative flex items-center gap-5 px-6 py-5 rounded-2xl cursor-pointer transition-all duration-200 overflow-hidden text-left
-        bg-[var(--color-active-bg)] border border-[var(--color-active-border)] hover:border-[${hoverBorder}]`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        borderColor: hovered ? hoverBorderColor : undefined,
+      }}
+      className="group w-full relative flex items-center gap-5 px-6 py-5 rounded-2xl cursor-pointer transition-all duration-200 overflow-hidden text-left bg-[var(--color-active-bg)] border border-[var(--color-active-border)]"
     >
       <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-2xl bg-[var(--color-text-hover)] opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
       <div
@@ -58,7 +70,7 @@ const ChoiceCard = ({
         </p>
         <p className="text-xs text-[var(--color-gray)] mt-1">{subtitle}</p>
       </div>
-      <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200 bg-[var(--color-bg)] group-hover:bg-opacity-20">
+      <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200 bg-[var(--color-bg)]">
         <span className="text-sm font-bold text-[var(--color-gray)] group-hover:text-[var(--color-text-hover)] transition-colors">
           →
         </span>
@@ -67,20 +79,29 @@ const ChoiceCard = ({
   );
 };
 
-interface StatItemProps {
-  num: string;
-  label: string;
-}
-
-const StatItem = ({ num, label }: StatItemProps) => (
-  <div>
-    <p className="text-2xl font-black text-[var(--color-text)]">{num}</p>
-    <p className="text-[11px] text-[var(--color-gray)] mt-0.5">{label}</p>
-  </div>
-);
-
 // ────────────── Main Page ──────────────
 const AuthPage = () => {
+  const { data, isLoading, isError } = useQuery<TeacherData[]>({
+    queryKey: ["teachers"],
+    queryFn: async () => {
+      const res = await axiosPublic.get("/api/users");
+      return (res.data?.data ?? res.data ?? []) as TeacherData[];
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  const teachers = (data ?? []).filter(
+    (t) => t.role === "teacher" || t.role === "admin" || t.role === "principal",
+  );
+
+  const students = (data ?? []).filter((s) => s.role === "student");
+
+  const getStatNum = (count: number): string => {
+    if (isLoading) return "...";
+    if (isError) return "?";
+    return toBn(count);
+  };
+
   return (
     <div className="bangla w-full min-h-screen bg-[var(--color-bg)] flex relative overflow-hidden">
       {/* Grid texture */}
@@ -109,7 +130,7 @@ const AuthPage = () => {
               <span className="text-white text-base">🎓</span>
             </div>
             <span className="font-bold text-sm tracking-wide text-[var(--color-text)]">
-              রয়েল একাডেমি
+              রয়েল একাডেমি
             </span>
           </div>
           <ThemeToggle />
@@ -157,17 +178,27 @@ const AuthPage = () => {
             className="flex gap-8 mt-10"
           >
             {[
-              { num: "১২০০+", label: "শিক্ষার্থী" },
-              { num: "৪৮", label: "শিক্ষক" },
-              { num: "১৫+", label: "বছরের অভিজ্ঞতা" },
-            ].map((s) => (
-              <StatItem key={s.label} {...s} />
+              {
+                num: getStatNum(students.length) + "+",
+                label: "শিক্ষার্থী",
+              },
+              { num: getStatNum(teachers.length) + "+", label: "শিক্ষক" },
+              { num: "৩+", label: "বছরের অভিজ্ঞতা" },
+            ].map((s, index) => (
+              <div key={index}>
+                <p className="text-2xl text-center font-black text-[var(--color-text)]">
+                  {s.num}
+                </p>
+                <p className="text-sm text-[var(--color-gray)] mt-0.5">
+                  {s.label}
+                </p>
+              </div>
             ))}
           </motion.div>
         </div>
 
-        <p className="text-[11px] text-[var(--color-gray)]">
-          &copy; ২০২৫ রয়েল একাডেমি। সর্বস্বত্ব সংরক্ষিত।
+        <p className="text-sm text-[var(--color-gray)]">
+          &copy; ২০২৪ রয়েল একাডেমি। সর্বস্বত্ব সংরক্ষিত।
         </p>
       </motion.div>
 
@@ -201,7 +232,7 @@ const AuthPage = () => {
           <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white bg-[linear-gradient(135deg,#3b82f6,#6366f1)]">
             ?
           </div>
-          <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[var(--color-gray)]">
+          <span className="text-sm font-semibold tracking-[0.18em] uppercase text-[var(--color-gray)]">
             একটু জানতে চাই
           </span>
         </motion.div>
@@ -233,13 +264,13 @@ const AuthPage = () => {
 
           <div className="flex items-center gap-x-2 mt-16">
             <span className="text-base mt-0.5 shrink-0">👤</span>
-            <p className="text-xs text-[var(--color-gray)] leading-relaxed">
+            <p className="text-sm text-[var(--color-gray)] leading-relaxed">
               আপনি যদি শিক্ষার্থী বা শিক্ষক না হন, তাহলে{" "}
               <Link
                 to="/"
-                className="font-semibold underline underline-offset-2 text-[var(--color-text-hover)] hover:opacity-80 transition-opacity"
+                className="font-semibold text-base underline underline-offset-2 text-[var(--color-text-hover)] hover:opacity-80 transition-opacity"
               >
-                হোমপেজে যান
+                হোমপেজে ফিরে যান
               </Link>
               ।
             </p>
@@ -258,7 +289,7 @@ const AuthPage = () => {
             subtitle="নতুন অ্যাকাউন্ট তৈরি করে শুরু করুন"
             icon="👋"
             gradientBg="bg-[rgba(59,130,246,0.12)]"
-            hoverBorder="#3b82f6"
+            hoverBorderColor="#3b82f6"
             navigateTo="/signup"
           />
           <ChoiceCard
@@ -266,20 +297,23 @@ const AuthPage = () => {
             subtitle="পুরনো অ্যাকাউন্টে লগইন করুন"
             icon="🔑"
             gradientBg="bg-[rgba(99,102,241,0.12)]"
-            hoverBorder="#6366f1"
+            hoverBorderColor="#6366f1"
             navigateTo="/login"
           />
         </motion.div>
 
         {/* Bottom note */}
-        <motion.p
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 3 }}
-          className="text-center text-[11px] text-[var(--color-gray)] mt-8"
+          className="flex items-center justify-center gap-x-2 mt-8"
         >
-          শুধুমাত্র নিবন্ধিত সদস্যদের জন্য — অননুমোদিত প্রবেশ নিষিদ্ধ
-        </motion.p>
+          <TriangleAlert className="w-4 h-4 text-red-500 shrink-0" />
+          <p className="text-sm text-red-500">
+            শুধুমাত্র নিবন্ধিত সদস্যদের জন্য — অননুমোদিত প্রবেশ নিষিদ্ধ!
+          </p>
+        </motion.div>
       </motion.div>
     </div>
   );

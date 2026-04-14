@@ -34,7 +34,7 @@ createRoot(document.getElementById("root")!).render(
                 <ProfileDrawer />
                 <Router />
                 <ScrollToTopOnReload />
-                <Toaster position="top-right" />
+                <Toaster position="top-center" />
                 <SpeedInsights />
               </ProfileDrawerProvider>
             </AuthProvider>
