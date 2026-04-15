@@ -1,4 +1,3 @@
-// src/pages/admin/Profile.tsx
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
@@ -131,7 +130,7 @@ const cardVariants = {
   },
 };
 
-/* ─── GlassCard Component ─────────────────────────────────────────────────── */
+/* ─── GlassCard ───────────────────────────────────────────────────────────── */
 const GlassCard = ({
   children,
   delay = 0,
@@ -149,7 +148,6 @@ const GlassCard = ({
     className={`relative rounded-3xl overflow-hidden bg-[var(--color-bg)] 
       border border-[var(--color-active-border)] shadow-lg ${className}`}
   >
-    {/* Subtle gradient overlay */}
     <div className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-500 pointer-events-none">
       <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-active-bg)] to-transparent" />
     </div>
@@ -161,11 +159,9 @@ const GlassCard = ({
 const SectionHeader = ({
   icon,
   title,
-  action,
 }: {
   icon: React.ReactNode;
   title: string;
-  action?: React.ReactNode;
 }) => (
   <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-[var(--color-active-border)]">
     <div className="flex items-center gap-3">
@@ -180,7 +176,6 @@ const SectionHeader = ({
         {title}
       </h3>
     </div>
-    {action}
   </div>
 );
 
@@ -199,7 +194,6 @@ const FieldDisplay = ({
   roleColor?: string;
 }) => {
   const missing = !value;
-
   return (
     <motion.div
       layout
@@ -212,7 +206,6 @@ const FieldDisplay = ({
         >
           <span className="text-[var(--color-gray)]">{icon}</span>
         </motion.div>
-
         <div className="flex-1 min-w-0">
           <p className="text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)] mb-1">
             {label}
@@ -222,7 +215,6 @@ const FieldDisplay = ({
               </span>
             )}
           </p>
-
           <motion.p
             layout
             className={`text-base font-medium bangla truncate ${
@@ -241,8 +233,6 @@ const FieldDisplay = ({
             )}
           </motion.p>
         </div>
-
-        {/* Hover indicator */}
         {!missing && (
           <motion.div
             initial={{ opacity: 0, x: 10 }}
@@ -302,9 +292,7 @@ const TextInput = ({
           text-[var(--color-text)] placeholder:text-[var(--color-gray)] placeholder:opacity-50
           focus:border-[var(--color-text-hover)] focus:bg-[var(--color-bg)]
           hover:border-[var(--color-text-hover)]/50"
-        style={{
-          boxShadow: `0 0 0 0 ${roleColor}00`,
-        }}
+        style={{ boxShadow: `0 0 0 0 ${roleColor}00` }}
         onFocus={(e) => {
           e.currentTarget.style.boxShadow = `0 0 0 3px ${roleColor}20`;
         }}
@@ -328,7 +316,6 @@ const PasswordInput = ({
   roleColor?: string;
 }) => {
   const [show, setShow] = useState(false);
-
   return (
     <motion.div layout className="space-y-2 mb-4">
       <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
@@ -347,9 +334,7 @@ const PasswordInput = ({
             text-[var(--color-text)] placeholder:text-[var(--color-gray)] placeholder:opacity-50
             focus:border-[var(--color-text-hover)] focus:bg-[var(--color-bg)]
             hover:border-[var(--color-text-hover)]/50"
-          style={{
-            boxShadow: `0 0 0 0 ${roleColor}00`,
-          }}
+          style={{ boxShadow: `0 0 0 0 ${roleColor}00` }}
           onFocus={(e) => {
             e.currentTarget.style.boxShadow = `0 0 0 3px ${roleColor}20`;
           }}
@@ -386,7 +371,6 @@ const ProfileCompletion = ({
 }) => {
   const completed = total - missing;
   const percentage = (completed / total) * 100;
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -469,6 +453,7 @@ const Profile = () => {
       (await axiosPublic.patch(`/api/users/${slug}/profile`, payload)).data,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile", slug] });
+      queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
       toast.success("প্রোফাইল সফলভাবে আপডেট হয়েছে! ✨");
       setEditing(false);
       setFormData({});
@@ -481,7 +466,6 @@ const Profile = () => {
   const avatarMutation = useMutation({
     mutationFn: async (file: File) => {
       const cloudResult = await uploadToCloudinaryDirect(file, "avatars");
-
       return (
         await axiosPublic.patch(`/api/users/${slug}/profile`, {
           avatar: {
@@ -493,6 +477,7 @@ const Profile = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile", slug] });
+      queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
       toast.success("ছবি আপডেট হয়েছে! 📸");
     },
     onError: () => toast.error("ছবি আপলোড ব্যর্থ"),
@@ -573,7 +558,6 @@ const Profile = () => {
       ? getThanas(pDivision, pDistrict).map((v) => ({ value: v, label: v }))
       : [];
 
-  // ── Loading ───────────────────────────────────────────────────────────────
   if (isLoading)
     return (
       <div className="min-h-screen bg-[var(--color-bg)]">
@@ -581,7 +565,6 @@ const Profile = () => {
       </div>
     );
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
       {/* Background decoration */}
@@ -616,7 +599,7 @@ const Profile = () => {
           <GlassCard delay={0.05} className="mb-6">
             <div className="p-6 md:p-8">
               <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
-                {/* Avatar Section */}
+                {/* Avatar */}
                 <motion.div
                   layout
                   className="relative flex-shrink-0"
@@ -630,8 +613,6 @@ const Profile = () => {
                     showRings={true}
                     showStatus={true}
                   />
-
-                  {/* Camera Button */}
                   <motion.button
                     whileHover={{ scale: 1.15, rotate: 15 }}
                     whileTap={{ scale: 0.9 }}
@@ -648,7 +629,6 @@ const Profile = () => {
                       <Camera className="w-5 h-5 text-[var(--color-text)]" />
                     )}
                   </motion.button>
-
                   <input
                     ref={fileRef}
                     type="file"
@@ -661,7 +641,7 @@ const Profile = () => {
                   />
                 </motion.div>
 
-                {/* Info Section */}
+                {/* Info */}
                 <div className="flex-1 text-center md:text-left min-w-0">
                   <motion.h2
                     layout
@@ -671,7 +651,6 @@ const Profile = () => {
                   </motion.h2>
 
                   <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-3">
-                    {/* Role Badge */}
                     <motion.span
                       whileHover={{ scale: 1.05 }}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bangla"
@@ -690,7 +669,6 @@ const Profile = () => {
                       {ROLE_LABEL[user?.role ?? ""] ?? user?.role}
                     </motion.span>
 
-                    {/* ID Badge */}
                     {slug && (
                       <motion.button
                         whileHover={{ scale: 1.05 }}
@@ -728,7 +706,6 @@ const Profile = () => {
                       </motion.button>
                     )}
 
-                    {/* Admin Shield */}
                     {(user?.role === "admin" || user?.role === "owner") && (
                       <motion.div
                         whileHover={{ rotate: 360 }}
@@ -747,7 +724,6 @@ const Profile = () => {
                     )}
                   </div>
 
-                  {/* Profile Completion */}
                   {!isHardcoded && !editing && (
                     <ProfileCompletion
                       missing={missingFields}
@@ -787,7 +763,6 @@ const Profile = () => {
                             )}
                             সংরক্ষণ
                           </motion.button>
-
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
@@ -836,7 +811,7 @@ const Profile = () => {
             animate="visible"
             className="space-y-4"
           >
-            {/* Personal Info */}
+            {/* ── Personal Info ── */}
             <GlassCard delay={0.1}>
               <SectionHeader
                 icon={<User className="w-5 h-5" />}
@@ -969,7 +944,7 @@ const Profile = () => {
               </div>
             </GlassCard>
 
-            {/* Contact Info */}
+            {/* ── Contact ── */}
             <GlassCard delay={0.15}>
               <SectionHeader
                 icon={<Phone className="w-5 h-5" />}
@@ -1046,7 +1021,7 @@ const Profile = () => {
               </div>
             </GlassCard>
 
-            {/* Present Address */}
+            {/* ── Present Address ── */}
             {!isHardcoded && (
               <GlassCard delay={0.2}>
                 <SectionHeader
@@ -1180,7 +1155,7 @@ const Profile = () => {
               </GlassCard>
             )}
 
-            {/* Permanent Address */}
+            {/* ── Permanent Address ── */}
             {!isHardcoded && !profile?.permanentSameAsPresent && (
               <GlassCard delay={0.25}>
                 <SectionHeader
@@ -1297,7 +1272,7 @@ const Profile = () => {
               </GlassCard>
             )}
 
-            {/* Student Education */}
+            {/* ── Student Education ── */}
             {isStudent && !isHardcoded && (
               <GlassCard delay={0.3}>
                 <SectionHeader
@@ -1405,7 +1380,7 @@ const Profile = () => {
               </GlassCard>
             )}
 
-            {/* Staff Education */}
+            {/* ── Staff Education ── */}
             {!isStudent && !isHardcoded && (
               <GlassCard delay={0.3}>
                 <SectionHeader
@@ -1423,6 +1398,18 @@ const Profile = () => {
                         roleColor={roleColor}
                       />
                       <FieldDisplay
+                        icon={<GraduationCap className="w-4 h-4" />}
+                        label="শিক্ষা সম্পন্ন?"
+                        value={
+                          profile?.educationComplete === true
+                            ? "হ্যাঁ"
+                            : profile?.educationComplete === false
+                              ? "না (চলমান)"
+                              : null
+                        }
+                        roleColor={roleColor}
+                      />
+                      <FieldDisplay
                         icon={<BookOpen className="w-4 h-4" />}
                         label="ডিগ্রি"
                         value={
@@ -1430,14 +1417,22 @@ const Profile = () => {
                         }
                         roleColor={roleColor}
                       />
-                      {profile?.currentYear && (
-                        <FieldDisplay
-                          icon={<BookOpen className="w-4 h-4" />}
-                          label="বর্তমান বর্ষ"
-                          value={profile.currentYear}
-                          roleColor={roleColor}
-                        />
-                      )}
+                      {profile?.educationComplete === false &&
+                        profile?.currentYear && (
+                          <FieldDisplay
+                            icon={<CalendarDays className="w-4 h-4" />}
+                            label="বর্তমান বর্ষ"
+                            value={profile.currentYear}
+                            roleColor={roleColor}
+                          />
+                        )}
+                      <FieldDisplay
+                        icon={<BookOpen className="w-4 h-4" />}
+                        label="যোগ্যতা"
+                        value={profile?.qualification}
+                        optional
+                        roleColor={roleColor}
+                      />
                     </>
                   ) : (
                     <div className="px-6 py-4">
@@ -1451,25 +1446,92 @@ const Profile = () => {
                         onChange={handleChange}
                         roleColor={roleColor}
                       />
-                      <div className="space-y-2">
+
+                      <div className="space-y-2 mb-4">
+                        <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
+                          <GraduationCap className="w-3.5 h-3.5" />
+                          শিক্ষা সম্পন্ন?
+                        </label>
+                        <SelectInput
+                          options={[
+                            {
+                              value: "true",
+                              label: "হ্যাঁ — শিক্ষা সম্পন্ন",
+                            },
+                            { value: "false", label: "না — এখনো পড়ছি" },
+                          ]}
+                          value={
+                            (formData.educationComplete ??
+                              String(profile?.educationComplete ?? "")) ||
+                            ""
+                          }
+                          onChange={(v) =>
+                            handleSelectChange("educationComplete", v)
+                          }
+                          placeholder="বেছে নিন"
+                        />
+                      </div>
+
+                      <div className="space-y-2 mb-4">
                         <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
                           <BookOpen className="w-3.5 h-3.5" />
                           ডিগ্রি
-                          <span className="normal-case tracking-normal opacity-50">
-                            (পরিবর্তনযোগ্য নয়)
-                          </span>
                         </label>
-                        <div className="w-full text-sm rounded-2xl px-4 py-3 bangla opacity-60 cursor-not-allowed bg-[var(--color-active-bg)] border border-[var(--color-active-border)] text-[var(--color-text)]">
-                          {profile?.degree ? DEGREE_LABEL[profile.degree] : "—"}
-                        </div>
+                        <SelectInput
+                          options={[
+                            { value: "hsc", label: "এইচএসসি / সমমান" },
+                            { value: "hons", label: "স্নাতক (সম্মান)" },
+                            { value: "masters", label: "স্নাতকোত্তর" },
+                          ]}
+                          value={formData.degree ?? profile?.degree ?? ""}
+                          onChange={(v) => handleSelectChange("degree", v)}
+                          placeholder="ডিগ্রি বেছে নিন"
+                        />
                       </div>
+
+                      {(formData.educationComplete === "false" ||
+                        (formData.educationComplete === undefined &&
+                          profile?.educationComplete === false)) && (
+                        <div className="space-y-2 mb-4">
+                          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
+                            <CalendarDays className="w-3.5 h-3.5" />
+                            বর্তমান বর্ষ
+                          </label>
+                          <SelectInput
+                            options={[
+                              { value: "1st", label: "১ম বর্ষ" },
+                              { value: "2nd", label: "২য় বর্ষ" },
+                              { value: "3rd", label: "৩য় বর্ষ" },
+                              { value: "4th", label: "৪র্থ বর্ষ" },
+                            ]}
+                            value={
+                              formData.currentYear ?? profile?.currentYear ?? ""
+                            }
+                            onChange={(v) =>
+                              handleSelectChange("currentYear", v)
+                            }
+                            placeholder="বর্ষ বেছে নিন"
+                          />
+                        </div>
+                      )}
+
+                      <TextInput
+                        icon={<BookOpen className="w-4 h-4" />}
+                        label="যোগ্যতা (বিষয়/বিভাগ)"
+                        name="qualification"
+                        value={profile?.qualification}
+                        placeholder="যেমন: বাংলা, ইতিহাস"
+                        optional
+                        onChange={handleChange}
+                        roleColor={roleColor}
+                      />
                     </div>
                   )}
                 </div>
               </GlassCard>
             )}
 
-            {/* Security */}
+            {/* ── Security ── */}
             <GlassCard delay={0.35}>
               <SectionHeader
                 icon={<Lock className="w-5 h-5" />}
@@ -1500,7 +1562,7 @@ const Profile = () => {
               </div>
             </GlassCard>
 
-            {/* Bottom Action Buttons (Edit Mode) */}
+            {/* ── Bottom Action (Edit Mode) ── */}
             <AnimatePresence>
               {editing && !isHardcoded && (
                 <motion.div
@@ -1536,8 +1598,8 @@ const Profile = () => {
                         setFormData({});
                       }}
                       className="px-6 py-3.5 rounded-2xl text-sm font-bold bangla
-                        bg-red-500 border border-red-600 text-[var(--color-text)] hover:bg-red-800
-                        hover:red-800 transition-all"
+                        bg-red-500 border border-red-600 text-white hover:bg-red-700
+                        transition-all"
                     >
                       বাতিল
                     </motion.button>

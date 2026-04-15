@@ -1,4 +1,3 @@
-// src/hooks/useCloudinaryUpload.ts
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
@@ -11,8 +10,22 @@ export interface CloudinaryResult {
   bytes: number;
 }
 
-// ── Browser e WebP convert ────────────────────────────────────────────────────
-const convertToWebP = (file: File | Blob): Promise<Blob> => {
+// ── Check browser WebP support ────────────────────────────────────────────────
+const supportsWebP = (): Promise<boolean> => {
+  return new Promise((resolve) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    canvas.toBlob((blob) => resolve(!!blob), "image/webp");
+  });
+};
+
+// ── Browser e WebP convert (with fallback) ────────────────────────────────────
+const convertToWebP = async (
+  file: File | Blob,
+): Promise<{ blob: Blob; ext: string }> => {
+  const canWebP = await supportsWebP();
+
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -32,13 +45,18 @@ const convertToWebP = (file: File | Blob): Promise<Blob> => {
 
       ctx.drawImage(img, 0, 0);
 
+      // ✅ WebP support থাকলে WebP, না থাকলে JPEG fallback
+      const format = canWebP ? "image/webp" : "image/jpeg";
+      const ext = canWebP ? "webp" : "jpg";
+      const quality = 0.85;
+
       canvas.toBlob(
         (blob) => {
-          if (blob) resolve(blob);
-          else reject(new Error("WebP conversion failed"));
+          if (blob) resolve({ blob, ext });
+          else reject(new Error("Image conversion failed"));
         },
-        "image/webp",
-        0.85, // quality 85 — server er shathe same
+        format,
+        quality,
       );
     };
 
@@ -51,16 +69,16 @@ const convertToWebP = (file: File | Blob): Promise<Blob> => {
   });
 };
 
-// ── Single file direct Cloudinary te upload ───────────────────────────────────
+// ── Single file direct Cloudinary upload ──────────────────────────────────────
 export const uploadToCloudinaryDirect = async (
   file: File | Blob,
   folder: string = "uploads",
 ): Promise<CloudinaryResult> => {
-  // ✅ Upload er aage WebP te convert koro
-  const webpBlob = await convertToWebP(file);
+  // ✅ Convert to WebP (or JPEG fallback)
+  const { blob, ext } = await convertToWebP(file);
 
   const fd = new FormData();
-  fd.append("file", webpBlob, "image.webp"); // ← WebP blob
+  fd.append("file", blob, `image.${ext}`);
   fd.append("upload_preset", UPLOAD_PRESET);
   fd.append("folder", folder);
 
