@@ -13,6 +13,8 @@ import {
   FileText,
   HelpCircle,
   MessageSquareText,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import {
   toBn,
@@ -33,9 +35,21 @@ interface ExamModalProps {
   exam: Exam;
   color: ColorConfig;
   onClose: () => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
-const ExamModal = ({ exam, onClose }: ExamModalProps) => {
+const ExamModal = ({
+  exam,
+
+  onClose,
+  canEdit = false,
+  canDelete = false,
+  onEdit,
+  onDelete,
+}: ExamModalProps) => {
   const { user } = useAuth();
   const [copied, setCopied] = useState(false);
 
@@ -78,6 +92,17 @@ const ExamModal = ({ exam, onClose }: ExamModalProps) => {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, [exam, numberInfo, canSeeQuestion]);
+
+  // NEW: Handlers for edit/delete that close modal after action
+  const handleEdit = () => {
+    onEdit?.();
+    onClose();
+  };
+
+  const handleDelete = () => {
+    onDelete?.();
+    onClose();
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -178,7 +203,7 @@ const ExamModal = ({ exam, onClose }: ExamModalProps) => {
                   animate={{ scale: 1, y: 0 }}
                   transition={{ delay: 0.3, type: "spring" }}
                   className="absolute top-4 left-4 z-20 flex items-center gap-1.5 px-3 py-1.5 
-                    rounded-full bg-[var(--color-text)]  text-[var(--color-bg)]  text-xs font-semibold shadow-lg"
+                    rounded-full bg-[var(--color-text)] text-[var(--color-bg)] text-xs font-semibold shadow-lg"
                 >
                   <HelpCircle className="w-4 h-4" />
                   প্রশ্ন সংযুক্ত আছে
@@ -199,7 +224,7 @@ const ExamModal = ({ exam, onClose }: ExamModalProps) => {
               <span className="text-md font-semibold tracking-widest text-[var(--color-gray)] uppercase">
                 সাপ্তাহিক পরীক্ষা নং-{toBn(exam.ExamNumber)}
               </span>
-              <h2 className="mt-1 text-2xl sm:text-3xl font-bold text-[var(--color-text)]  leading-tight">
+              <h2 className="mt-1 text-2xl sm:text-3xl font-bold text-[var(--color-text)] leading-tight">
                 {exam.subject}
               </h2>
             </motion.div>
@@ -227,7 +252,7 @@ const ExamModal = ({ exam, onClose }: ExamModalProps) => {
               {infoTags.map(({ icon: Icon, label }, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-[var(--color-active-bg)]  text-[var(--color-gray)]  text-sm font-medium"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-[var(--color-active-bg)] text-[var(--color-gray)] text-sm font-medium"
                 >
                   <Icon size={14} className="flex-shrink-0" />
                   <span>{label}</span>
@@ -242,13 +267,13 @@ const ExamModal = ({ exam, onClose }: ExamModalProps) => {
               transition={{ delay: 0.25 }}
             >
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-1 h-4 rounded-full bg-[var(--color-text)] " />
-                <span className="text-sm font-semibold text-[var(--color-text)]  flex items-center gap-1.5">
+                <div className="w-1 h-4 rounded-full bg-[var(--color-text)]" />
+                <span className="text-sm font-semibold text-[var(--color-text)] flex items-center gap-1.5">
                   <MessageSquareText size={14} />
                   বিষয়বস্তু ও নির্দেশনা
                 </span>
               </div>
-              <div className="text-[16px] leading-relaxed text-[var(--color-active-text)]  whitespace-pre-line border border-[var(--color-active-border)]  p-4 sm:p-5 rounded-xl text-left">
+              <div className="text-[16px] leading-relaxed text-[var(--color-active-text)] whitespace-pre-line border border-[var(--color-active-border)] p-4 sm:p-5 rounded-xl text-left">
                 {exam.topics}
               </div>
             </motion.div>
@@ -261,63 +286,128 @@ const ExamModal = ({ exam, onClose }: ExamModalProps) => {
                 transition={{ delay: 0.3 }}
               >
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-1 h-4 rounded-full bg-[var(--color-active-text)] " />
-                  <span className="text-sm font-semibold text-[var(--color-text)]  flex items-center gap-1.5">
+                  <div className="w-1 h-4 rounded-full bg-[var(--color-active-text)]" />
+                  <span className="text-sm font-semibold text-[var(--color-text)] flex items-center gap-1.5">
                     <HelpCircle size={14} />
                     প্রশ্ন
                   </span>
                 </div>
-                <div className="text-[16px] leading-relaxed whitespace-pre-line p-4 sm:p-5 rounded-2xl text-left bg-[var(--color-active-bg)] ">
+                <div className="text-[16px] leading-relaxed whitespace-pre-line p-4 sm:p-5 rounded-2xl text-left bg-[var(--color-active-bg)]">
                   {exam.question}
                 </div>
               </motion.div>
             )}
 
-            {/* Copy Button */}
-            <motion.button
-              onClick={handleCopy}
-              whileHover={{ scale: 1 }}
-              whileTap={{ scale: 0.94 }}
-              className="w-full flex items-center justify-center gap-2 py-3 px-5 rounded-xl text-sm font-black transition-all duration-200"
-              style={
-                copied
-                  ? {
-                      background: "#dcfce7",
-                      color: "#15803d",
-                    }
-                  : {
-                      background: "linear-gradient(135deg, #10b981, #14b8a6)",
-                      color: "#fff",
-                      boxShadow: "0 4px 14px rgba(16,185,129,0.35)",
-                    }
-              }
-            >
-              <AnimatePresence mode="wait">
-                {copied ? (
-                  <motion.span
-                    key="done"
-                    initial={{ scale: 0.6, opacity: 0 }}
-                    animate={{ scale: 0.7, opacity: 1 }}
-                    exit={{ scale: 0.6, opacity: 0 }}
-                    className="flex items-center gap-2"
+            {/* ── Footer: Copy + Edit/Delete ── */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+              <p className="text-[11px] text-[var(--color-gray)] leading-snug">
+                পরীক্ষার তথ্য ও বিষয়বস্তু কপি হবে
+              </p>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Edit Button */}
+                {canEdit && (
+                  <motion.button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEdit();
+                    }}
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.94 }}
+                    className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 shrink-0 border border-[var(--color-success-soft)] text-[var(--color-success)] hover:bg-[var(--color-success-soft)]"
                   >
-                    <CheckCircle2 size={16} />
-                    কপি হয়েছে
-                  </motion.span>
-                ) : (
-                  <motion.span
-                    key="copy"
-                    initial={{ scale: 0.6, opacity: 0 }}
-                    animate={{ scale: 0.7, opacity: 1 }}
-                    exit={{ scale: 0.6, opacity: 0 }}
-                    className="flex items-center gap-2"
-                  >
-                    <Copy size={16} />
-                    কপি করুন
-                  </motion.span>
+                    <Pencil className="w-3.5 h-3.5" />
+                    সম্পাদনা
+                  </motion.button>
                 )}
-              </AnimatePresence>
-            </motion.button>
+
+                {/* Delete Button */}
+                {canDelete && (
+                  <motion.button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete();
+                    }}
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.94 }}
+                    className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 shrink-0 border border-[var(--color-danger-soft)] text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    মুছুন
+                  </motion.button>
+                )}
+
+                {/* Minimal Copy Button - Fast */}
+                <motion.button
+                  onClick={handleCopy}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`
+    relative flex items-center justify-center gap-2 py-2.5 px-5 
+    rounded-xl text-sm font-medium transition-all duration-150 
+    shrink-0 border
+  `}
+                  style={{
+                    backgroundColor: copied
+                      ? "var(--color-text)"
+                      : "var(--color-bg)",
+                    borderColor: copied
+                      ? "var(--color-text)"
+                      : "var(--color-text)",
+                    color: copied ? "var(--color-bg)" : "var(--color-text)",
+                  }}
+                >
+                  <AnimatePresence mode="wait">
+                    {copied ? (
+                      <motion.div
+                        key="copied"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={{ duration: 0.1 }}
+                        className="flex items-center gap-2"
+                      >
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{
+                            duration: 0.1,
+                            type: "spring",
+                            damping: 15,
+                          }}
+                        >
+                          <CheckCircle2 size={16} />
+                        </motion.div>
+                        <span>কপি হয়েছে</span>
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="copy"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={{ duration: 0.1 }}
+                        className="flex items-center gap-2"
+                      >
+                        <motion.div
+                          whileHover={{
+                            y: [-2, 0, -2],
+                            transition: {
+                              duration: 0.6,
+                              repeat: Infinity,
+                              ease: "easeInOut",
+                            },
+                          }}
+                        >
+                          <Copy size={16} />
+                        </motion.div>
+                        <span>কপি করুন</span>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.button>
+              </div>
+            </div>
           </div>
         </motion.div>
       </motion.div>

@@ -12,6 +12,8 @@ import {
   User,
   FileText,
   Folder,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { toBn, type ClassColor } from "../../utility/shared";
 import type { DailyLessonItem } from "./DailyLessonCard";
@@ -22,6 +24,10 @@ interface DailyLessonModalProps {
   color: ClassColor;
   onClose: () => void;
   formattedDate: string;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 const DailyLessonModal = ({
@@ -29,6 +35,10 @@ const DailyLessonModal = ({
   color,
   onClose,
   formattedDate,
+  canEdit = false,
+  canDelete = false,
+  onEdit,
+  onDelete,
 }: DailyLessonModalProps) => {
   const [copied, setCopied] = useState(false);
   const { name: teacherName, avatarUrl } = extractTeacher(lesson.teacher);
@@ -59,6 +69,17 @@ const DailyLessonModal = ({
     setCopied(true);
     setTimeout(() => setCopied(false), 2400);
   }, [lesson, formattedDate]);
+
+  // NEW: Handlers for edit/delete that close modal after action
+  const handleEdit = () => {
+    onEdit?.();
+    onClose();
+  };
+
+  const handleDelete = () => {
+    onDelete?.();
+    onClose();
+  };
 
   const refLabel = lesson.referenceType === "page" ? "পৃষ্ঠা" : "অধ্যায়";
   const initials =
@@ -127,7 +148,7 @@ const DailyLessonModal = ({
                 onClick={onClose}
                 whileHover={{ scale: 1.1, rotate: 90 }}
                 whileTap={{ scale: 0.9 }}
-                className="absolute top-5 right-5 w-9 h-9 flex items-center justify-center rounded-full transition-colors  bg-red-600 text-white "
+                className="absolute top-5 right-5 w-9 h-9 flex items-center justify-center rounded-full transition-colors bg-red-600 text-white"
                 aria-label="বন্ধ করুন"
               >
                 <X className="w-4 h-4" />
@@ -223,7 +244,6 @@ const DailyLessonModal = ({
                   },
                   {
                     icon: <Calendar className="w-3.5 h-3.5" />,
-
                     label: formattedDate,
                   },
                 ].map((pill, i) => (
@@ -232,7 +252,7 @@ const DailyLessonModal = ({
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.05 + i * 0.06 }}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl select-none  text-[var(--color-gray)] "
+                    className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl select-none text-[var(--color-gray)]"
                   >
                     {pill.icon}
                     {pill.label}
@@ -274,58 +294,93 @@ const DailyLessonModal = ({
               </p>
             </div>
 
-            {/* ── Footer ── */}
+            {/* ── Footer: Copy + Edit/Delete ── */}
             <div
-              className="flex items-center justify-between gap-3 px-6 py-4 border-t"
+              className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t"
               style={{ borderColor: `${color.from}20` }}
             >
               <p className="text-[11px] text-[var(--color-gray)] leading-snug">
                 তারিখ, শ্রেণি, অধ্যায় ও বিষয়বস্তু কপি হবে
               </p>
 
-              <motion.button
-                onClick={handleCopy}
-                whileHover={{ scale: 1.04 }}
-                whileTap={{ scale: 0.94 }}
-                aria-label={copied ? "কপি সম্পন্ন" : "কপি করুন"}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-black transition-all duration-200 shrink-0"
-                style={
-                  copied
-                    ? {
-                        background: "#dcfce7",
-                        color: "#15803d",
-                      }
-                    : {
-                        background: `linear-gradient(135deg, ${color.from}, ${color.to})`,
-                        color: "#fff",
-                        boxShadow: `0 4px 14px rgba(${accentRgb}, 0.35)`,
-                      }
-                }
-              >
-                <AnimatePresence mode="wait">
-                  {copied ? (
-                    <motion.span
-                      key="check"
-                      initial={{ scale: 0.6, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.6, opacity: 0 }}
-                      className="flex items-center gap-1.5"
-                    >
-                      <Check className="w-4 h-4" /> কপি হয়েছে
-                    </motion.span>
-                  ) : (
-                    <motion.span
-                      key="copy"
-                      initial={{ scale: 0.6, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.6, opacity: 0 }}
-                      className="flex items-center gap-1.5"
-                    >
-                      <Copy className="w-4 h-4" /> কপি করুন
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </motion.button>
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Edit Button */}
+                {canEdit && (
+                  <motion.button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEdit();
+                    }}
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.94 }}
+                    className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 shrink-0 border border-[var(--color-success-soft)] text-[var(--color-success)] hover:bg-[var(--color-success-soft)]"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    সম্পাদনা
+                  </motion.button>
+                )}
+
+                {/* Delete Button */}
+                {canDelete && (
+                  <motion.button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete();
+                    }}
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.94 }}
+                    className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 shrink-0 border border-[var(--color-danger-soft)] text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    মুছুন
+                  </motion.button>
+                )}
+
+                {/* Copy Button */}
+                <motion.button
+                  onClick={handleCopy}
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.94 }}
+                  aria-label={copied ? "কপি সম্পন্ন" : "কপি করুন"}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-black transition-all duration-200 shrink-0"
+                  style={
+                    copied
+                      ? {
+                          background: "#dcfce7",
+                          color: "#15803d",
+                        }
+                      : {
+                          background: `linear-gradient(135deg, ${color.from}, ${color.to})`,
+                          color: "#fff",
+                          boxShadow: `0 4px 14px rgba(${accentRgb}, 0.35)`,
+                        }
+                  }
+                >
+                  <AnimatePresence mode="wait">
+                    {copied ? (
+                      <motion.span
+                        key="check"
+                        initial={{ scale: 0.6, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.6, opacity: 0 }}
+                        className="flex items-center gap-1.5"
+                      >
+                        <Check className="w-4 h-4" /> কপি হয়েছে
+                      </motion.span>
+                    ) : (
+                      <motion.span
+                        key="copy"
+                        initial={{ scale: 0.6, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.6, opacity: 0 }}
+                        className="flex items-center gap-1.5"
+                      >
+                        <Copy className="w-4 h-4" /> কপি করুন
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </motion.button>
+              </div>
             </div>
 
             {/* Mobile drag handle */}

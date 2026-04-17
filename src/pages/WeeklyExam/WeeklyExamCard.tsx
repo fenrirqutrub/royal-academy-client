@@ -14,8 +14,6 @@ import {
   X,
   UserPlus,
   Key,
-  Pencil,
-  Trash2,
 } from "lucide-react";
 import "swiper/css";
 import { useNavigate } from "react-router";
@@ -152,7 +150,7 @@ const LoginPromptModal = ({ onClose }: { onClose: () => void }) => {
 interface WeeklyExamCardProps {
   exam: Exam;
   index: number;
-  activeExamNumber?: string | null; // ← was missing
+  activeExamNumber?: string | null;
   canEdit?: boolean;
   canDelete?: boolean;
   onEdit?: () => void;
@@ -186,7 +184,6 @@ const WeeklyExamCard = ({
 
   const numberInfo = getNumberInfo(exam);
   const canSeeQuestion = !isGuest && !isStudent && !!exam.question;
-  const showActions = canEdit || canDelete;
 
   const openLoginPromptIfGuest = () => {
     if (isGuest) {
@@ -223,16 +220,6 @@ const WeeklyExamCard = ({
     e.stopPropagation();
     if (openLoginPromptIfGuest()) return;
     setShowModal(true);
-  };
-
-  const handleEditClick = (e?: React.MouseEvent | React.TouchEvent) => {
-    e?.stopPropagation();
-    onEdit?.();
-  };
-
-  const handleDeleteClick = (e?: React.MouseEvent | React.TouchEvent) => {
-    e?.stopPropagation();
-    onDelete?.();
   };
 
   return (
@@ -327,64 +314,12 @@ const WeeklyExamCard = ({
             </motion.div>
           )}
 
-          {/* Delete btn */}
-          {showActions && canDelete && (
-            <motion.div
-              initial={{ opacity: 0, x: 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.2 }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.92 }}
-              className="absolute bottom-0 left-0 z-30 "
-            >
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={handleDeleteClick}
-                onTouchEnd={(e) => {
-                  e.preventDefault();
-                  handleDeleteClick(e);
-                }}
-                className="rounded px-4 py-2.5 text-xs font-bold shadow-lg touch-manipulation"
-                title="মুছে ফেলুন"
-              >
-                <Trash2 className="w-4 h-4 shrink-0" />
-                <span>Delete</span>
-              </Button>
-            </motion.div>
-          )}
-
-          {/* Edit btn */}
-          {showActions && canEdit && (
-            <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.2 }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.92 }}
-              className="absolute right-0 bottom-0 z-30"
-            >
-              <Button
-                size="sm"
-                variant="accent"
-                onClick={handleEditClick}
-                onTouchEnd={(e) => {
-                  e.preventDefault();
-                  handleEditClick(e);
-                }}
-                className="rounded-tl-xl px-4 py-2.5 text-xs font-bold shadow-lg touch-manipulation"
-                title="সম্পাদনা করুন"
-              >
-                <Pencil className="w-4 h-4 shrink-0" />
-                <span>Edit</span>
-              </Button>
-            </motion.div>
-          )}
+          {/* ── REMOVED: Edit/Delete buttons from card ── */}
 
           {/* Guest hover overlay */}
           {isGuest && (
             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-[var(--color-bg)]/20 opacity-0 transition-opacity group-hover:opacity-100">
-              <div className="rounded-full bg-[var(--color-bg)] px-4 py-2 text-sm font-semibold text-[var(--color-text)] ">
+              <div className="rounded-full bg-[var(--color-bg)] px-4 py-2 text-sm font-semibold text-[var(--color-text)]">
                 দেখতে লগইন করুন
               </div>
             </div>
@@ -447,7 +382,7 @@ const WeeklyExamCard = ({
           </div>
 
           {/* Topics */}
-          <p className="mt-4 flex-1 text-md leading-relaxed text-[var(--color-gray)]  line-clamp-3 md:text-lg">
+          <p className="mt-4 flex-1 text-md leading-relaxed text-[var(--color-gray)] line-clamp-3 md:text-lg">
             {exam.topics}
           </p>
 
@@ -489,12 +424,16 @@ const WeeklyExamCard = ({
         )}
       </AnimatePresence>
 
-      {/* Exam Modal */}
+      {/* Exam Modal - Pass edit/delete props */}
       {showModal && !isGuest && (
         <ExamModal
           exam={exam}
           color={color}
           onClose={() => setShowModal(false)}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          onEdit={onEdit}
+          onDelete={onDelete}
         />
       )}
     </div>

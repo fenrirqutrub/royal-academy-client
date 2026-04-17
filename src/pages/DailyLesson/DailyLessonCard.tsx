@@ -1,4 +1,4 @@
-import { useState, type MouseEvent } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import {
   Calendar,
@@ -11,8 +11,6 @@ import {
   LogIn,
   UserPlus,
   Key,
-  Pencil,
-  Trash2,
 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { toBn, type ClassColor, hexToRgb } from "../../utility/shared";
@@ -179,81 +177,6 @@ const LoginPromptModal = ({ onClose }: { onClose: () => void }) => {
   );
 };
 
-// ─── Action Buttons ───────────────────────────────────────────────────────────
-const ActionButtons = ({
-  canEdit,
-  canDelete,
-  onEdit,
-  onDelete,
-}: {
-  canEdit: boolean;
-  canDelete: boolean;
-  onEdit?: () => void;
-  onDelete?: () => void;
-}) => {
-  if (!canEdit && !canDelete) return null;
-
-  const stop = (e: MouseEvent, cb?: () => void) => {
-    e.stopPropagation();
-    cb?.();
-  };
-
-  return (
-    <div className="absolute right-3 top-3 z-20 flex items-center gap-1.5">
-      {canEdit && (
-        <motion.button
-          type="button"
-          title="সম্পাদনা করুন"
-          aria-label="সম্পাদনা করুন"
-          whileTap={{ scale: 0.9 }}
-          onClick={(e) => stop(e, onEdit)}
-          /* ── pill style ── */
-          className="
-            flex h-9 items-center gap-1.5 rounded-xl px-3
-            border border-[var(--color-success-soft)]
-            bg-[var(--color-bg)]
-            text-xs font-semibold text-[var(--color-success)]
-             shadow-[var(--color-success-soft)]
-            transition-all duration-150
-            hover:bg-[var(--color-success-soft)]
-            active:scale-95
-            sm:h-8 sm:px-2.5 sm:text-[11px]
-          "
-          style={{ touchAction: "manipulation" }}
-        >
-          <Pencil className="h-3.5 w-3.5 shrink-0" />
-          <span className="hidden sm:inline">সম্পাদনা</span>
-        </motion.button>
-      )}
-
-      {canDelete && (
-        <motion.button
-          type="button"
-          title="মুছে ফেলুন"
-          aria-label="মুছে ফেলুন"
-          whileTap={{ scale: 0.9 }}
-          onClick={(e) => stop(e, onDelete)}
-          className="
-            flex h-9 items-center gap-1.5 rounded-xl px-3
-            border border-[var(--color-danger-soft)]
-            bg-[var(--color-bg)]
-            text-xs font-semibold text-[var(--color-danger)]
-            shadow-[var(--color-danger-soft)]
-            transition-all duration-150
-            hover:bg-[var(--color-danger-soft)]
-            active:scale-95
-            sm:h-8 sm:px-2.5 sm:text-[11px]
-          "
-          style={{ touchAction: "manipulation" }}
-        >
-          <Trash2 className="h-3.5 w-3.5 shrink-0" />
-          <span className="hidden sm:inline">মুছুন</span>
-        </motion.button>
-      )}
-    </div>
-  );
-};
-
 // ─── Card ─────────────────────────────────────────────────────────────────────
 const DailyLessonCard = ({
   lesson,
@@ -271,7 +194,6 @@ const DailyLessonCard = ({
   const color = classColor;
   const accentRgb = hexToRgb(color.from);
   const isGuest = !isAuthenticated;
-  const hasActions = canEdit || canDelete;
 
   const { name: teacherName, avatarUrl } = extractTeacher(lesson.teacher);
   const refLabel = lesson.referenceType === "page" ? "পৃষ্ঠা" : "অধ্যায়";
@@ -298,14 +220,6 @@ const DailyLessonCard = ({
           e.currentTarget.style.borderColor = "var(--color-active-border)";
         }}
       >
-        {/* ── Action buttons (edit / delete) ── */}
-        <ActionButtons
-          canEdit={canEdit}
-          canDelete={canDelete}
-          onEdit={onEdit}
-          onDelete={onDelete}
-        />
-
         {/* ── Guest hover lock ── */}
         {isGuest && (
           <div
@@ -329,10 +243,8 @@ const DailyLessonCard = ({
 
         {/* ── Body ── */}
         <div className="flex flex-1 flex-col gap-4 p-5">
-          {/* Teacher + subject — push right when actions present */}
-          <div
-            className={`flex items-start gap-3 ${hasActions ? "pr-28 sm:pr-32" : ""}`}
-          >
+          {/* Teacher + subject */}
+          <div className="flex items-start gap-3">
             {/* Avatar */}
             <div className="relative shrink-0">
               {avatarUrl ? (
@@ -439,6 +351,10 @@ const DailyLessonCard = ({
           color={color}
           onClose={() => setShowModal(false)}
           formattedDate={lesson.date}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          onEdit={onEdit}
+          onDelete={onDelete}
         />
       )}
     </div>
