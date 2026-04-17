@@ -1,7 +1,11 @@
 // TeacherCard.tsx
 import { motion } from "framer-motion";
 import { BadgeCheck } from "lucide-react";
-import { DEGREE_LABEL, ROLE_CONFIG } from "../../utility/Constants";
+import {
+  DEGREE_LABEL,
+  ROLE_CONFIG,
+  type UserRole,
+} from "../../utility/Constants";
 import { Avatar } from "../common/Avatar";
 
 export interface TeacherData {
@@ -23,7 +27,8 @@ export interface TeacherData {
 }
 
 const TeacherCard = ({ teacher }: { teacher: TeacherData }) => {
-  const { color, handle } = ROLE_CONFIG[teacher.role] ?? ROLE_CONFIG.teacher;
+  const role = (teacher.role as UserRole) ?? "teacher";
+  const { color, handle } = ROLE_CONFIG[role] ?? ROLE_CONFIG.teacher;
 
   // collegeName takes priority, then degree, then currentYear (e.g. "mba"), then fallback
   const eduText =
