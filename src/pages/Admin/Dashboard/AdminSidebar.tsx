@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../../context/AuthContext";
 import { useTheme } from "../../../context/ThemeProvider";
 import { SidebarContent } from "./Sidebar.Ui";
-import { ROLES } from "../../../utility/Constants";
+import { ROLE_CONFIG } from "../../../utility/Constants";
 import {
   contentNav,
   dashboardNav,
@@ -31,7 +31,7 @@ const AdminSidebar = () => {
   const { toggleTheme } = useTheme();
 
   const role = user?.role ?? "teacher";
-  const roleConfig = ROLES[role] ?? ROLES.teacher;
+  const roleConfig = ROLE_CONFIG[role] ?? ROLE_CONFIG.teacher;
   const navGroups = buildNav(role);
 
   const contentProps = {

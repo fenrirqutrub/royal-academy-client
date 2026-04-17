@@ -26,11 +26,28 @@ ClassName=" text-[var(--color-text)] hover:text-[var(--color-text-hover)] bg-[va
   --color-active-border: rgba(15, 23, 42, 0.2);
   --color-active-bg: rgba(15, 23, 42, 0.1);
   --color-active-text: #13161c;
+
+  /* semantic */
+  --color-brand: #7c3aed;
+  --color-brand-hover: #6d28d9;
+  --color-brand-soft: rgba(124, 58, 237, 0.12);
+
+  --color-danger: #e11d48;
+  --color-danger-hover: #be123c;
+  --color-danger-soft: rgba(225, 29, 72, 0.12);
+
+  --color-success: #059669;
+  --color-success-hover: #047857;
+  --color-success-soft: rgba(5, 150, 105, 0.12);
+
+  --color-warning: #f59e0b;
+  --color-warning-soft: rgba(245, 158, 11, 0.14);
+
+  --color-overlay: rgba(0, 0, 0, 0.5);
 }
 
 /* ── Dark ── */
 [data-theme="dark"] {
-  /* App */
   --color-bg: #1f2125;
   --color-text: #ffffff;
   --color-gray: #90a1b9;
@@ -39,6 +56,22 @@ ClassName=" text-[var(--color-text)] hover:text-[var(--color-text-hover)] bg-[va
   --color-active-border: rgba(248, 249, 250, 0.2);
   --color-active-bg: rgba(248, 249, 250, 0.1);
   --color-active-text: #ffffff;
-}
 
-/* styles */
+  /* semantic */
+  --color-brand: #8b5cf6;
+  --color-brand-hover: #7c3aed;
+  --color-brand-soft: rgba(139, 92, 246, 0.18);
+
+  --color-danger: #f43f5e;
+  --color-danger-hover: #e11d48;
+  --color-danger-soft: rgba(244, 63, 94, 0.18);
+
+  --color-success: #10b981;
+  --color-success-hover: #059669;
+  --color-success-soft: rgba(16, 185, 129, 0.18);
+
+  --color-warning: #f59e0b;
+  --color-warning-soft: rgba(245, 158, 11, 0.2);
+
+  --color-overlay: rgba(0, 0, 0, 0.6);
+}

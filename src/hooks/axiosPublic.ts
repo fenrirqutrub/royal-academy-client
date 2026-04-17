@@ -6,7 +6,6 @@ export const TOKEN_KEY = "royal_auth_token";
 
 // console.log(localStorage.getItem("royal_auth_token"));
 
-// ── Typed API error helper ────────────────────────────────────────────────────
 export interface ApiError {
   response?: {
     status?: number;

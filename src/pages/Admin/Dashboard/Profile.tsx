@@ -1,4 +1,5 @@
-import { useState, useRef } from "react";
+// src/pages/dashboard/shared/Profile.tsx
+import { useState, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import {
@@ -28,6 +29,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import toast from "react-hot-toast";
+
 import axiosPublic from "../../../hooks/axiosPublic";
 import { useAuth } from "../../../context/AuthContext";
 import DatePicker from "../../../components/common/Datepicker";
@@ -37,68 +39,59 @@ import { getDivisions, getDistricts, getThanas } from "../../../data/bd-geo";
 import { AnimatedAvatar } from "../../../components/common/AnimatedAvatar";
 import { uploadToCloudinaryDirect } from "../../../hooks/useCloudinaryUpload";
 
-/* ─── Constants ───────────────────────────────────────────────────────────── */
-const ROLE_COLOR: Record<string, string> = {
-  owner: "#f59e0b",
-  admin: "#ef4444",
-  principal: "#8b5cf6",
-  teacher: "#3b82f6",
-  student: "#10b981",
-};
+import {
+  ROLE_CONFIG,
+  CLASS_OPTIONS,
+  RELIGION_SELECT_OPTIONS,
+  SUBJECT_GROUP_SELECT_OPTIONS,
+  DEGREE_SELECT_OPTIONS,
+  ACADEMIC_YEAR_OPTIONS,
+  SUBJECT_REQUIRED_CLASSES,
+  DEGREE_LABEL,
+  toLocalIso,
+  validateBdPhone,
+  type UserRole,
+} from "../../../utility/Constants";
 
-const ROLE_LABEL: Record<string, string> = {
-  owner: "মালিক",
-  admin: "প্রশাসক",
-  principal: "অধ্যক্ষ",
-  teacher: "শিক্ষক",
-  student: "ছাত্র/ছাত্রী",
-};
+/* ─── Types ───────────────────────────────────────────────────────────────── */
 
-const RELIGION_OPTIONS = [
-  { value: "ইসলাম", label: "ইসলাম" },
-  { value: "হিন্দু", label: "হিন্দু" },
-  { value: "বৌদ্ধ", label: "বৌদ্ধ" },
-  { value: "খ্রিষ্টান", label: "খ্রিষ্টান" },
-];
-
-const CLASS_OPTIONS = [
-  "ষষ্ঠ শ্রেণি",
-  "সপ্তম শ্রেণি",
-  "অষ্টম শ্রেণি",
-  "নবম শ্রেণি",
-  "দশম শ্রেণি",
-  "একাদশ শ্রেণি",
-  "দ্বাদশ শ্রেণি",
-].map((v) => ({ value: v, label: v }));
-
-const SUBJECT_OPTIONS = [
-  { value: "বিজ্ঞান", label: "বিজ্ঞান" },
-  { value: "মানবিক", label: "মানবিক" },
-  { value: "বাণিজ্য", label: "বাণিজ্য" },
-];
-
-const CLASSES_WITH_SUBJECT = [
-  "নবম শ্রেণি",
-  "দশম শ্রেণি",
-  "একাদশ শ্রেণি",
-  "দ্বাদশ শ্রেণি",
-];
-
-const DEGREE_LABEL: Record<string, string> = {
-  hsc: "এইচএসসি / সমমান",
-  hons: "স্নাতক (সম্মান)",
-  masters: "স্নাতকোত্তর",
-};
+interface ProfileData {
+  name?: string;
+  fatherName?: string;
+  motherName?: string;
+  phone?: string;
+  email?: string;
+  emergencyContact?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  religion?: string;
+  gramNam?: string;
+  para?: string;
+  thana?: string;
+  district?: string;
+  division?: string;
+  landmark?: string;
+  permanentSameAsPresent?: boolean;
+  permanentGramNam?: string;
+  permanentPara?: string;
+  permanentThana?: string;
+  permanentDistrict?: string;
+  permanentDivision?: string;
+  studentClass?: string;
+  studentSubject?: string;
+  roll?: string;
+  schoolName?: string;
+  collegeName?: string;
+  qualification?: string;
+  educationComplete?: boolean;
+  degree?: string;
+  currentYear?: string;
+  avatar?: { url?: string; publicId?: string };
+}
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
-const toLocalIso = (date: Date) => {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-};
 
-const formatDOB = (dob: string | null | undefined) => {
+const formatDOB = (dob: string | null | undefined): string | null => {
   if (!dob) return null;
   try {
     return new Date(dob).toLocaleDateString("bn-BD", {
@@ -112,6 +105,7 @@ const formatDOB = (dob: string | null | undefined) => {
 };
 
 /* ─── Animation Variants ──────────────────────────────────────────────────── */
+
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
@@ -131,6 +125,7 @@ const cardVariants = {
 };
 
 /* ─── GlassCard ───────────────────────────────────────────────────────────── */
+
 const GlassCard = ({
   children,
   delay = 0,
@@ -145,7 +140,7 @@ const GlassCard = ({
     initial="hidden"
     animate="visible"
     transition={{ delay }}
-    className={`relative rounded-3xl overflow-hidden bg-[var(--color-bg)] 
+    className={`relative rounded-3xl overflow-hidden bg-[var(--color-bg)]
       border border-[var(--color-active-border)] shadow-lg ${className}`}
   >
     <div className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-500 pointer-events-none">
@@ -156,6 +151,7 @@ const GlassCard = ({
 );
 
 /* ─── SectionHeader ───────────────────────────────────────────────────────── */
+
 const SectionHeader = ({
   icon,
   title,
@@ -163,23 +159,22 @@ const SectionHeader = ({
   icon: React.ReactNode;
   title: string;
 }) => (
-  <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-[var(--color-active-border)]">
-    <div className="flex items-center gap-3">
-      <motion.div
-        whileHover={{ rotate: 360 }}
-        transition={{ duration: 0.5 }}
-        className="w-10 h-10 rounded-2xl flex items-center justify-center bg-[var(--color-active-bg)]"
-      >
-        <span className="text-[var(--color-text-hover)]">{icon}</span>
-      </motion.div>
-      <h3 className="text-lg font-bold bangla text-[var(--color-text)]">
-        {title}
-      </h3>
-    </div>
+  <div className="flex items-center gap-3 px-6 pt-6 pb-4 border-b border-[var(--color-active-border)]">
+    <motion.div
+      whileHover={{ rotate: 360 }}
+      transition={{ duration: 0.5 }}
+      className="w-10 h-10 rounded-2xl flex items-center justify-center bg-[var(--color-active-bg)]"
+    >
+      <span className="text-[var(--color-text-hover)]">{icon}</span>
+    </motion.div>
+    <h3 className="text-lg font-bold bangla text-[var(--color-text)]">
+      {title}
+    </h3>
   </div>
 );
 
 /* ─── FieldDisplay ────────────────────────────────────────────────────────── */
+
 const FieldDisplay = ({
   icon,
   label,
@@ -234,15 +229,8 @@ const FieldDisplay = ({
           </motion.p>
         </div>
         {!missing && (
-          <motion.div
-            initial={{ opacity: 0, x: 10 }}
-            whileHover={{ opacity: 1, x: 0 }}
-            className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100"
-          >
-            <ChevronRight
-              className="w-4 h-4 text-[var(--color-gray)]"
-              style={{ color: roleColor }}
-            />
+          <motion.div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <ChevronRight className="w-4 h-4" style={{ color: roleColor }} />
           </motion.div>
         )}
       </div>
@@ -251,6 +239,7 @@ const FieldDisplay = ({
 };
 
 /* ─── TextInput ───────────────────────────────────────────────────────────── */
+
 const TextInput = ({
   icon,
   label,
@@ -288,16 +277,15 @@ const TextInput = ({
         onChange={onChange}
         placeholder={placeholder}
         className="w-full text-sm rounded-2xl px-4 py-3 pl-11 outline-none bangla transition-all duration-300
-          bg-[var(--color-active-bg)] border-2 border-[var(--color-active-border)] 
+          bg-[var(--color-active-bg)] border-2 border-[var(--color-active-border)]
           text-[var(--color-text)] placeholder:text-[var(--color-gray)] placeholder:opacity-50
           focus:border-[var(--color-text-hover)] focus:bg-[var(--color-bg)]
           hover:border-[var(--color-text-hover)]/50"
-        style={{ boxShadow: `0 0 0 0 ${roleColor}00` }}
         onFocus={(e) => {
           e.currentTarget.style.boxShadow = `0 0 0 3px ${roleColor}20`;
         }}
         onBlur={(e) => {
-          e.currentTarget.style.boxShadow = `0 0 0 0 ${roleColor}00`;
+          e.currentTarget.style.boxShadow = "none";
         }}
       />
       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-gray)] group-focus-within:text-[var(--color-text-hover)] transition-colors">
@@ -308,6 +296,7 @@ const TextInput = ({
 );
 
 /* ─── PasswordInput ───────────────────────────────────────────────────────── */
+
 const PasswordInput = ({
   onChange,
   roleColor,
@@ -330,16 +319,15 @@ const PasswordInput = ({
           onChange={onChange}
           placeholder="পরিবর্তন না করলে ফাঁকা রাখুন"
           className="w-full text-sm rounded-2xl px-4 py-3 pl-11 pr-12 outline-none bangla transition-all duration-300
-            bg-[var(--color-active-bg)] border-2 border-[var(--color-active-border)] 
+            bg-[var(--color-active-bg)] border-2 border-[var(--color-active-border)]
             text-[var(--color-text)] placeholder:text-[var(--color-gray)] placeholder:opacity-50
             focus:border-[var(--color-text-hover)] focus:bg-[var(--color-bg)]
             hover:border-[var(--color-text-hover)]/50"
-          style={{ boxShadow: `0 0 0 0 ${roleColor}00` }}
           onFocus={(e) => {
             e.currentTarget.style.boxShadow = `0 0 0 3px ${roleColor}20`;
           }}
           onBlur={(e) => {
-            e.currentTarget.style.boxShadow = `0 0 0 0 ${roleColor}00`;
+            e.currentTarget.style.boxShadow = "none";
           }}
         />
         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-gray)]">
@@ -349,7 +337,7 @@ const PasswordInput = ({
           type="button"
           onClick={() => setShow((s) => !s)}
           className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-xl
-            text-[var(--color-gray)] hover:text-[var(--color-text-hover)] 
+            text-[var(--color-gray)] hover:text-[var(--color-text-hover)]
             hover:bg-[var(--color-active-bg)] transition-all"
         >
           {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -360,6 +348,7 @@ const PasswordInput = ({
 };
 
 /* ─── ProfileCompletion ───────────────────────────────────────────────────── */
+
 const ProfileCompletion = ({
   missing,
   total,
@@ -370,7 +359,8 @@ const ProfileCompletion = ({
   roleColor: string;
 }) => {
   const completed = total - missing;
-  const percentage = (completed / total) * 100;
+  const percentage = Math.round((completed / total) * 100);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -382,7 +372,7 @@ const ProfileCompletion = ({
           প্রোফাইল সম্পূর্ণতা
         </span>
         <span className="text-xs font-bold" style={{ color: roleColor }}>
-          {Math.round(percentage)}%
+          {percentage}%
         </span>
       </div>
       <div className="h-2 rounded-full bg-[var(--color-bg)] overflow-hidden">
@@ -397,39 +387,63 @@ const ProfileCompletion = ({
         />
       </div>
       {missing > 0 && (
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="mt-2 text-xs bangla text-[var(--color-gray)] flex items-center gap-1.5"
-        >
+        <p className="mt-2 text-xs bangla text-[var(--color-gray)] flex items-center gap-1.5">
           <AlertCircle className="w-3 h-3" />
           আরও {missing}টি তথ্য যোগ করুন
-        </motion.p>
+        </p>
       )}
     </motion.div>
   );
 };
 
+/* ─── FieldLabel ──────────────────────────────────────────────────────────── */
+
+const FieldLabel = ({
+  icon,
+  label,
+  optional,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  optional?: boolean;
+}) => (
+  <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
+    {icon}
+    {label}
+    {optional && (
+      <span className="normal-case tracking-normal opacity-50">(ঐচ্ছিক)</span>
+    )}
+  </label>
+);
+
 /* ════════════════════════════════════════════════════════════════════════════
    PROFILE PAGE
 ════════════════════════════════════════════════════════════════════════════ */
+
 const Profile = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const slug = user?.slug ?? "";
-  const roleColor = ROLE_COLOR[user?.role ?? "teacher"] ?? "#3b82f6";
-  const isStudent = user?.role === "student";
+
+  // Role config from Constants — no local duplicate
+  const role = (user?.role ?? "teacher") as UserRole;
+  const roleConfig = ROLE_CONFIG[role] ?? ROLE_CONFIG.teacher;
+  const roleColor = roleConfig.color;
+
+  const isStudent = role === "student";
   const isHardcoded = user?.isHardcoded ?? false;
 
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState<Record<string, string>>({});
-  const fileRef = useRef<HTMLInputElement>(null);
   const [copied, setCopied] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  // Geo state
+  // Geo state — present address
   const [division, setDivision] = useState("");
   const [district, setDistrict] = useState("");
   const [thana, setThana] = useState("");
+
+  // Geo state — permanent address
   const [pDivision, setPDivision] = useState("");
   const [pDistrict, setPDistrict] = useState("");
   const [pThana, setPThana] = useState("");
@@ -445,7 +459,7 @@ const Profile = () => {
       (await axiosPublic.get(`/api/users/${slug}/profile`)).data,
     enabled: !!slug,
   });
-  const profile = profileRes?.data;
+  const profile = profileRes?.data as ProfileData | undefined;
 
   /* ── Update mutation ── */
   const updateMutation = useMutation({
@@ -465,13 +479,10 @@ const Profile = () => {
   /* ── Avatar mutation ── */
   const avatarMutation = useMutation({
     mutationFn: async (file: File) => {
-      const cloudResult = await uploadToCloudinaryDirect(file, "avatars");
+      const result = await uploadToCloudinaryDirect(file, "avatars");
       return (
         await axiosPublic.patch(`/api/users/${slug}/profile`, {
-          avatar: {
-            url: cloudResult.secure_url,
-            publicId: cloudResult.public_id,
-          },
+          avatar: { url: result.secure_url, publicId: result.public_id },
         })
       ).data;
     },
@@ -483,11 +494,17 @@ const Profile = () => {
     onError: () => toast.error("ছবি আপলোড ব্যর্থ"),
   });
 
+  /* ── Handlers ── */
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
   const handleSelectChange = (name: string, val: string) =>
     setFormData((prev) => ({ ...prev, [name]: val }));
+
+  const cancelEditing = () => {
+    setEditing(false);
+    setFormData({});
+  };
 
   const startEditing = () => {
     setDivision(profile?.division ?? "");
@@ -506,6 +523,17 @@ const Profile = () => {
 
   const handleSave = () => {
     const payload: Record<string, string> = { ...formData };
+
+    // Phone validation
+    if (payload.phone) {
+      const result = validateBdPhone(payload.phone);
+      if (result !== true) {
+        toast.error(result);
+        return;
+      }
+    }
+
+    // Geo fields
     if (division) payload.division = division;
     if (district) payload.district = district;
     if (thana) payload.thana = thana;
@@ -513,7 +541,10 @@ const Profile = () => {
     if (pDistrict) payload.permanentDistrict = pDistrict;
     if (pThana) payload.permanentThana = pThana;
     if (dobIso) payload.dateOfBirth = dobIso;
+
+    // Empty password → don't send
     if (!payload.password) delete payload.password;
+
     if (Object.keys(payload).length === 0) {
       setEditing(false);
       return;
@@ -528,35 +559,69 @@ const Profile = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const missingFields = [
-    profile?.phone,
-    profile?.gramNam,
-    profile?.thana,
-    profile?.district,
-    profile?.fatherName,
-    profile?.motherName,
-    profile?.dateOfBirth,
-    profile?.religion,
-  ].filter((v) => !v).length;
+  /* ── Derived values (memoized) ── */
 
-  const totalFields = 8;
+  // Student class for subject-show logic
+  const selectedStudentClass =
+    formData.studentClass ?? profile?.studentClass ?? "";
+  const shouldShowSubject =
+    SUBJECT_REQUIRED_CLASSES.includes(selectedStudentClass);
+
+  // Education incomplete check
+  const educationIncomplete =
+    formData.educationComplete === "false" ||
+    (formData.educationComplete === undefined &&
+      profile?.educationComplete === false);
 
   // Geo options
-  const divisionOptions = getDivisions().map((v) => ({ value: v, label: v }));
-  const districtOptions = division
-    ? getDistricts(division).map((v) => ({ value: v, label: v }))
-    : [];
-  const thanaOptions =
-    division && district
-      ? getThanas(division, district).map((v) => ({ value: v, label: v }))
-      : [];
-  const pDistrictOptions = pDivision
-    ? getDistricts(pDivision).map((v) => ({ value: v, label: v }))
-    : [];
-  const pThanaOptions =
-    pDivision && pDistrict
-      ? getThanas(pDivision, pDistrict).map((v) => ({ value: v, label: v }))
-      : [];
+  const divisionOptions = useMemo(
+    () => getDivisions().map((v) => ({ value: v, label: v })),
+    [],
+  );
+  const districtOptions = useMemo(
+    () =>
+      division
+        ? getDistricts(division).map((v) => ({ value: v, label: v }))
+        : [],
+    [division],
+  );
+  const thanaOptions = useMemo(
+    () =>
+      division && district
+        ? getThanas(division, district).map((v) => ({ value: v, label: v }))
+        : [],
+    [division, district],
+  );
+  const pDistrictOptions = useMemo(
+    () =>
+      pDivision
+        ? getDistricts(pDivision).map((v) => ({ value: v, label: v }))
+        : [],
+    [pDivision],
+  );
+  const pThanaOptions = useMemo(
+    () =>
+      pDivision && pDistrict
+        ? getThanas(pDivision, pDistrict).map((v) => ({ value: v, label: v }))
+        : [],
+    [pDivision, pDistrict],
+  );
+
+  // Profile completion
+  const missingFields = useMemo(
+    () =>
+      [
+        profile?.phone,
+        profile?.gramNam,
+        profile?.thana,
+        profile?.district,
+        profile?.fatherName,
+        profile?.motherName,
+        profile?.dateOfBirth,
+        profile?.religion,
+      ].filter((v) => !v).length,
+    [profile],
+  );
 
   if (isLoading)
     return (
@@ -610,15 +675,15 @@ const Profile = () => {
                     url={profile?.avatar?.url ?? null}
                     color={roleColor}
                     size={120}
-                    showRings={true}
-                    showStatus={true}
+                    showRings
+                    showStatus
                   />
                   <motion.button
                     whileHover={{ scale: 1.15, rotate: 15 }}
                     whileTap={{ scale: 0.9 }}
                     onClick={() => fileRef.current?.click()}
                     disabled={avatarMutation.isPending}
-                    className="absolute -bottom-1 -right-1 w-10 h-10 rounded-full 
+                    className="absolute -bottom-1 -right-1 w-10 h-10 rounded-full
                       flex items-center justify-center cursor-pointer
                       bg-[var(--color-bg)] border-2 border-[var(--color-active-border)]
                       shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
@@ -651,6 +716,7 @@ const Profile = () => {
                   </motion.h2>
 
                   <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-3">
+                    {/* Role Badge */}
                     <motion.span
                       whileHover={{ scale: 1.05 }}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bangla"
@@ -666,15 +732,16 @@ const Profile = () => {
                         className="w-1.5 h-1.5 rounded-full"
                         style={{ backgroundColor: roleColor }}
                       />
-                      {ROLE_LABEL[user?.role ?? ""] ?? user?.role}
+                      {roleConfig.label}
                     </motion.span>
 
+                    {/* Slug Copy */}
                     {slug && (
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={handleCopyId}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full 
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full
                           text-xs font-mono font-bold cursor-pointer
                           bg-[var(--color-active-bg)] border border-[var(--color-active-border)]
                           text-[var(--color-gray)] hover:text-[var(--color-text)]
@@ -690,7 +757,7 @@ const Profile = () => {
                               animate={{ scale: 1 }}
                               exit={{ scale: 0 }}
                             >
-                              <Check className="w-3 h-3 text-[#10b981]" />
+                              <Check className="w-3 h-3 text-emerald-500" />
                             </motion.span>
                           ) : (
                             <motion.span
@@ -706,7 +773,8 @@ const Profile = () => {
                       </motion.button>
                     )}
 
-                    {(user?.role === "admin" || user?.role === "owner") && (
+                    {/* Admin/Owner shield */}
+                    {(role === "admin" || role === "owner") && (
                       <motion.div
                         whileHover={{ rotate: 360 }}
                         transition={{ duration: 0.5 }}
@@ -724,22 +792,23 @@ const Profile = () => {
                     )}
                   </div>
 
+                  {/* Profile Completion */}
                   {!isHardcoded && !editing && (
                     <ProfileCompletion
                       missing={missingFields}
-                      total={totalFields}
+                      total={8}
                       roleColor={roleColor}
                     />
                   )}
                 </div>
 
-                {/* Edit Button */}
+                {/* Edit / Save Button */}
                 {!isHardcoded && (
                   <motion.div layout className="flex-shrink-0">
                     <AnimatePresence mode="wait">
                       {editing ? (
                         <motion.div
-                          key="save"
+                          key="save-controls"
                           initial={{ opacity: 0, scale: 0.9, y: 10 }}
                           animate={{ opacity: 1, scale: 1, y: 0 }}
                           exit={{ opacity: 0, scale: 0.9, y: 10 }}
@@ -750,9 +819,9 @@ const Profile = () => {
                             whileTap={{ scale: 0.95 }}
                             onClick={handleSave}
                             disabled={updateMutation.isPending}
-                            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl 
+                            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl
                               text-sm font-bold bangla text-white
-                              bg-[#10b981] hover:bg-[#059669] 
+                              bg-emerald-500 hover:bg-emerald-600
                               shadow-lg shadow-emerald-500/20
                               disabled:opacity-50 disabled:cursor-not-allowed"
                           >
@@ -766,11 +835,8 @@ const Profile = () => {
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => {
-                              setEditing(false);
-                              setFormData({});
-                            }}
-                            className="p-2.5 rounded-2xl 
+                            onClick={cancelEditing}
+                            className="p-2.5 rounded-2xl
                               bg-[var(--color-active-bg)] border border-[var(--color-active-border)]
                               text-[var(--color-gray)] hover:text-[var(--color-text)]
                               hover:border-[var(--color-text-hover)] transition-all"
@@ -780,14 +846,14 @@ const Profile = () => {
                         </motion.div>
                       ) : (
                         <motion.button
-                          key="edit"
+                          key="edit-btn"
                           initial={{ opacity: 0, scale: 0.9, y: 10 }}
                           animate={{ opacity: 1, scale: 1, y: 0 }}
                           exit={{ opacity: 0, scale: 0.9, y: 10 }}
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                           onClick={startEditing}
-                          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl 
+                          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl
                             text-sm font-bold bangla
                             bg-[var(--color-active-bg)] border border-[var(--color-active-border)]
                             text-[var(--color-text)] hover:bg-[var(--color-bg)]
@@ -811,7 +877,7 @@ const Profile = () => {
             animate="visible"
             className="space-y-4"
           >
-            {/* ── Personal Info ── */}
+            {/* ══ Personal Info ══ */}
             <GlassCard delay={0.1}>
               <SectionHeader
                 icon={<User className="w-5 h-5" />}
@@ -892,11 +958,12 @@ const Profile = () => {
                           onChange={handleChange}
                           roleColor={roleColor}
                         />
+                        {/* DOB */}
                         <div className="space-y-2 mb-4">
-                          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
-                            <CalendarDays className="w-3.5 h-3.5" />
-                            জন্ম তারিখ
-                          </label>
+                          <FieldLabel
+                            icon={<CalendarDays className="w-3.5 h-3.5" />}
+                            label="জন্ম তারিখ"
+                          />
                           <DatePicker
                             value={
                               dobDisplay ||
@@ -913,13 +980,14 @@ const Profile = () => {
                             maxDate={new Date()}
                           />
                         </div>
+                        {/* Religion */}
                         <div className="space-y-2 mb-4">
-                          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
-                            <Heart className="w-3.5 h-3.5" />
-                            ধর্ম
-                          </label>
+                          <FieldLabel
+                            icon={<Heart className="w-3.5 h-3.5" />}
+                            label="ধর্ম"
+                          />
                           <SelectInput
-                            options={RELIGION_OPTIONS}
+                            options={RELIGION_SELECT_OPTIONS}
                             value={formData.religion ?? profile?.religion ?? ""}
                             onChange={(v) => handleSelectChange("religion", v)}
                             placeholder="ধর্ম বেছে নিন"
@@ -927,16 +995,23 @@ const Profile = () => {
                         </div>
                       </>
                     )}
+                    {/* Gender — read-only */}
                     <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
-                        <User className="w-3.5 h-3.5" />
-                        লিঙ্গ
-                        <span className="normal-case tracking-normal opacity-50">
+                      <FieldLabel
+                        icon={<User className="w-3.5 h-3.5" />}
+                        label="লিঙ্গ"
+                        optional
+                      />
+                      <div
+                        className="w-full text-sm rounded-2xl px-4 py-3 bangla
+                        opacity-60 cursor-not-allowed
+                        bg-[var(--color-active-bg)] border border-[var(--color-active-border)]
+                        text-[var(--color-text)]"
+                      >
+                        {profile?.gender ?? "—"}
+                        <span className="ml-2 text-xs opacity-60">
                           (পরিবর্তনযোগ্য নয়)
                         </span>
-                      </label>
-                      <div className="w-full text-sm rounded-2xl px-4 py-3 bangla opacity-60 cursor-not-allowed bg-[var(--color-active-bg)] border border-[var(--color-active-border)] text-[var(--color-text)]">
-                        {profile?.gender ?? "—"}
                       </div>
                     </div>
                   </div>
@@ -944,7 +1019,7 @@ const Profile = () => {
               </div>
             </GlassCard>
 
-            {/* ── Contact ── */}
+            {/* ══ Contact ══ */}
             <GlassCard delay={0.15}>
               <SectionHeader
                 icon={<Phone className="w-5 h-5" />}
@@ -1021,7 +1096,7 @@ const Profile = () => {
               </div>
             </GlassCard>
 
-            {/* ── Present Address ── */}
+            {/* ══ Present Address ══ */}
             {!isHardcoded && (
               <GlassCard delay={0.2}>
                 <SectionHeader
@@ -1092,11 +1167,12 @@ const Profile = () => {
                         onChange={handleChange}
                         roleColor={roleColor}
                       />
+                      {/* Division */}
                       <div className="space-y-2 mb-4">
-                        <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
-                          <MapPin className="w-3.5 h-3.5" />
-                          বিভাগ
-                        </label>
+                        <FieldLabel
+                          icon={<MapPin className="w-3.5 h-3.5" />}
+                          label="বিভাগ"
+                        />
                         <SelectInput
                           options={divisionOptions}
                           value={division}
@@ -1108,12 +1184,13 @@ const Profile = () => {
                           placeholder="বিভাগ নির্বাচন করুন"
                         />
                       </div>
+                      {/* District + Thana */}
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         <div className="space-y-2">
-                          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
-                            <MapPin className="w-3.5 h-3.5" />
-                            জেলা
-                          </label>
+                          <FieldLabel
+                            icon={<MapPin className="w-3.5 h-3.5" />}
+                            label="জেলা"
+                          />
                           <SelectInput
                             options={districtOptions}
                             value={district}
@@ -1126,10 +1203,10 @@ const Profile = () => {
                           />
                         </div>
                         <div className="space-y-2">
-                          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
-                            <Building2 className="w-3.5 h-3.5" />
-                            থানা
-                          </label>
+                          <FieldLabel
+                            icon={<Building2 className="w-3.5 h-3.5" />}
+                            label="থানা"
+                          />
                           <SelectInput
                             options={thanaOptions}
                             value={thana}
@@ -1155,7 +1232,7 @@ const Profile = () => {
               </GlassCard>
             )}
 
-            {/* ── Permanent Address ── */}
+            {/* ══ Permanent Address ══ */}
             {!isHardcoded && !profile?.permanentSameAsPresent && (
               <GlassCard delay={0.25}>
                 <SectionHeader
@@ -1220,10 +1297,10 @@ const Profile = () => {
                         roleColor={roleColor}
                       />
                       <div className="space-y-2 mb-4">
-                        <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
-                          <MapPin className="w-3.5 h-3.5" />
-                          বিভাগ
-                        </label>
+                        <FieldLabel
+                          icon={<MapPin className="w-3.5 h-3.5" />}
+                          label="বিভাগ"
+                        />
                         <SelectInput
                           options={divisionOptions}
                           value={pDivision}
@@ -1237,10 +1314,10 @@ const Profile = () => {
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
-                            <MapPin className="w-3.5 h-3.5" />
-                            জেলা
-                          </label>
+                          <FieldLabel
+                            icon={<MapPin className="w-3.5 h-3.5" />}
+                            label="জেলা"
+                          />
                           <SelectInput
                             options={pDistrictOptions}
                             value={pDistrict}
@@ -1253,10 +1330,10 @@ const Profile = () => {
                           />
                         </div>
                         <div className="space-y-2">
-                          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
-                            <Building2 className="w-3.5 h-3.5" />
-                            থানা
-                          </label>
+                          <FieldLabel
+                            icon={<Building2 className="w-3.5 h-3.5" />}
+                            label="থানা"
+                          />
                           <SelectInput
                             options={pThanaOptions}
                             value={pThana}
@@ -1272,7 +1349,7 @@ const Profile = () => {
               </GlassCard>
             )}
 
-            {/* ── Student Education ── */}
+            {/* ══ Student Education ══ */}
             {isStudent && !isHardcoded && (
               <GlassCard delay={0.3}>
                 <SectionHeader
@@ -1288,7 +1365,7 @@ const Profile = () => {
                         value={profile?.studentClass}
                         roleColor={roleColor}
                       />
-                      {CLASSES_WITH_SUBJECT.includes(
+                      {SUBJECT_REQUIRED_CLASSES.includes(
                         profile?.studentClass ?? "",
                       ) && (
                         <FieldDisplay
@@ -1317,31 +1394,27 @@ const Profile = () => {
                   ) : (
                     <div className="px-6 py-4">
                       <div className="space-y-2 mb-4">
-                        <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
-                          <GraduationCap className="w-3.5 h-3.5" />
-                          শ্রেণি
-                        </label>
+                        <FieldLabel
+                          icon={<GraduationCap className="w-3.5 h-3.5" />}
+                          label="শ্রেণি"
+                        />
                         <SelectInput
                           options={CLASS_OPTIONS}
-                          value={
-                            formData.studentClass ?? profile?.studentClass ?? ""
-                          }
+                          value={selectedStudentClass}
                           onChange={(v) =>
                             handleSelectChange("studentClass", v)
                           }
                           placeholder="শ্রেণি বেছে নিন"
                         />
                       </div>
-                      {CLASSES_WITH_SUBJECT.includes(
-                        formData.studentClass ?? profile?.studentClass ?? "",
-                      ) && (
+                      {shouldShowSubject && (
                         <div className="space-y-2 mb-4">
-                          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
-                            <BookOpen className="w-3.5 h-3.5" />
-                            বিভাগ
-                          </label>
+                          <FieldLabel
+                            icon={<BookOpen className="w-3.5 h-3.5" />}
+                            label="বিভাগ"
+                          />
                           <SelectInput
-                            options={SUBJECT_OPTIONS}
+                            options={SUBJECT_GROUP_SELECT_OPTIONS}
                             value={
                               formData.studentSubject ??
                               profile?.studentSubject ??
@@ -1380,7 +1453,7 @@ const Profile = () => {
               </GlassCard>
             )}
 
-            {/* ── Staff Education ── */}
+            {/* ══ Staff Education ══ */}
             {!isStudent && !isHardcoded && (
               <GlassCard delay={0.3}>
                 <SectionHeader
@@ -1446,24 +1519,22 @@ const Profile = () => {
                         onChange={handleChange}
                         roleColor={roleColor}
                       />
-
                       <div className="space-y-2 mb-4">
-                        <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
-                          <GraduationCap className="w-3.5 h-3.5" />
-                          শিক্ষা সম্পন্ন?
-                        </label>
+                        <FieldLabel
+                          icon={<GraduationCap className="w-3.5 h-3.5" />}
+                          label="শিক্ষা সম্পন্ন?"
+                        />
                         <SelectInput
                           options={[
-                            {
-                              value: "true",
-                              label: "হ্যাঁ — শিক্ষা সম্পন্ন",
-                            },
+                            { value: "true", label: "হ্যাঁ — শিক্ষা সম্পন্ন" },
                             { value: "false", label: "না — এখনো পড়ছি" },
                           ]}
                           value={
-                            (formData.educationComplete ??
-                              String(profile?.educationComplete ?? "")) ||
-                            ""
+                            formData.educationComplete ??
+                            (profile?.educationComplete !== undefined &&
+                            profile?.educationComplete !== null
+                              ? String(profile.educationComplete)
+                              : "")
                           }
                           onChange={(v) =>
                             handleSelectChange("educationComplete", v)
@@ -1471,39 +1542,26 @@ const Profile = () => {
                           placeholder="বেছে নিন"
                         />
                       </div>
-
                       <div className="space-y-2 mb-4">
-                        <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
-                          <BookOpen className="w-3.5 h-3.5" />
-                          ডিগ্রি
-                        </label>
+                        <FieldLabel
+                          icon={<BookOpen className="w-3.5 h-3.5" />}
+                          label="ডিগ্রি"
+                        />
                         <SelectInput
-                          options={[
-                            { value: "hsc", label: "এইচএসসি / সমমান" },
-                            { value: "hons", label: "স্নাতক (সম্মান)" },
-                            { value: "masters", label: "স্নাতকোত্তর" },
-                          ]}
+                          options={DEGREE_SELECT_OPTIONS}
                           value={formData.degree ?? profile?.degree ?? ""}
                           onChange={(v) => handleSelectChange("degree", v)}
                           placeholder="ডিগ্রি বেছে নিন"
                         />
                       </div>
-
-                      {(formData.educationComplete === "false" ||
-                        (formData.educationComplete === undefined &&
-                          profile?.educationComplete === false)) && (
+                      {educationIncomplete && (
                         <div className="space-y-2 mb-4">
-                          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bangla text-[var(--color-gray)]">
-                            <CalendarDays className="w-3.5 h-3.5" />
-                            বর্তমান বর্ষ
-                          </label>
+                          <FieldLabel
+                            icon={<CalendarDays className="w-3.5 h-3.5" />}
+                            label="বর্তমান বর্ষ"
+                          />
                           <SelectInput
-                            options={[
-                              { value: "1st", label: "১ম বর্ষ" },
-                              { value: "2nd", label: "২য় বর্ষ" },
-                              { value: "3rd", label: "৩য় বর্ষ" },
-                              { value: "4th", label: "৪র্থ বর্ষ" },
-                            ]}
+                            options={ACADEMIC_YEAR_OPTIONS}
                             value={
                               formData.currentYear ?? profile?.currentYear ?? ""
                             }
@@ -1514,7 +1572,6 @@ const Profile = () => {
                           />
                         </div>
                       )}
-
                       <TextInput
                         icon={<BookOpen className="w-4 h-4" />}
                         label="যোগ্যতা (বিষয়/বিভাগ)"
@@ -1531,7 +1588,7 @@ const Profile = () => {
               </GlassCard>
             )}
 
-            {/* ── Security ── */}
+            {/* ══ Security ══ */}
             <GlassCard delay={0.35}>
               <SectionHeader
                 icon={<Lock className="w-5 h-5" />}
@@ -1562,7 +1619,7 @@ const Profile = () => {
               </div>
             </GlassCard>
 
-            {/* ── Bottom Action (Edit Mode) ── */}
+            {/* ══ Bottom Sticky Action Bar ══ */}
             <AnimatePresence>
               {editing && !isHardcoded && (
                 <motion.div
@@ -1577,9 +1634,9 @@ const Profile = () => {
                       whileTap={{ scale: 0.98 }}
                       onClick={handleSave}
                       disabled={updateMutation.isPending}
-                      className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl 
+                      className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl
                         text-sm font-bold bangla text-white
-                        bg-[#10b981] hover:bg-[#059669] 
+                        bg-emerald-500 hover:bg-emerald-600
                         shadow-lg shadow-emerald-500/20
                         disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -1593,13 +1650,9 @@ const Profile = () => {
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => {
-                        setEditing(false);
-                        setFormData({});
-                      }}
+                      onClick={cancelEditing}
                       className="px-6 py-3.5 rounded-2xl text-sm font-bold bangla
-                        bg-red-500 border border-red-600 text-white hover:bg-red-700
-                        transition-all"
+                        bg-red-500 hover:bg-red-600 text-white transition-all"
                     >
                       বাতিল
                     </motion.button>

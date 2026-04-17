@@ -2,6 +2,7 @@
 import { motion } from "framer-motion";
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
+
 export interface ExamImage {
   url?: string;
   imageUrl?: string;
@@ -18,8 +19,6 @@ export interface Exam {
   teacher?: string;
   date: string;
   images?: (string | ExamImage)[];
-
-  // ─── New Fields ─────────────────────────────────────────
   numberType?: "pageNumber" | "chapterNumber";
   pageNumber?: string | number | null;
   chapterNumber?: string | number | null;
@@ -33,6 +32,7 @@ export interface ColorConfig {
 }
 
 /* ─── Colors ─────────────────────────────────────────────────────────────── */
+
 export const COLORS: ColorConfig[] = [
   { from: "#6366f1", to: "#8b5cf6", text: "#6366f1" },
   { from: "#f59e0b", to: "#f97316", text: "#d97706" },
@@ -45,6 +45,7 @@ export const COLORS: ColorConfig[] = [
 ];
 
 /* ─── Bengali number converter ───────────────────────────────────────────── */
+
 const BN_DIGITS = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"];
 
 export const toBn = (n: number | string | null | undefined): string => {
@@ -52,15 +53,21 @@ export const toBn = (n: number | string | null | undefined): string => {
   return String(n).replace(/\d/g, (d) => BN_DIGITS[parseInt(d)]);
 };
 
+/* ─── Bengali date string ────────────────────────────────────────────────── */
+
+import { BN_DAYS_FULL, BN_MONTHS } from "../components/common/Datepicker";
+
+export const toBnDateStr = (d: Date): string =>
+  `${BN_DAYS_FULL[d.getDay()]}, ${toBn(d.getDate())} ${BN_MONTHS[d.getMonth()]} ${toBn(d.getFullYear())}`;
+
 /* ─── Helper: Get number display info ────────────────────────────────────── */
+
 export const getNumberInfo = (
   exam: Exam,
 ): { label: string; value: string } | null => {
   const isPageType = exam.numberType === "pageNumber";
   const value = isPageType ? exam.pageNumber : exam.chapterNumber;
-
   if (!value) return null;
-
   return {
     label: isPageType ? "পৃষ্ঠা" : "অধ্যায়",
     value: toBn(value),
@@ -68,6 +75,7 @@ export const getNumberInfo = (
 };
 
 /* ─── AnimatedSlide ──────────────────────────────────────────────────────── */
+
 interface AnimatedSlideProps {
   img: string | ExamImage;
   isActive: boolean;
@@ -95,6 +103,7 @@ export const AnimatedSlide = ({
 };
 
 /* ─── SlideDots ──────────────────────────────────────────────────────────── */
+
 interface SlideDotsProps {
   count: number;
   active: number;
@@ -118,6 +127,7 @@ export const SlideDots = ({ count, active, color }: SlideDotsProps) => (
 );
 
 /* ─── SlideProgress ──────────────────────────────────────────────────────── */
+
 interface SlideProgressProps {
   color: ColorConfig;
 }
@@ -135,7 +145,8 @@ export const SlideProgress = ({ color }: SlideProgressProps) => (
   />
 );
 
-// ─── Per-class palettes ────────────────────────────────────
+/* ─── Per-class palettes ─────────────────────────────────────────────────── */
+
 export type ClassColor = {
   from: string;
   to: string;

@@ -6,7 +6,11 @@ import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeProvider";
 import { useProfileDrawer } from "../../context/ProfileDrawerContext";
 import { SidebarContent } from "../../pages/Admin/Dashboard/Sidebar.Ui";
-import { ROLES } from "../../utility/Constants";
+import {
+  ROLE_CONFIG,
+  isPrivilegedRole,
+  type UserRole,
+} from "../../utility/Constants";
 import {
   contentNav,
   dashboardNav,
@@ -15,13 +19,15 @@ import {
   type NavItem,
 } from "../../utility/AdminSidebarData";
 
-const buildNav = (role: string): NavItem[] => {
+const buildNav = (role: UserRole): NavItem[] => {
   if (role === "student") return studentNav();
-  const isPrivileged = ["admin", "principal", "owner"].includes(role);
+
+  const privileged = isPrivilegedRole(role);
+
   return [
     ...dashboardNav(),
-    ...contentNav(isPrivileged),
-    ...managementNav(isPrivileged),
+    ...contentNav(privileged),
+    ...managementNav(privileged),
   ];
 };
 
@@ -30,15 +36,14 @@ const ProfileDrawer = () => {
   const { user, logout } = useAuth();
   const { toggleTheme } = useTheme();
 
-  const role = user?.role ?? "teacher";
-  const roleConfig = ROLES[role] ?? ROLES.teacher;
+  const role: UserRole = user?.role ?? "teacher";
+  const roleConfig = ROLE_CONFIG[role] ?? ROLE_CONFIG.teacher;
   const navGroups = buildNav(role);
 
   return (
     <AnimatePresence>
       {open && (
         <>
-          {/* backdrop — z-[55] */}
           <motion.div
             key="profile-backdrop"
             className="fixed inset-0 z-[55] bg-black/40"
@@ -49,12 +54,10 @@ const ProfileDrawer = () => {
             onClick={closeDrawer}
           />
 
-          {/* drawer panel — z-[60] */}
           <motion.aside
             key="profile-drawer"
             aria-label="Profile navigation drawer"
-            className="fixed top-0 bottom-0 right-0 z-[60] w-[280px]
-              border-l border-[var(--color-active-border)] bg-[var(--color-bg)]"
+            className="fixed top-0 bottom-0 right-0 z-[60] w-[280px] border-l border-[var(--color-active-border)] bg-[var(--color-bg)]"
             initial={{ x: 280 }}
             animate={{ x: 0 }}
             exit={{ x: 280 }}

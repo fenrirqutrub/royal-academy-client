@@ -7,7 +7,7 @@ import { Key } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useProfileDrawer } from "../../context/ProfileDrawerContext";
 
-import { ROLES } from "../../utility/Constants";
+import { ROLE_CONFIG } from "../../utility/Constants";
 import { Avatar } from "../common/Avatar";
 
 interface ProfileButtonProps {
@@ -20,7 +20,7 @@ const ProfileButton = memo<ProfileButtonProps>(({ size = 35 }) => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading } = useAuth();
   const role = user?.role ?? "teacher";
-  const roleConfig = ROLES[role] ?? ROLES.teacher;
+  const roleConfig = ROLE_CONFIG[role] ?? ROLE_CONFIG.teacher;
 
   // ── Loading ──
   if (loading) {

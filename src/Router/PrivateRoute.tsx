@@ -29,7 +29,7 @@ const PrivateRoute = ({ children, allowedRoles }: PrivateRouteProps) => {
 
   // owner সব access পাবে
   if (user.role === "owner") {
-    return <>{children}</>;
+    return <div>{children}</div>;
   }
 
   // allowedRoles দেওয়া থাকলে check করো

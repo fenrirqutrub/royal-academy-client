@@ -1,10 +1,6 @@
 import * as React from "react";
 import { cn } from "../../utility/utils";
 
-// ─────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────
-
 type MotionComponent = React.ForwardRefExoticComponent<
   React.HTMLAttributes<HTMLElement> & Record<string, unknown>
 >;
@@ -16,6 +12,7 @@ type ButtonVariants =
   | "outline"
   | "ghost"
   | "secondary"
+  | "accent"
   | "destructive";
 
 type ButtonSizes = "sm" | "md" | "lg" | "icon";
@@ -39,10 +36,6 @@ type ButtonProps<T extends AnyComponent = "button"> = ButtonOwnProps & {
 type PolymorphicRef<T extends AnyComponent> = T extends React.ElementType
   ? React.ComponentPropsWithRef<T>["ref"]
   : React.Ref<HTMLButtonElement>;
-
-// ─────────────────────────────────────────────
-// Styles
-// ─────────────────────────────────────────────
 
 const baseClasses = [
   "inline-flex items-center justify-center gap-2",
@@ -70,8 +63,11 @@ const variantClasses: Record<ButtonVariants, string> = {
     "text-[var(--color-text)] bg-transparent " +
     "hover:bg-[var(--color-active-bg)] hover:text-[var(--color-active-text)]",
 
+  accent:
+    "bg-[var(--color-brand)] text-white hover:bg-[var(--color-brand-hover)]",
+
   destructive:
-    "bg-[var(--color-text)] text-[var(--color-bg)] opacity-70 hover:opacity-100",
+    "bg-[var(--color-danger)] text-white hover:bg-[var(--color-danger-hover)]",
 };
 
 const sizeClasses: Record<ButtonSizes, string> = {

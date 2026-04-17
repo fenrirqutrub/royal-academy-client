@@ -1,4 +1,4 @@
-// ManagementShell.tsx
+// src/pages/Admin/Management/ManagementShell.tsx
 
 import { useState, useMemo, useRef } from "react";
 import { useForm, Controller, type SubmitHandler } from "react-hook-form";
@@ -12,12 +12,17 @@ import ExamPagination from "../../../components/common/ExamPagination";
 import Skeleton from "../../../components/common/Skeleton";
 import ErrorState from "../../../components/common/ErrorState";
 import EmptyState from "../../../components/common/Emptystate";
-import DatePicker, {
-  BN_DAYS_FULL,
-  BN_MONTHS,
-} from "../../../components/common/Datepicker";
+import DatePicker from "../../../components/common/Datepicker";
 import { useAuth } from "../../../context/AuthContext";
-import { CLASS_OPTIONS, getSubjects } from "../../../utility/Constants";
+import {
+  CLASS_OPTIONS,
+  getSubjects,
+  PRIVILEGED_ROLES,
+  STAFF_DASHBOARD_ROLES,
+  ROLE_BADGE_CLASS,
+  type UserRole,
+} from "../../../utility/Constants";
+import { toBn, toBnDateStr } from "../../../utility/shared";
 
 import {
   RequiredStar,
@@ -38,11 +43,11 @@ import {
   inputCls,
   labelCls,
 } from "./ManagementUI";
-import { toBn } from "../../../utility/shared";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TYPES  (exported so ManageDailyLesson etc. can import them)
+// TYPES
 // ─────────────────────────────────────────────────────────────────────────────
+
 export interface ExamImage {
   imageUrl: string;
   publicId: string;
@@ -86,28 +91,18 @@ export interface ShellConfig {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CONSTANTS
+// HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 
-const toBnDateStr = (d: Date) =>
-  `${BN_DAYS_FULL[d.getDay()]}, ${toBn(d.getDate())} ${BN_MONTHS[d.getMonth()]} ${toBn(d.getFullYear())}`;
-
-const MANAGER_ROLES = ["principal", "admin", "owner"];
-
-const ROLE_BADGE: Record<string, string> = {
-  admin:
-    "bg-rose-100   dark:bg-rose-900/30   text-rose-600   dark:text-rose-400",
-  owner:
-    "bg-amber-100  dark:bg-amber-900/30  text-amber-600  dark:text-amber-400",
-  principal:
-    "bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300",
-  teacher:
-    "bg-blue-100   dark:bg-blue-900/30   text-blue-700   dark:text-blue-300",
-};
+const isSameDay = (a: Date, b: Date): boolean =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EDIT MODAL  (logic + wires into EditModalShell design)
+// EDIT MODAL
 // ─────────────────────────────────────────────────────────────────────────────
+
 const EditModal = ({
   record,
   config,
@@ -126,6 +121,7 @@ const EditModal = ({
     typeof img === "string" ? { imageUrl: img, publicId: "" } : img,
   );
   const [existingImages, setExistingImages] = useState(initialExisting);
+
   const allPreviews = [
     ...existingImages.map((i) => i.imageUrl),
     ...newPreviews,
@@ -150,7 +146,6 @@ const EditModal = ({
 
   const selectedClass = watch("class");
 
-  // ── image handlers ──────────────────────────────────────────────────────────
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
@@ -170,7 +165,6 @@ const EditModal = ({
     }
   };
 
-  // ── mutation ────────────────────────────────────────────────────────────────
   const method = config.updateMethod ?? "put";
 
   const mutation = useMutation({
@@ -201,7 +195,7 @@ const EditModal = ({
     },
     onError: (err: Error & { response?: { data?: { message?: string } } }) =>
       toast.error(
-        err?.response?.data?.message || err?.message || "আপডেট ব্যর্থ হয়েছে",
+        err?.response?.data?.message ?? err?.message ?? "আপডেট ব্যর্থ হয়েছে",
       ),
   });
 
@@ -216,7 +210,6 @@ const EditModal = ({
       isValid={isValid}
       isDirty={isDirty}
     >
-      {/* Class + Subject */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <Controller
           name="class"
@@ -262,7 +255,6 @@ const EditModal = ({
         />
       </div>
 
-      {/* Group key */}
       <div>
         <label className={labelCls}>
           {config.groupLabel} নম্বর <RequiredStar />
@@ -283,7 +275,6 @@ const EditModal = ({
         <ErrMsg msg={errors.groupKey?.message} />
       </div>
 
-      {/* Topics */}
       <div>
         <label className={labelCls}>
           বিষয়বস্তু <RequiredStar />
@@ -293,14 +284,19 @@ const EditModal = ({
           placeholder="বিষয়বস্তু লিখুন..."
           {...register("topics", {
             required: "বিষয়বস্তু আবশ্যিক",
-            minLength: { value: 6, message: "কমপক্ষে ৬ অক্ষর লিখুন" },
+            minLength: {
+              value: 6,
+              message: "কমপক্ষে ৬ অক্ষর লিখুন",
+            },
           })}
-          className={`${inputCls(!!errors.topics, !!touchedFields.topics && !errors.topics)} resize-none leading-relaxed bangla`}
+          className={`${inputCls(
+            !!errors.topics,
+            !!touchedFields.topics && !errors.topics,
+          )} resize-none leading-relaxed bangla`}
         />
         <ErrMsg msg={errors.topics?.message} />
       </div>
 
-      {/* Images */}
       {config.hasImages && (
         <ImageUploader
           previews={allPreviews}
@@ -317,16 +313,20 @@ const EditModal = ({
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN SHELL
 // ─────────────────────────────────────────────────────────────────────────────
+
 const ManagementShell = ({ config }: { config: ShellConfig }) => {
   const { user } = useAuth();
   const qc = useQueryClient();
 
-  const isManager = MANAGER_ROLES.includes(user?.role ?? "");
+  const role = (user?.role ?? "teacher") as UserRole;
+  const isManager = PRIVILEGED_ROLES.includes(role);
   const mySlug = user?.slug ?? "";
 
-  // ── filter state ────────────────────────────────────────────────────────────
+  // ── filter state ──────────────────────────────────────────────────────
+
   const today = new Date();
-  const [filterDateStr, setFilterDateStr] = useState<string>(
+
+  const [filterDateStr, setFilterDateStr] = useState(
     config.useDateFilter ? toBnDateStr(today) : "",
   );
   const [filterDateObj, setFilterDateObj] = useState<Date | null>(
@@ -334,16 +334,18 @@ const ManagementShell = ({ config }: { config: ShellConfig }) => {
   );
   const [search, setSearch] = useState("");
   const [filterClass, setFilterClass] = useState("");
-  const [filterTeacherSlug, setFilterTeacherSlug] = useState<string>(
+  const [filterTeacherSlug, setFilterTeacherSlug] = useState(
     isManager ? "" : mySlug,
   );
   const [selectedKey, setSelectedKey] = useState("");
 
-  // ── modal state ─────────────────────────────────────────────────────────────
+  // ── modal state ───────────────────────────────────────────────────────
+
   const [editTarget, setEditTarget] = useState<ManagedRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ManagedRecord | null>(null);
 
-  // ── data fetching ───────────────────────────────────────────────────────────
+  // ── data fetching ─────────────────────────────────────────────────────
+
   const {
     data: records = [],
     isLoading,
@@ -373,17 +375,18 @@ const ManagementShell = ({ config }: { config: ShellConfig }) => {
         : [];
       return list
         .filter(
-          (u) =>
-            ["teacher", "principal", "admin", "owner"].includes(
-              u.role as string,
-            ) && u.slug,
+          (u) => STAFF_DASHBOARD_ROLES.includes(u.role as UserRole) && u.slug,
         )
-        .map((u) => ({ slug: u.slug as string, name: u.name as string }));
+        .map((u) => ({
+          slug: u.slug as string,
+          name: u.name as string,
+        }));
     },
     enabled: isManager,
   });
 
-  // ── derived data ────────────────────────────────────────────────────────────
+  // ── derived ───────────────────────────────────────────────────────────
+
   const teacherSelectOptions = useMemo(
     () => [
       { value: "", label: "সকল শিক্ষক" },
@@ -404,31 +407,30 @@ const ManagementShell = ({ config }: { config: ShellConfig }) => {
       records.filter((r) => {
         const q = search.toLowerCase();
         const activeSlug = isManager ? filterTeacherSlug : mySlug;
-        const matchTeacher = !activeSlug || r.teacherSlug === activeSlug;
-        const matchDate =
-          !filterDateObj ||
-          (() => {
-            const d = new Date(r.createdAt);
-            return (
-              d.getFullYear() === filterDateObj.getFullYear() &&
-              d.getMonth() === filterDateObj.getMonth() &&
-              d.getDate() === filterDateObj.getDate()
-            );
-          })();
-        const matchKey = config.useDateFilter
-          ? true
-          : !effectiveKey || r.groupKey === effectiveKey;
 
-        return (
-          matchTeacher &&
-          matchDate &&
-          matchKey &&
-          (!filterClass || r.class === filterClass) &&
-          (!q ||
-            r.subject.toLowerCase().includes(q) ||
-            r.topics.toLowerCase().includes(q) ||
-            r.groupKey.includes(q))
-        );
+        if (activeSlug && r.teacherSlug !== activeSlug) return false;
+
+        if (filterDateObj && !isSameDay(new Date(r.createdAt), filterDateObj))
+          return false;
+
+        if (
+          !config.useDateFilter &&
+          effectiveKey &&
+          r.groupKey !== effectiveKey
+        )
+          return false;
+
+        if (filterClass && r.class !== filterClass) return false;
+
+        if (
+          q &&
+          !r.subject.toLowerCase().includes(q) &&
+          !r.topics.toLowerCase().includes(q) &&
+          !r.groupKey.includes(q)
+        )
+          return false;
+
+        return true;
       }),
     [
       records,
@@ -443,7 +445,8 @@ const ManagementShell = ({ config }: { config: ShellConfig }) => {
     ],
   );
 
-  // ── delete mutation ─────────────────────────────────────────────────────────
+  // ── delete mutation ───────────────────────────────────────────────────
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => axiosPublic.delete(`${config.apiPath}/${id}`),
     onSuccess: () => {
@@ -453,11 +456,12 @@ const ManagementShell = ({ config }: { config: ShellConfig }) => {
     },
     onError: (err: Error & { response?: { data?: { message?: string } } }) =>
       toast.error(
-        err?.response?.data?.message || err?.message || "মুছতে ব্যর্থ হয়েছে",
+        err?.response?.data?.message ?? err?.message ?? "মুছতে ব্যর্থ হয়েছে",
       ),
   });
 
-  // ── stats ───────────────────────────────────────────────────────────────────
+  // ── stats ─────────────────────────────────────────────────────────────
+
   const totalForSlug =
     isManager && !filterTeacherSlug
       ? records.length
@@ -494,13 +498,15 @@ const ManagementShell = ({ config }: { config: ShellConfig }) => {
 
   const hasFilter = !!(search || filterClass || filterTeacherSlug);
 
-  // ── early returns ───────────────────────────────────────────────────────────
+  // ── early returns ─────────────────────────────────────────────────────
+
   if (isLoading)
     return (
       <div className="min-h-screen bg-[var(--color-bg)] py-10 px-4">
         <Skeleton variant="daily-lesson" />
       </div>
     );
+
   if (isError)
     return (
       <div className="min-h-screen bg-[var(--color-bg)] flex items-center justify-center">
@@ -508,10 +514,10 @@ const ManagementShell = ({ config }: { config: ShellConfig }) => {
       </div>
     );
 
-  // ── render ──────────────────────────────────────────────────────────────────
+  // ── render ────────────────────────────────────────────────────────────
+
   return (
     <div className="min-h-screen bg-[var(--color-bg)] py-8 md:py-10">
-      {/* Header */}
       <PageHeader
         title={config.title}
         subtitle={
@@ -520,20 +526,18 @@ const ManagementShell = ({ config }: { config: ShellConfig }) => {
             : "আপনার যোগ করা ডেটা দেখুন ও পরিচালনা করুন"
         }
         roleBadge={
-          user?.role && ROLE_BADGE[user.role]
-            ? { label: user.role, color: ROLE_BADGE[user.role] }
+          ROLE_BADGE_CLASS[role]
+            ? { label: role, color: ROLE_BADGE_CLASS[role]! }
             : null
         }
       />
 
-      {/* Stats */}
       <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-6">
         {stats.map((stat, i) => (
           <StatCard key={stat.label} stat={stat} index={i} />
         ))}
       </div>
 
-      {/* Filters */}
       <FilterBar>
         <SearchBox
           value={search}
@@ -571,7 +575,7 @@ const ManagementShell = ({ config }: { config: ShellConfig }) => {
               onChange={(val) => {
                 setFilterDateStr(val);
                 if (!val) setFilterDateObj(null);
-                setSelectedKey(""); // ← add করো
+                setSelectedKey("");
               }}
               onDateChange={(d) => setFilterDateObj(d)}
               placeholder="তারিখ ফিল্টার করুন"
@@ -581,7 +585,6 @@ const ManagementShell = ({ config }: { config: ShellConfig }) => {
         )}
       </FilterBar>
 
-      {/* Content */}
       <AnimatePresence mode="wait">
         {filtered.length === 0 ? (
           <div key="empty">
@@ -616,7 +619,6 @@ const ManagementShell = ({ config }: { config: ShellConfig }) => {
         )}
       </AnimatePresence>
 
-      {/* Pagination */}
       {!config.useDateFilter && sortedKeys.length > 1 && (
         <ExamPagination
           examNumbers={sortedKeys}
@@ -624,15 +626,14 @@ const ManagementShell = ({ config }: { config: ShellConfig }) => {
           onSelect={(k) => {
             setSelectedKey(k);
             setSearch("");
-            setFilterDateStr(""); // ← add করো
-            setFilterDateObj(null); // ← add করো
+            setFilterDateStr("");
+            setFilterDateObj(null);
           }}
-          hint={`${config.groupLabel} নং বেছে নিন • মোট ${sortedKeys.length}টি`}
+          hint={`${config.groupLabel} নং বেছে নিন • মোট ${toBn(sortedKeys.length)}টি`}
           windowSize={7}
         />
       )}
 
-      {/* Modals */}
       <AnimatePresence>
         {editTarget && (
           <EditModal

@@ -306,7 +306,7 @@ const Teacher = () => {
   const { data, isLoading, isError } = useQuery<TeacherData[]>({
     queryKey: ["teachers"],
     queryFn: async () => {
-      const res = await axiosPublic.get("/api/users");
+      const res = await axiosPublic.get("/api/users/public");
       return (res.data?.data ?? res.data ?? []) as TeacherData[];
     },
     staleTime: 5 * 60_000,

@@ -51,11 +51,7 @@ interface DatePickerProps {
   value?: string;
   onChange: (display: string) => void;
   onDateChange?: (date: Date) => void;
-  /**
-   * ✅ NEW: parent যে Date object ধরে রেখেছে সেটা pass করুন।
-   * এটা দিলে programmatic date set (reset, auto-fill) এর পরেও
-   * picker-এর internal selected state sync থাকবে।
-   */
+
   selectedDate?: Date | null;
   label?: string;
   required?: boolean;
@@ -64,10 +60,6 @@ interface DatePickerProps {
   disabled?: boolean;
   minDate?: Date;
   maxDate?: Date;
-  /**
-   * Set of "YYYY-M-D" keys (getFullYear-getMonth-getDate, no zero-padding).
-   * Days found in this set get a green activity dot in the calendar.
-   */
   activeDates?: Set<string>;
 }
 
@@ -102,10 +94,8 @@ const DatePicker = ({
   const yearListRef = useRef<HTMLDivElement>(null);
   const [dropPos, setDropPos] = useState({ top: 0, left: 0, width: 0 });
 
-  // ✅ selectedDate prop পরিবর্তন হলে internal state sync করো
-  // (reset, auto-fill, programmatic set সব এখানে ধরা পড়বে)
   useEffect(() => {
-    if (selectedDate === undefined) return; // prop pass না হলে ignore
+    if (selectedDate === undefined) return;
 
     if (!selectedDate) {
       setSelected(null);
@@ -113,7 +103,7 @@ const DatePicker = ({
     }
 
     setSelected(selectedDate);
-    // calendar view ও selected date-এর month/year এ নিয়ে যাও
+
     setViewYear(selectedDate.getFullYear());
     setViewMonth(selectedDate.getMonth());
   }, [selectedDate]);

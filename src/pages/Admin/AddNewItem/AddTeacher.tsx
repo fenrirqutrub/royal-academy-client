@@ -1,5 +1,5 @@
-// src/pages/Admin/AddTeacher.tsx
-import { useEffect, useMemo, useState } from "react";
+// src/pages/Admin/AddNewItem/AddTeacher.tsx
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -18,17 +18,29 @@ import {
   ChevronRight,
 } from "lucide-react";
 import toast from "react-hot-toast";
+
 import axiosPublic from "../../../hooks/axiosPublic";
 import { useAuth } from "../../../context/AuthContext";
+import Button from "../../../components/common/Button";
+import { cn } from "../../../utility/utils";
+import { banglaOnly } from "../Auth/SignupComponents";
+import {
+  ROLE_CONFIG,
+  ROLE_PERMISSIONS,
+  STAFF_ROLE_LIST,
+  validateBdPhone,
+  toAsciiDigits,
+  type StaffRole,
+  type UserRole,
+} from "../../../utility/Constants";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type Role = "teacher" | "principal" | "admin";
 
 interface StaffMember {
   _id: string;
   name: string;
   phone: string;
-  role: Role;
+  role: StaffRole;
   slug?: string;
   isHardcoded?: boolean;
   onboardingComplete?: boolean;
@@ -37,64 +49,100 @@ interface StaffMember {
 interface StaffForm {
   name: string;
   phone: string;
-  role: Role;
+  role: StaffRole;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const ALL_ROLES: { value: Role; label: string; color: string; bg: string }[] = [
-  {
-    value: "teacher",
-    label: "শিক্ষক",
-    color: "#3b82f6",
-    bg: "rgba(59,130,246,0.12)",
-  },
-  {
-    value: "principal",
-    label: "অধ্যক্ষ",
-    color: "#8b5cf6",
-    bg: "rgba(139,92,246,0.12)",
-  },
-  {
-    value: "admin",
-    label: "প্রশাসক",
-    color: "#ef4444",
-    bg: "rgba(239,68,68,0.12)",
-  },
-];
 
-const ROLE_PERMISSIONS: Record<string, Role[]> = {
-  owner: ["admin", "principal", "teacher"],
-  admin: ["admin", "principal", "teacher"],
-  principal: ["principal", "teacher"],
-  teacher: [],
+const STAFF_QUERY_KEY = ["staff-members"] as const;
+const STAFF_QUERY_PATH = `/api/users?${STAFF_ROLE_LIST.map((r) => `role=${r}`).join("&")}`;
+const EASE = [0.25, 0.46, 0.45, 0.94] as const;
+
+const surfaceCls =
+  "rounded-2xl border border-[var(--color-active-border)] bg-[var(--color-active-bg)]";
+
+const labelCls =
+  "block text-xs font-bold uppercase tracking-widest bangla text-[var(--color-gray)]";
+
+const inputBaseCls =
+  "w-full rounded-xl bg-[var(--color-bg)] text-[var(--color-text)] border-2 outline-none transition-all duration-200 focus:border-[var(--color-active-text)]";
+
+const staffRoleUi: Record<
+  StaffRole,
+  {
+    label: string;
+    pillCls: string;
+    countCls: string;
+    accentCls: string;
+    editBorderCls: string;
+    avatarCls: string;
+    buttonCls: string;
+    buttonActiveCls: string;
+  }
+> = {
+  teacher: {
+    label: ROLE_CONFIG.teacher.label,
+    pillCls: "bg-blue-500/10 text-blue-500",
+    countCls: "bg-blue-500/10 text-blue-500",
+    accentCls: "bg-blue-500",
+    editBorderCls: "border-blue-500",
+    avatarCls: "bg-gradient-to-br from-blue-400 to-blue-600",
+    buttonCls: "border-blue-500 text-blue-500 hover:bg-blue-500/10",
+    buttonActiveCls:
+      "!border-blue-500 !bg-blue-500 !text-white hover:!bg-blue-600 hover:!text-white",
+  },
+  principal: {
+    label: ROLE_CONFIG.principal.label,
+    pillCls: "bg-violet-500/10 text-violet-600",
+    countCls: "bg-violet-500/10 text-violet-600",
+    accentCls: "bg-violet-500",
+    editBorderCls: "border-violet-500",
+    avatarCls: "bg-gradient-to-br from-violet-400 to-violet-600",
+    buttonCls: "border-violet-500 text-violet-600 hover:bg-violet-500/10",
+    buttonActiveCls:
+      "!border-violet-500 !bg-violet-500 !text-white hover:!bg-violet-600 hover:!text-white",
+  },
+  admin: {
+    label: ROLE_CONFIG.admin.label,
+    pillCls: "bg-rose-500/10 text-rose-500",
+    countCls: "bg-rose-500/10 text-rose-500",
+    accentCls: "bg-rose-500",
+    editBorderCls: "border-rose-500",
+    avatarCls: "bg-gradient-to-br from-rose-400 to-rose-600",
+    buttonCls: "border-rose-500 text-rose-500 hover:bg-rose-500/10",
+    buttonActiveCls:
+      "!border-rose-500 !bg-rose-500 !text-white hover:!bg-rose-600 hover:!text-white",
+  },
 };
 
-const getRoleInfo = (role: Role) =>
-  ALL_ROLES.find((r) => r.value === role) ?? ALL_ROLES[0];
+const getRoleInfo = (role: StaffRole | string) =>
+  staffRoleUi[role as StaffRole] ?? staffRoleUi.teacher;
 
-// ─── Bangla-only validator ────────────────────────────────────────────────────
-const banglaOnly = (v: string) => {
-  if (!v?.trim()) return "নাম লিখুন";
-  if (!/^[\u0980-\u09FF\s।,.\-()'".]+$/.test(v.trim()))
-    return "নাম অবশ্যই বাংলায় লিখতে হবে";
-  if (v.trim().length < 3) return "কমপক্ষে ৩টি অক্ষর";
-  return true;
-};
+const normalizePhone = (phone: string) =>
+  toAsciiDigits(phone).replace(/\D/g, "");
+
+const normalizeStaffForm = (data: StaffForm): StaffForm => ({
+  ...data,
+  name: data.name.trim(),
+  phone: normalizePhone(data.phone),
+});
 
 // ─── Animation variants ───────────────────────────────────────────────────────
+
 const cardVariants: import("framer-motion").Variants = {
   hidden: { opacity: 0, y: 18, scale: 0.98 },
   visible: (i: number) => ({
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: {
-      delay: i * 0.06,
-      duration: 0.3,
-      ease: [0.25, 0.46, 0.45, 0.94] as const,
-    },
+    transition: { delay: i * 0.06, duration: 0.3, ease: EASE },
   }),
-  exit: { opacity: 0, x: -20, scale: 0.97, transition: { duration: 0.2 } },
+  exit: {
+    opacity: 0,
+    x: -20,
+    scale: 0.97,
+    transition: { duration: 0.2 },
+  },
 };
 
 const formVariants: import("framer-motion").Variants = {
@@ -103,33 +151,35 @@ const formVariants: import("framer-motion").Variants = {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { duration: 0.28, ease: [0.25, 0.46, 0.45, 0.94] as const },
+    transition: { duration: 0.28, ease: EASE },
   },
   exit: { opacity: 0, y: -8, scale: 0.97, transition: { duration: 0.18 } },
 };
 
-// ─── Role pill ────────────────────────────────────────────────────────────────
-const RolePill = ({ role }: { role: Role }) => {
+// ─── Small UI pieces ──────────────────────────────────────────────────────────
+
+const RolePill = ({ role }: { role: StaffRole }) => {
   const info = getRoleInfo(role);
   return (
     <span
-      className="text-[10px] font-black px-2 py-0.5 rounded-full tracking-wide bangla"
-      style={{ backgroundColor: info.bg, color: info.color }}
+      className={cn(
+        "rounded-full px-2 py-0.5 text-[10px] font-black tracking-wide bangla",
+        info.pillCls,
+      )}
     >
       {info.label}
     </span>
   );
 };
 
-// ─── Status pill ──────────────────────────────────────────────────────────────
 const StatusPill = ({ active }: { active?: boolean }) => (
   <span
-    className="text-[10px] font-bold px-2 py-0.5 rounded-full bangla flex items-center gap-1"
-    style={
+    className={cn(
+      "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bangla",
       active
-        ? { backgroundColor: "rgba(34,197,94,0.12)", color: "#22c55e" }
-        : { backgroundColor: "rgba(245,158,11,0.12)", color: "#f59e0b" }
-    }
+        ? "bg-green-500/10 text-green-500"
+        : "bg-amber-500/10 text-amber-500",
+    )}
   >
     {active ? (
       <>
@@ -143,7 +193,6 @@ const StatusPill = ({ active }: { active?: boolean }) => (
   </span>
 );
 
-// ─── Field wrapper ────────────────────────────────────────────────────────────
 const FormField = ({
   label,
   error,
@@ -151,15 +200,10 @@ const FormField = ({
 }: {
   label: string;
   error?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) => (
   <div className="space-y-1.5">
-    <label
-      className="block text-xs font-bold uppercase tracking-widest bangla"
-      style={{ color: "var(--color-gray)" }}
-    >
-      {label}
-    </label>
+    <label className={labelCls}>{label}</label>
     {children}
     <AnimatePresence>
       {error && (
@@ -167,7 +211,7 @@ const FormField = ({
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0 }}
-          className="text-red-500 text-xs bangla flex items-center gap-1"
+          className="flex items-center gap-1 text-xs text-red-500 bangla"
         >
           ⚠ {error}
         </motion.p>
@@ -177,26 +221,30 @@ const FormField = ({
 );
 
 // ─── Main component ───────────────────────────────────────────────────────────
+
 const AddTeacher = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const callerRole = user?.isHardcoded ? "owner" : (user?.role ?? "teacher");
+  const callerRole: UserRole = user?.isHardcoded
+    ? "owner"
+    : ((user?.role ?? "teacher") as UserRole);
 
   const allowedRoles = useMemo(
     () => ROLE_PERMISSIONS[callerRole] ?? [],
     [callerRole],
   );
 
-  const defaultRole = useMemo(
-    () => (allowedRoles[0] ?? "teacher") as Role,
+  const defaultRole = useMemo<StaffRole>(
+    () => allowedRoles[0] ?? "teacher",
     [allowedRoles],
   );
 
   const visibleRoles = useMemo(
-    () => ALL_ROLES.filter((r) => allowedRoles.includes(r.value)),
+    () => STAFF_ROLE_LIST.filter((role) => allowedRoles.includes(role)),
     [allowedRoles],
   );
 
@@ -209,63 +257,91 @@ const AddTeacher = () => {
     setValue,
     watch,
     formState: { errors },
-  } = useForm<StaffForm>({ defaultValues: { role: defaultRole } });
+  } = useForm<StaffForm>({
+    defaultValues: { role: defaultRole },
+  });
 
   const selectedRole = watch("role");
 
   useEffect(() => {
-    if (!allowedRoles.includes(selectedRole)) setValue("role", defaultRole);
+    if (!allowedRoles.includes(selectedRole)) {
+      setValue("role", defaultRole);
+    }
   }, [allowedRoles, selectedRole, defaultRole, setValue]);
 
-  // ── Queries ──────────────────────────────────────────────────────────────
+  const resetForm = () => reset({ name: "", phone: "", role: defaultRole });
+
+  // ── Queries ───────────────────────────────────────────────────────────────
+
   const { data: members = [], isLoading } = useQuery<StaffMember[]>({
-    queryKey: ["staff-members"],
+    queryKey: STAFF_QUERY_KEY,
     queryFn: async () => {
-      const res = await axiosPublic.get<StaffMember[]>(
-        "/api/users?role=teacher&role=principal&role=admin",
+      const res = await axiosPublic.get<StaffMember[]>(STAFF_QUERY_PATH);
+      // only keep known staff roles
+      return res.data.filter((m) =>
+        STAFF_ROLE_LIST.includes(m.role as StaffRole),
       );
-      return res.data;
     },
   });
+
+  // ── Mutations ─────────────────────────────────────────────────────────────
+
+  const invalidateStaff = () =>
+    queryClient.invalidateQueries({ queryKey: STAFF_QUERY_KEY });
+
+  const onApiError = (
+    err: { response?: { data?: { message?: string } } },
+    fallback: string,
+  ) => toast.error(err?.response?.data?.message ?? fallback);
 
   const addMutation = useMutation({
     mutationFn: (data: StaffForm) =>
       axiosPublic
-        .post("/api/users", { ...data, callerRole })
+        .post("/api/users", {
+          ...normalizeStaffForm(data),
+          callerRole,
+        })
         .then((r) => r.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["staff-members"] });
+      invalidateStaff();
       toast.success("সদস্য যোগ হয়েছে!");
-      reset({ role: defaultRole });
+      resetForm();
     },
     onError: (err: { response?: { data?: { message?: string } } }) =>
-      toast.error(err?.response?.data?.message ?? "যোগ করতে ব্যর্থ"),
+      onApiError(err, "যোগ করতে ব্যর্থ"),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: StaffForm }) =>
       axiosPublic
-        .patch(`/api/users/${id}`, { ...data, callerRole })
+        .patch(`/api/users/${id}`, {
+          ...normalizeStaffForm(data),
+          callerRole,
+        })
         .then((r) => r.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["staff-members"] });
+      invalidateStaff();
       toast.success("আপডেট হয়েছে!");
       setEditingId(null);
-      reset({ role: defaultRole });
+      resetForm();
     },
     onError: (err: { response?: { data?: { message?: string } } }) =>
-      toast.error(err?.response?.data?.message ?? "আপডেট ব্যর্থ"),
+      onApiError(err, "আপডেট ব্যর্থ"),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => axiosPublic.delete(`/api/users/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["staff-members"] });
+      invalidateStaff();
       toast.success("মুছে ফেলা হয়েছে!");
       setDeleteId(null);
     },
     onError: () => toast.error("মুছতে ব্যর্থ"),
   });
+
+  const isPending = addMutation.isPending || updateMutation.isPending;
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
 
   const onSubmit = (data: StaffForm) => {
     if (editingId) updateMutation.mutate({ id: editingId, data });
@@ -282,39 +358,29 @@ const AddTeacher = () => {
 
   const cancelEdit = () => {
     setEditingId(null);
-    reset({ role: defaultRole });
+    resetForm();
   };
 
-  const isPending = addMutation.isPending || updateMutation.isPending;
+  // ── Render ────────────────────────────────────────────────────────────────
 
-  // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div
-      className="min-h-screen  py-8"
-      style={{ backgroundColor: "var(--color-bg)" }}
-    >
-      {/* ── Header ── */}
+    <div className="min-h-screen bg-[var(--color-bg)] py-8">
+      {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
         className="mb-8"
       >
-        <h1
-          className="text-2xl font-black bangla"
-          style={{ color: "var(--color-text)" }}
-        >
+        <h1 className="text-2xl font-black bangla text-[var(--color-text)]">
           {editingId ? "সদস্য সম্পাদনা" : "কর্মী ব্যবস্থাপনা"}
         </h1>
-        <p
-          className="text-sm mt-1 bangla"
-          style={{ color: "var(--color-gray)" }}
-        >
+        <p className="mt-1 text-sm bangla text-[var(--color-gray)]">
           শিক্ষক, অধ্যক্ষ ও প্রশাসক যোগ করুন এবং পরিচালনা করুন
         </p>
       </motion.div>
 
-      {/* ── Form card ── */}
+      {/* Form */}
       <AnimatePresence mode="wait">
         {canAdd ? (
           <motion.div
@@ -323,63 +389,45 @@ const AddTeacher = () => {
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="rounded-2xl p-6 mb-6"
-            style={{
-              backgroundColor: "var(--color-active-bg)",
-              border: "1px solid var(--color-active-border)",
-            }}
+            className={cn(surfaceCls, "mb-6 p-6")}
           >
-            {/* Form header */}
-            <div className="flex items-center gap-2 mb-5">
-              <div
-                className="w-8 h-8 rounded-xl flex items-center justify-center"
-                style={{ backgroundColor: "var(--color-active-border)" }}
-              >
+            <div className="mb-5 flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--color-active-border)]">
                 {editingId ? (
-                  <Pencil size={14} style={{ color: "var(--color-text)" }} />
+                  <Pencil size={14} className="text-[var(--color-text)]" />
                 ) : (
-                  <Plus size={14} style={{ color: "var(--color-text)" }} />
+                  <Plus size={14} className="text-[var(--color-text)]" />
                 )}
               </div>
-              <h2
-                className="text-sm font-black bangla"
-                style={{ color: "var(--color-text)" }}
-              >
+              <h2 className="text-sm font-black bangla text-[var(--color-text)]">
                 {editingId ? "তথ্য সম্পাদনা করুন" : "নতুন সদস্য যোগ করুন"}
               </h2>
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              {/* Name — Bangla only */}
+              {/* Name */}
               <FormField label="পূর্ণ নাম *" error={errors.name?.message}>
                 <div className="relative">
                   <User
                     size={15}
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-                    style={{
-                      color: errors.name ? "#ef4444" : "var(--color-gray)",
-                    }}
+                    className={cn(
+                      "pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2",
+                      errors.name ? "text-red-500" : "text-[var(--color-gray)]",
+                    )}
                   />
                   <input
-                    {...register("name", { validate: banglaOnly })}
+                    {...register("name", {
+                      validate: banglaOnly("নাম"),
+                    })}
                     placeholder="বাংলায় পূর্ণ নাম লিখুন"
                     autoComplete="off"
-                    className="w-full pl-10 pr-4 py-3 rounded-xl text-sm bangla outline-none transition-all duration-200"
-                    style={{
-                      backgroundColor: "var(--color-bg)",
-                      color: "var(--color-text)",
-                      border: `2px solid ${errors.name ? "#ef4444" : "var(--color-active-border)"}`,
-                    }}
-                    onFocus={(e) =>
-                      (e.target.style.borderColor = errors.name
-                        ? "#ef4444"
-                        : "var(--color-active-text)")
-                    }
-                    onBlur={(e) =>
-                      (e.target.style.borderColor = errors.name
-                        ? "#ef4444"
-                        : "var(--color-active-border)")
-                    }
+                    className={cn(
+                      inputBaseCls,
+                      "pl-10 pr-4 py-3 text-sm bangla",
+                      errors.name
+                        ? "border-red-500 focus:border-red-500"
+                        : "border-[var(--color-active-border)]",
+                    )}
                   />
                 </div>
               </FormField>
@@ -389,71 +437,57 @@ const AddTeacher = () => {
                 <div className="relative">
                   <Phone
                     size={15}
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-                    style={{
-                      color: errors.phone ? "#ef4444" : "var(--color-gray)",
-                    }}
+                    className={cn(
+                      "pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2",
+                      errors.phone
+                        ? "text-red-500"
+                        : "text-[var(--color-gray)]",
+                    )}
                   />
                   <input
                     {...register("phone", {
                       required: "ফোন নম্বর আবশ্যক",
-                      pattern: {
-                        value: /^01[3-9]\d{8}$/,
-                        message: "সঠিক বাংলাদেশি নম্বর দিন (01XXXXXXXXX)",
-                      },
+                      validate: validateBdPhone,
                     })}
                     placeholder="01XXXXXXXXX"
                     type="tel"
-                    className="w-full pl-10 pr-4 py-3 rounded-xl text-sm outline-none transition-all duration-200"
-                    style={{
-                      backgroundColor: "var(--color-bg)",
-                      color: "var(--color-text)",
-                      border: `2px solid ${errors.phone ? "#ef4444" : "var(--color-active-border)"}`,
-                    }}
-                    onFocus={(e) =>
-                      (e.target.style.borderColor = errors.phone
-                        ? "#ef4444"
-                        : "var(--color-active-text)")
-                    }
-                    onBlur={(e) =>
-                      (e.target.style.borderColor = errors.phone
-                        ? "#ef4444"
-                        : "var(--color-active-border)")
-                    }
+                    className={cn(
+                      inputBaseCls,
+                      "pl-10 pr-4 py-3 text-sm",
+                      errors.phone
+                        ? "border-red-500 focus:border-red-500"
+                        : "border-[var(--color-active-border)]",
+                    )}
                   />
                 </div>
               </FormField>
 
               {/* Role selector */}
               <div className="space-y-2">
-                <label
-                  className="block text-xs font-bold uppercase tracking-widest bangla"
-                  style={{ color: "var(--color-gray)" }}
-                >
-                  ভূমিকা
-                </label>
+                <label className={labelCls}>ভূমিকা</label>
                 <div className="flex flex-wrap gap-2">
-                  {visibleRoles.map((opt) => (
-                    <motion.button
-                      key={opt.value}
-                      type="button"
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() =>
-                        setValue("role", opt.value, { shouldValidate: true })
-                      }
-                      className="px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all bangla cursor-pointer"
-                      style={{
-                        borderColor: opt.color,
-                        backgroundColor:
-                          selectedRole === opt.value
-                            ? opt.color
-                            : "transparent",
-                        color: selectedRole === opt.value ? "#fff" : opt.color,
-                      }}
-                    >
-                      {opt.label}
-                    </motion.button>
-                  ))}
+                  {visibleRoles.map((role) => {
+                    const info = getRoleInfo(role);
+                    const active = selectedRole === role;
+
+                    return (
+                      <Button
+                        key={role}
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setValue("role", role, { shouldValidate: true })
+                        }
+                        className={cn(
+                          "h-auto border-2 px-4 py-2 text-sm font-bold bangla shadow-none",
+                          active ? info.buttonActiveCls : info.buttonCls,
+                        )}
+                      >
+                        {info.label}
+                      </Button>
+                    );
+                  })}
                 </div>
                 <input
                   type="hidden"
@@ -462,39 +496,32 @@ const AddTeacher = () => {
               </div>
 
               {/* Hint */}
-              <div
-                className="flex items-start gap-2 px-3 py-2.5 rounded-xl"
-                style={{
-                  backgroundColor: "rgba(59,130,246,0.08)",
-                  border: "1px solid rgba(59,130,246,0.2)",
-                }}
-              >
+              <div className="flex items-start gap-2 rounded-xl border border-blue-500/20 bg-blue-500/8 px-3 py-2.5">
                 <ChevronRight
                   size={13}
                   className="mt-0.5 shrink-0 text-blue-500"
                 />
-                <p className="text-xs bangla text-blue-500 leading-relaxed">
+                <p className="text-xs leading-relaxed bangla text-blue-500">
                   এই ফোন নম্বরটি সদস্যকে জানান — তিনি signup পেজে এই নম্বর দিয়ে
                   অ্যাকাউন্ট সক্রিয় করবেন।
                 </p>
               </div>
 
-              {/* Action buttons */}
+              {/* Actions */}
               <div className="flex gap-2 pt-1">
-                <motion.button
+                <Button
                   type="submit"
+                  variant="ghost"
                   disabled={isPending}
-                  whileTap={!isPending ? { scale: 0.97 } : undefined}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-50 bangla"
-                  style={{
-                    background: editingId
-                      ? "linear-gradient(135deg,#22c55e,#16a34a)"
-                      : "linear-gradient(135deg,#3b82f6,#6366f1)",
-                    color: "#fff",
-                  }}
+                  className={cn(
+                    "h-auto px-5 py-2.5 text-sm font-bold bangla text-white shadow-none",
+                    editingId
+                      ? "bg-gradient-to-r from-green-500 to-green-600 hover:opacity-90"
+                      : "bg-gradient-to-r from-blue-500 to-indigo-500 hover:opacity-90",
+                  )}
                 >
                   {isPending ? (
-                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                   ) : editingId ? (
                     <Check size={15} />
                   ) : (
@@ -505,22 +532,17 @@ const AddTeacher = () => {
                     : editingId
                       ? "আপডেট করুন"
                       : "যোগ করুন"}
-                </motion.button>
+                </Button>
 
                 {editingId && (
-                  <motion.button
+                  <Button
                     type="button"
-                    whileTap={{ scale: 0.97 }}
+                    variant="outline"
                     onClick={cancelEdit}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bangla"
-                    style={{
-                      backgroundColor: "var(--color-bg)",
-                      color: "var(--color-gray)",
-                      border: "2px solid var(--color-active-border)",
-                    }}
+                    className="h-auto px-4 py-2.5 text-sm font-bold bangla"
                   >
                     <X size={15} /> বাতিল
-                  </motion.button>
+                  </Button>
                 )}
               </div>
             </form>
@@ -530,81 +552,70 @@ const AddTeacher = () => {
             key="no-perm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex items-center gap-3 p-5 rounded-2xl mb-6"
-            style={{
-              backgroundColor: "var(--color-active-bg)",
-              border: "1px solid var(--color-active-border)",
-            }}
+            className={cn(surfaceCls, "mb-6 flex items-center gap-3 p-5")}
           >
-            <Lock size={18} style={{ color: "var(--color-gray)" }} />
-            <p
-              className="text-sm bangla"
-              style={{ color: "var(--color-gray)" }}
-            >
+            <Lock size={18} className="text-[var(--color-gray)]" />
+            <p className="text-sm bangla text-[var(--color-gray)]">
               সদস্য যোগ বা সম্পাদনার অনুমতি নেই।
             </p>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── Stats row ── */}
+      {/* Stats */}
       {!isLoading && members.length > 0 && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.15 }}
-          className="flex flex-wrap gap-3 mb-5"
+          className="mb-5 flex flex-wrap gap-3"
         >
-          {ALL_ROLES.map((role) => {
-            const count = members.filter((m) => m.role === role.value).length;
+          {STAFF_ROLE_LIST.map((role) => {
+            const count = members.filter((m) => m.role === role).length;
             if (!count) return null;
+
+            const info = getRoleInfo(role);
+
             return (
               <div
-                key={role.value}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold bangla"
-                style={{ backgroundColor: role.bg, color: role.color }}
+                key={role}
+                className={cn(
+                  "flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-bold bangla",
+                  info.countCls,
+                )}
               >
-                {role.label}: {count} জন
+                {info.label}: {count} জন
               </div>
             );
           })}
-          <div
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold bangla"
-            style={{
-              backgroundColor: "rgba(34,197,94,0.12)",
-              color: "#22c55e",
-            }}
-          >
+
+          <div className="flex items-center gap-2 rounded-xl bg-green-500/10 px-3 py-1.5 text-xs font-bold bangla text-green-500">
             সক্রিয়: {members.filter((m) => m.onboardingComplete).length} জন
           </div>
         </motion.div>
       )}
 
-      {/* ── Member list ── */}
+      {/* Member list */}
       <div className="space-y-2.5">
         {isLoading ? (
           <div className="flex justify-center py-16">
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ repeat: Infinity, duration: 0.9, ease: "linear" }}
-              className="w-7 h-7 rounded-full border-2 border-t-transparent"
-              style={{ borderColor: "var(--color-active-text)" }}
+              className="h-7 w-7 rounded-full border-2 border-[var(--color-active-text)] border-t-transparent"
             />
           </div>
         ) : members.length === 0 ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex flex-col items-center justify-center py-16 gap-3"
+            className="flex flex-col items-center justify-center gap-3 py-16"
           >
             <UserCheck
               size={36}
-              style={{ color: "var(--color-gray)", opacity: 0.4 }}
+              className="text-[var(--color-gray)] opacity-40"
             />
-            <p
-              className="text-sm bangla"
-              style={{ color: "var(--color-gray)" }}
-            >
+            <p className="text-sm bangla text-[var(--color-gray)]">
               এখনো কোনো সদস্য যোগ করা হয়নি
             </p>
           </motion.div>
@@ -624,28 +635,27 @@ const AddTeacher = () => {
                   animate="visible"
                   exit="exit"
                   layout
-                  className="relative rounded-2xl overflow-hidden"
-                  style={{
-                    backgroundColor: "var(--color-active-bg)",
-                    border: isEditing
-                      ? `2px solid ${info.color}`
-                      : "1px solid var(--color-active-border)",
-                  }}
+                  className={cn(
+                    surfaceCls,
+                    "relative overflow-hidden",
+                    isEditing && cn("border-2", info.editBorderCls),
+                  )}
                 >
-                  {/* Left accent bar */}
                   <div
-                    className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl"
-                    style={{ backgroundColor: info.color }}
+                    className={cn(
+                      "absolute bottom-0 left-0 top-0 w-1 rounded-l-2xl",
+                      info.accentCls,
+                    )}
                   />
 
                   <div className="flex items-center gap-3 p-4 pl-5">
                     {/* Avatar */}
                     <motion.div
                       whileHover={{ scale: 1.08 }}
-                      className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 text-white font-black text-base bangla"
-                      style={{
-                        background: `linear-gradient(135deg, ${info.color}99, ${info.color})`,
-                      }}
+                      className={cn(
+                        "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-base font-black text-white bangla",
+                        info.avatarCls,
+                      )}
                     >
                       {m.role === "admin" ? (
                         <ShieldCheck size={18} className="text-white" />
@@ -655,28 +665,23 @@ const AddTeacher = () => {
                     </motion.div>
 
                     {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                        <p
-                          className="text-sm font-black bangla truncate"
-                          style={{ color: "var(--color-text)" }}
-                        >
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                        <p className="truncate text-sm font-black bangla text-[var(--color-text)]">
                           {m.name}
                         </p>
                         {m.isHardcoded && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 uppercase tracking-wide">
+                          <span className="rounded bg-yellow-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-yellow-700">
                             preset
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-1.5 flex-wrap">
+
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <RolePill role={m.role} />
                         <StatusPill active={m.onboardingComplete} />
                         {m.phone && (
-                          <span
-                            className="text-[11px]"
-                            style={{ color: "var(--color-gray)" }}
-                          >
+                          <span className="text-[11px] text-[var(--color-gray)]">
                             {m.phone}
                           </span>
                         )}
@@ -685,67 +690,57 @@ const AddTeacher = () => {
 
                     {/* Actions */}
                     {canAdd && !m.isHardcoded && (
-                      <div className="flex items-center gap-1 flex-shrink-0">
+                      <div className="flex shrink-0 items-center gap-1">
                         {isDeleting ? (
-                          // Confirm delete
                           <motion.div
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bangla text-xs font-bold"
-                            style={{
-                              backgroundColor: "rgba(239,68,68,0.1)",
-                              color: "#ef4444",
-                            }}
+                            className="flex items-center gap-1.5 rounded-xl bg-red-500/10 px-3 py-1.5 text-xs font-bold bangla text-red-500"
                           >
                             <span>নিশ্চিত?</span>
-                            <button
-                              onClick={() => deleteMutation.mutate(m._id)}
+
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
                               disabled={deleteMutation.isPending}
-                              className="p-1 rounded-lg hover:bg-red-200 transition-colors disabled:opacity-50"
+                              onClick={() => deleteMutation.mutate(m._id)}
+                              className="size-7 rounded-lg text-red-500 hover:bg-red-500/10 hover:text-red-600"
                             >
                               <Check size={12} />
-                            </button>
-                            <button
+                            </Button>
+
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
                               onClick={() => setDeleteId(null)}
-                              className="p-1 rounded-lg hover:bg-red-100 transition-colors"
+                              className="size-7 rounded-lg text-red-500 hover:bg-red-500/10 hover:text-red-600"
                             >
                               <X size={12} />
-                            </button>
+                            </Button>
                           </motion.div>
                         ) : (
                           <>
-                            <motion.button
-                              whileTap={{ scale: 0.9 }}
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
                               onClick={() => startEdit(m)}
-                              className="p-2 rounded-xl transition-colors cursor-pointer"
-                              style={{ color: "var(--color-active-text)" }}
-                              onMouseEnter={(e) =>
-                                (e.currentTarget.style.backgroundColor =
-                                  "var(--color-active-border)")
-                              }
-                              onMouseLeave={(e) =>
-                                (e.currentTarget.style.backgroundColor =
-                                  "transparent")
-                              }
+                              className="size-9 text-[var(--color-active-text)] hover:bg-[var(--color-active-border)] hover:text-[var(--color-active-text)]"
                             >
                               <Pencil size={15} />
-                            </motion.button>
-                            <motion.button
-                              whileTap={{ scale: 0.9 }}
+                            </Button>
+
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
                               onClick={() => setDeleteId(m._id)}
-                              className="p-2 rounded-xl transition-colors cursor-pointer"
-                              style={{ color: "#ef4444" }}
-                              onMouseEnter={(e) =>
-                                (e.currentTarget.style.backgroundColor =
-                                  "rgba(239,68,68,0.1)")
-                              }
-                              onMouseLeave={(e) =>
-                                (e.currentTarget.style.backgroundColor =
-                                  "transparent")
-                              }
+                              className="size-9 text-red-500 hover:bg-red-500/10 hover:text-red-600"
                             >
                               <Trash2 size={15} />
-                            </motion.button>
+                            </Button>
                           </>
                         )}
                       </div>

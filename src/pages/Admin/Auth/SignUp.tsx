@@ -1,13 +1,5 @@
 // src/pages/Admin/Auth/Signup.tsx
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-
-const toLocalIso = (date: Date): string => {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-};
-
 import { useForm } from "react-hook-form";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -30,11 +22,11 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import toast from "react-hot-toast";
+
 import axiosPublic, {
   getApiMessage,
   TOKEN_KEY,
 } from "../../../hooks/axiosPublic";
-
 import { useAuth } from "../../../context/AuthContext";
 import type { AuthUser } from "../../../context/AuthContext";
 import { getDivisions, getDistricts, getThanas } from "../../../data/bd-geo";
@@ -66,23 +58,35 @@ import SelectInput from "../../../components/common/SelectInput";
 import DatePicker from "../../../components/common/Datepicker";
 import {
   CLASSES,
-  CLASSES_WITH_SUBJECT,
+  SUBJECT_GROUPS,
   DEGREES,
   RELIGIONS,
-  SUBJECTS,
   YEARS,
+  ADVANCED_CLASSES,
+  STUDENT_GENDER_OPTIONS,
+  STAFF_GENDER_OPTIONS,
+  STAFF_ROLE_LABELS,
+  BD_PHONE_REGEX,
+  getSubjects,
+  toAsciiDigits,
+  toLocalIso,
+  validateBdPhone,
   type FieldState,
   type Gender,
   type Religion,
   type SignupForm,
+  type StaffRole,
 } from "../../../utility/Constants";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PhoneCheckResult {
   name: string;
-  role: "teacher" | "principal" | "admin";
+  role: StaffRole;
 }
 
-// ─── Staff phone check step ───────────────────────────────────────────────────
+// ─── Staff Phone Check Step ───────────────────────────────────────────────────
+
 const StaffPhoneCheck = ({
   onVerified,
   onBack,
@@ -94,10 +98,8 @@ const StaffPhoneCheck = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const rawDigits = phone
-    .replace(/[০-৯]/g, (d) => "০১২৩৪৫৬৭৮৯".indexOf(d).toString())
-    .replace(/[^0-9]/g, "");
-  const valid = /^01[3-9]\d{8}$/.test(rawDigits);
+  const rawDigits = toAsciiDigits(phone).replace(/[^0-9]/g, "");
+  const valid = BD_PHONE_REGEX.test(rawDigits);
 
   const handleCheck = async () => {
     if (!valid) return;
@@ -166,7 +168,8 @@ const StaffPhoneCheck = ({
   );
 };
 
-// ─── Geo address block ────────────────────────────────────────────────────────
+// ─── Geo Address Fields ───────────────────────────────────────────────────────
+
 const GeoAddressFields = ({
   prefix = "",
   register,
@@ -201,7 +204,10 @@ const GeoAddressFields = ({
   ) as keyof SignupForm;
   const paraKey = (prefix ? `${prefix}Para` : "para") as keyof SignupForm;
 
-  const divisionOptions = getDivisions().map((d) => ({ value: d, label: d }));
+  const divisionOptions = getDivisions().map((d) => ({
+    value: d,
+    label: d,
+  }));
   const districtOptions = division
     ? getDistricts(division).map((d) => ({ value: d, label: d }))
     : [];
@@ -299,36 +305,80 @@ const GeoAddressFields = ({
   );
 };
 
+// ─── Geo Validation Warning ───────────────────────────────────────────────────
+
+const GeoWarning = ({
+  division,
+  district,
+  thana,
+}: {
+  division: string;
+  district: string;
+  thana: string;
+}) => {
+  if (division && district && thana) return null;
+  return (
+    <p className="text-red-400 text-xs mt-2 bangla flex items-center gap-1">
+      ⚠️ বিভাগ, জেলা এবং থানা নির্বাচন করুন
+    </p>
+  );
+};
+
+// ─── Required Warning ─────────────────────────────────────────────────────────
+
+const RequiredWarning = ({
+  show,
+  message,
+}: {
+  show: boolean;
+  message: string;
+}) => {
+  if (!show) return null;
+  return (
+    <p className="text-red-400 text-xs mt-3 bangla flex items-center gap-1">
+      ⚠️ {message}
+    </p>
+  );
+};
+
 // ─── Main Signup ──────────────────────────────────────────────────────────────
+
 const Signup = () => {
   const navigate = useNavigate();
   const { setUser } = useAuth();
 
+  // Step navigation
   const [stepIndex, setStepIndex] = useState(0);
   const [direction, setDirection] = useState(1);
+
+  // Role selection
   const [isStudent, setIsStudent] = useState<boolean | null>(null);
   const [staffPhone, setStaffPhone] = useState<string | null>(null);
   const [staffInfo, setStaffInfo] = useState<PhoneCheckResult | null>(null);
 
+  // Personal info
   const [gender, setGender] = useState<Gender>(null);
   const [religion, setReligion] = useState<Religion>(null);
   const [dobDisplay, setDobDisplay] = useState("");
   const [dobIso, setDobIso] = useState("");
+
+  // Address
   const [permanentSame, setPermanentSame] = useState<boolean | null>(null);
+  const [division, setDivision] = useState("");
+  const [district, setDistrict] = useState("");
+  const [thana, setThana] = useState("");
+  const [pDivision, setPDivision] = useState("");
+  const [pDistrict, setPDistrict] = useState("");
+  const [pThana, setPThana] = useState("");
+
+  // Education
   const [educationComplete, setEducationComplete] = useState<boolean | null>(
     null,
   );
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("");
 
-  const [division, setDivision] = useState("");
-  const [district, setDistrict] = useState("");
-  const [thana, setThana] = useState("");
-
-  const [pDivision, setPDivision] = useState("");
-  const [pDistrict, setPDistrict] = useState("");
-  const [pThana, setPThana] = useState("");
-
+  // Avatar & password
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [showPw, setShowPw] = useState(false);
@@ -348,10 +398,15 @@ const Signup = () => {
     [errors, touchedFields, watch],
   );
 
-  const needsSubject = CLASSES_WITH_SUBJECT.includes(selectedClass);
+  const needsSubject = getSubjects(selectedClass)?.length > 0;
+  const geoComplete = !!(division && district && thana);
+  const pGeoComplete = !!(pDivision && pDistrict && pThana);
+
+  // ─── Steps ────────────────────────────────────────────────────────────
 
   const steps = useMemo<string[]>(() => {
     const s: string[] = ["who"];
+
     if (isStudent === false) {
       s.push(
         "staff-phone-check",
@@ -379,11 +434,14 @@ const Signup = () => {
       if (needsSubject) s.push("student-subject");
       s.push("roll-school", "email", "emergency-contact");
     }
+
     s.push("avatar", "password");
     return s;
   }, [isStudent, permanentSame, educationComplete, needsSubject]);
 
   const currentId = steps[stepIndex] ?? "password";
+
+  // ─── Navigation ───────────────────────────────────────────────────────
 
   const goNext = useCallback(() => {
     setDirection(1);
@@ -395,8 +453,133 @@ const Signup = () => {
     setStepIndex((i) => Math.max(i - 1, 0));
   }, []);
 
-  const toAsciiDigits = (val: string) =>
-    val.replace(/[০-৯]/g, (d) => String("০১২৩৪৫৬৭৮৯".indexOf(d)));
+  // ─── Trigger + go helper ──────────────────────────────────────────────
+
+  const triggerAndGo = useCallback(
+    async (fields: (keyof SignupForm)[]) => {
+      if (await trigger(fields)) goNext();
+    },
+    [trigger, goNext],
+  );
+
+  // ─── Enter key → next step ───────────────────────────────────────────
+
+  const nextActionRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.isComposing) return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "TEXTAREA") return;
+      if (e.key !== "Enter" || e.shiftKey) return;
+      const active = document.activeElement as HTMLElement | null;
+      if (active?.getAttribute("type") === "submit") return;
+      e.preventDefault();
+      nextActionRef.current?.();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  // Update next action ref per step (via useEffect, not in render)
+  useEffect(() => {
+    switch (currentId) {
+      case "who":
+        nextActionRef.current = () => {
+          if (isStudent !== null) goNext();
+        };
+        break;
+      case "name":
+        nextActionRef.current = () => triggerAndGo(["fullName"]);
+        break;
+      case "parents-name":
+        nextActionRef.current = () =>
+          triggerAndGo(["fatherName", "motherName"]);
+        break;
+      case "dob-gender":
+        nextActionRef.current = () => {
+          if (dobIso && gender !== null) goNext();
+        };
+        break;
+      case "religion":
+        nextActionRef.current = () => {
+          if (religion !== null) goNext();
+        };
+        break;
+      case "phone":
+        nextActionRef.current = () => triggerAndGo(["phone"]);
+        break;
+      case "address":
+        nextActionRef.current = async () => {
+          const ok = await trigger(["gramNam", "para", "landmark"]);
+          if (ok && permanentSame !== null && geoComplete) goNext();
+        };
+        break;
+      case "permanent-address":
+        nextActionRef.current = async () => {
+          const ok = await trigger(["permanentGramNam", "permanentPara"]);
+          if (ok && pGeoComplete) goNext();
+        };
+        break;
+      case "student-class":
+        nextActionRef.current = () => {
+          if (selectedClass) goNext();
+        };
+        break;
+      case "student-subject":
+        nextActionRef.current = () => {
+          if (selectedSubject) goNext();
+        };
+        break;
+      case "roll-school":
+        nextActionRef.current = () => triggerAndGo(["roll", "schoolName"]);
+        break;
+      case "education-q":
+        nextActionRef.current = () => {
+          if (educationComplete !== null) goNext();
+        };
+        break;
+      case "degree":
+        nextActionRef.current = () => triggerAndGo(["degree", "qualification"]);
+        break;
+      case "current-year":
+        nextActionRef.current = () =>
+          triggerAndGo(["currentYear", "qualification"]);
+        break;
+      case "email":
+        nextActionRef.current = () => triggerAndGo(["email"]);
+        break;
+      case "emergency-contact":
+        nextActionRef.current = () => triggerAndGo(["emergencyContact"]);
+        break;
+      case "avatar":
+        nextActionRef.current = () => {
+          if (avatarFile) goNext();
+          else toast.error("প্রোফাইল ছবি দেওয়া বাধ্যতামূলক");
+        };
+        break;
+      default:
+        nextActionRef.current = null;
+    }
+  }, [
+    currentId,
+    isStudent,
+    dobIso,
+    gender,
+    religion,
+    permanentSame,
+    geoComplete,
+    pGeoComplete,
+    selectedClass,
+    selectedSubject,
+    educationComplete,
+    avatarFile,
+    goNext,
+    trigger,
+    triggerAndGo,
+  ]);
+
+  // ─── Submit ───────────────────────────────────────────────────────────
 
   const onSubmit = async (data: SignupForm) => {
     if (!dobIso) {
@@ -419,7 +602,6 @@ const Signup = () => {
         if (needsSubject) fd.append("studentSubject", selectedSubject);
         fd.append("roll", toAsciiDigits(data.roll ?? ""));
         fd.append("schoolName", data.schoolName ?? "");
-        fd.append("email", data.email ?? "");
       } else {
         fd.append("role", staffInfo!.role);
         fd.append("phone", staffPhone!);
@@ -429,19 +611,19 @@ const Signup = () => {
           fd.append("degree", data.degree);
         if (educationComplete === false && data.currentYear)
           fd.append("currentYear", data.currentYear);
-        fd.append("email", data.email ?? "");
       }
 
-      // Names stored exactly as typed — no forced prefix
+      // Common fields
       fd.append("fatherName", data.fatherName.trim());
       fd.append("motherName", data.motherName.trim());
-
+      fd.append("email", data.email ?? "");
       fd.append("gender", gender ?? "");
       fd.append("dateOfBirth", dobIso);
       fd.append("religion", religion ?? "");
       fd.append("password", data.password);
       fd.append("emergencyContact", toAsciiDigits(data.emergencyContact ?? ""));
 
+      // Present address
       fd.append("gramNam", data.gramNam);
       fd.append("para", data.para ?? "");
       fd.append("division", division);
@@ -450,6 +632,7 @@ const Signup = () => {
       fd.append("landmark", data.landmark ?? "");
       fd.append("permanentSameAsPresent", String(permanentSame ?? true));
 
+      // Permanent address
       if (permanentSame === false) {
         fd.append("permanentGramNam", data.permanentGramNam ?? "");
         fd.append("permanentPara", data.permanentPara ?? "");
@@ -477,36 +660,11 @@ const Signup = () => {
     }
   };
 
-  // ─── Enter key → next step ────────────────────────────────────────────────
-  const nextActionRef = useRef<(() => void) | null>(null);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.isComposing) return;
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "TEXTAREA") return;
-      if (e.key !== "Enter" || e.shiftKey) return;
-      const active = document.activeElement as HTMLElement | null;
-      if (active?.getAttribute("type") === "submit") return;
-      e.preventDefault();
-      nextActionRef.current?.();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
-
-  const setNextAction = (fn: () => void) => {
-    nextActionRef.current = fn;
-  };
-
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─── Render Step ──────────────────────────────────────────────────────
 
   const renderStep = () => {
     switch (currentId) {
       case "who":
-        setNextAction(() => {
-          if (isStudent !== null) goNext();
-        });
         return (
           <StepShell title="আপনি রয়েল একাডেমিতে কোন পরিচয়ে যুক্ত?">
             <div className="space-y-2.5">
@@ -544,9 +702,6 @@ const Signup = () => {
         );
 
       case "name":
-        setNextAction(async () => {
-          if (await trigger("fullName")) goNext();
-        });
         return (
           <StepShell
             title="আপনার পূর্ণ নাম কী?"
@@ -565,19 +720,11 @@ const Signup = () => {
                 validate: bangladeshiNameValidator("নাম"),
               })}
             />
-            <NavRow
-              onBack={goBack}
-              onNext={async () => {
-                if (await trigger("fullName")) goNext();
-              }}
-            />
+            <NavRow onBack={goBack} onNext={() => triggerAndGo(["fullName"])} />
           </StepShell>
         );
 
       case "parents-name":
-        setNextAction(async () => {
-          if (await trigger(["fatherName", "motherName"])) goNext();
-        });
         return (
           <StepShell
             title="অভিভাবকের নাম লিখুন"
@@ -629,26 +776,15 @@ const Signup = () => {
             </div>
             <NavRow
               onBack={goBack}
-              onNext={async () => {
-                if (await trigger(["fatherName", "motherName"])) goNext();
-              }}
+              onNext={() => triggerAndGo(["fatherName", "motherName"])}
             />
           </StepShell>
         );
 
       case "dob-gender": {
-        setNextAction(() => {
-          if (dobIso && gender !== null) goNext();
-        });
         const genderOpts = isStudent
-          ? [
-              { v: "ছেলে" as Gender, icon: "👦" },
-              { v: "মেয়ে" as Gender, icon: "👧" },
-            ]
-          : [
-              { v: "পুরুষ" as Gender, icon: "👨" },
-              { v: "নারী" as Gender, icon: "👩" },
-            ];
+          ? STUDENT_GENDER_OPTIONS
+          : STAFF_GENDER_OPTIONS;
 
         return (
           <StepShell
@@ -669,11 +805,10 @@ const Signup = () => {
                   placeholder="জন্ম তারিখ বেছে নিন"
                   maxDate={new Date()}
                 />
-                {!dobIso && (
-                  <p className="text-red-400 text-xs mt-1.5 bangla flex items-center gap-1">
-                    ⚠️ জন্ম তারিখ বাধ্যতামূলক
-                  </p>
-                )}
+                <RequiredWarning
+                  show={!dobIso}
+                  message="জন্ম তারিখ বাধ্যতামূলক"
+                />
               </div>
               <div>
                 <p className="text-xs font-semibold mb-2 bangla text-[var(--color-gray)]">
@@ -691,11 +826,10 @@ const Signup = () => {
                     />
                   ))}
                 </div>
-                {gender === null && (
-                  <p className="text-red-400 text-xs mt-2 bangla flex items-center gap-1">
-                    ⚠️ লিঙ্গ নির্বাচন করুন
-                  </p>
-                )}
+                <RequiredWarning
+                  show={gender === null}
+                  message="লিঙ্গ নির্বাচন করুন"
+                />
               </div>
             </div>
             <NavRow
@@ -708,9 +842,6 @@ const Signup = () => {
       }
 
       case "religion":
-        setNextAction(() => {
-          if (religion !== null) goNext();
-        });
         return (
           <StepShell
             title="আপনার ধর্ম কী?"
@@ -727,11 +858,10 @@ const Signup = () => {
                 />
               ))}
             </div>
-            {religion === null && (
-              <p className="text-red-400 text-xs mt-3 bangla flex items-center gap-1">
-                ⚠️ ধর্ম নির্বাচন বাধ্যতামূলক
-              </p>
-            )}
+            <RequiredWarning
+              show={religion === null}
+              message="ধর্ম নির্বাচন বাধ্যতামূলক"
+            />
             <NavRow
               onBack={goBack}
               disabled={religion === null}
@@ -741,9 +871,6 @@ const Signup = () => {
         );
 
       case "phone":
-        setNextAction(async () => {
-          if (await trigger("phone")) goNext();
-        });
         return (
           <StepShell
             title="আপনার ফোন নম্বর?"
@@ -759,32 +886,14 @@ const Signup = () => {
               error={errors.phone?.message}
               {...register("phone", {
                 required: "ফোন নম্বর দেওয়া বাধ্যতামূলক",
-                validate: (v) => {
-                  const ascii = v.replace(/[০-৯]/g, (d) =>
-                    String("০১২৩৪৫৬৭৮৯".indexOf(d)),
-                  );
-                  return (
-                    /^01[3-9]\d{8}$/.test(ascii) ||
-                    "সঠিক বাংলাদেশি নম্বর দিন (০১XXXXXXXXX)"
-                  );
-                },
+                validate: validateBdPhone,
               })}
             />
-            <NavRow
-              onBack={goBack}
-              onNext={async () => {
-                if (await trigger("phone")) goNext();
-              }}
-            />
+            <NavRow onBack={goBack} onNext={() => triggerAndGo(["phone"])} />
           </StepShell>
         );
 
       case "address":
-        setNextAction(async () => {
-          const ok = await trigger(["gramNam", "para", "landmark"]);
-          if (ok && permanentSame !== null && division && district && thana)
-            goNext();
-        });
         return (
           <StepShell
             title="বর্তমান ঠিকানা দিন"
@@ -804,36 +913,19 @@ const Signup = () => {
               permanentSame={permanentSame}
               setPermanentSame={setPermanentSame}
             />
-            {(!division || !district || !thana) && (
-              <p className="text-red-400 text-xs mt-2 bangla flex items-center gap-1">
-                ⚠️ বিভাগ, জেলা এবং থানা নির্বাচন করুন
-              </p>
-            )}
+            <GeoWarning division={division} district={district} thana={thana} />
             <NavRow
               onBack={goBack}
-              disabled={
-                permanentSame === null || !division || !district || !thana
-              }
+              disabled={permanentSame === null || !geoComplete}
               onNext={async () => {
                 const ok = await trigger(["gramNam", "para", "landmark"]);
-                if (
-                  ok &&
-                  permanentSame !== null &&
-                  division &&
-                  district &&
-                  thana
-                )
-                  goNext();
+                if (ok && permanentSame !== null && geoComplete) goNext();
               }}
             />
           </StepShell>
         );
 
       case "permanent-address":
-        setNextAction(async () => {
-          const ok = await trigger(["permanentGramNam", "permanentPara"]);
-          if (ok && pDivision && pDistrict && pThana) goNext();
-        });
         return (
           <StepShell
             title="স্থায়ী ঠিকানা দিন"
@@ -851,26 +943,23 @@ const Signup = () => {
               thana={pThana}
               setThana={setPThana}
             />
-            {(!pDivision || !pDistrict || !pThana) && (
-              <p className="text-red-400 text-xs mt-2 bangla flex items-center gap-1">
-                ⚠️ বিভাগ, জেলা এবং থানা নির্বাচন করুন
-              </p>
-            )}
+            <GeoWarning
+              division={pDivision}
+              district={pDistrict}
+              thana={pThana}
+            />
             <NavRow
               onBack={goBack}
-              disabled={!pDivision || !pDistrict || !pThana}
+              disabled={!pGeoComplete}
               onNext={async () => {
                 const ok = await trigger(["permanentGramNam", "permanentPara"]);
-                if (ok && pDivision && pDistrict && pThana) goNext();
+                if (ok && pGeoComplete) goNext();
               }}
             />
           </StepShell>
         );
 
       case "student-class":
-        setNextAction(() => {
-          if (selectedClass) goNext();
-        });
         return (
           <StepShell
             title="আপনি কোন শ্রেণিতে পড়েন?"
@@ -883,34 +972,29 @@ const Signup = () => {
                   selected={selectedClass === cls}
                   onClick={() => {
                     setSelectedClass(cls);
-                    if (!CLASSES_WITH_SUBJECT.includes(cls))
-                      setSelectedSubject("");
+                    if (!ADVANCED_CLASSES.includes(cls)) setSelectedSubject("");
                   }}
                 >
                   🎓 {cls}
                 </GridBtn>
               ))}
             </div>
-            {!selectedClass && (
-              <p className="text-red-400 text-xs mt-3 bangla flex items-center gap-1">
-                ⚠️ শ্রেণি নির্বাচন বাধ্যতামূলক
-              </p>
-            )}
+            <RequiredWarning
+              show={!selectedClass}
+              message="শ্রেণি নির্বাচন বাধ্যতামূলক"
+            />
             <NavRow onBack={goBack} disabled={!selectedClass} onNext={goNext} />
           </StepShell>
         );
 
       case "student-subject":
-        setNextAction(() => {
-          if (selectedSubject) goNext();
-        });
         return (
           <StepShell
             title="আপনার বিভাগ কোনটি?"
             subtitle={`${selectedClass} — বিভাগ নির্বাচন করুন — বাধ্যতামূলক`}
           >
             <div className="space-y-2.5">
-              {SUBJECTS.map((s) => (
+              {SUBJECT_GROUPS.map((s) => (
                 <CardBtn
                   key={s.value}
                   selected={selectedSubject === s.value}
@@ -920,11 +1004,10 @@ const Signup = () => {
                 </CardBtn>
               ))}
             </div>
-            {!selectedSubject && (
-              <p className="text-red-400 text-xs mt-3 bangla flex items-center gap-1">
-                ⚠️ বিভাগ নির্বাচন বাধ্যতামূলক
-              </p>
-            )}
+            <RequiredWarning
+              show={!selectedSubject}
+              message="বিভাগ নির্বাচন বাধ্যতামূলক"
+            />
             <NavRow
               onBack={goBack}
               disabled={!selectedSubject}
@@ -934,9 +1017,6 @@ const Signup = () => {
         );
 
       case "roll-school":
-        setNextAction(async () => {
-          if (await trigger(["roll", "schoolName"])) goNext();
-        });
         return (
           <StepShell
             title="বিদ্যালয়ের তথ্য"
@@ -970,17 +1050,12 @@ const Signup = () => {
             </div>
             <NavRow
               onBack={goBack}
-              onNext={async () => {
-                if (await trigger(["roll", "schoolName"])) goNext();
-              }}
+              onNext={() => triggerAndGo(["roll", "schoolName"])}
             />
           </StepShell>
         );
 
       case "education-q":
-        setNextAction(() => {
-          if (educationComplete !== null) goNext();
-        });
         return (
           <StepShell
             title="আপনার পড়াশোনা কি শেষ হয়েছে?"
@@ -1000,11 +1075,10 @@ const Signup = () => {
                 📚 না, এখনও পড়ছি
               </CardBtn>
             </div>
-            {educationComplete === null && (
-              <p className="text-red-400 text-xs mt-3 bangla flex items-center gap-1">
-                ⚠️ একটি বিকল্প নির্বাচন করুন
-              </p>
-            )}
+            <RequiredWarning
+              show={educationComplete === null}
+              message="একটি বিকল্প নির্বাচন করুন"
+            />
             <NavRow
               onBack={goBack}
               disabled={educationComplete === null}
@@ -1014,9 +1088,6 @@ const Signup = () => {
         );
 
       case "degree": {
-        setNextAction(async () => {
-          if (await trigger(["degree", "qualification"])) goNext();
-        });
         const sel = watch("degree");
         return (
           <StepShell
@@ -1052,24 +1123,21 @@ const Signup = () => {
               </div>
               <input
                 type="hidden"
-                {...register("degree", { required: "ডিগ্রি নির্বাচন করুন" })}
+                {...register("degree", {
+                  required: "ডিগ্রি নির্বাচন করুন",
+                })}
               />
               <ValidationMsg message={errors.degree?.message} />
             </div>
             <NavRow
               onBack={goBack}
-              onNext={async () => {
-                if (await trigger(["degree", "qualification"])) goNext();
-              }}
+              onNext={() => triggerAndGo(["degree", "qualification"])}
             />
           </StepShell>
         );
       }
 
       case "current-year": {
-        setNextAction(async () => {
-          if (await trigger(["currentYear", "qualification"])) goNext();
-        });
         const sel = watch("currentYear");
         return (
           <StepShell
@@ -1096,7 +1164,9 @@ const Signup = () => {
                     key={y.value}
                     selected={sel === y.value}
                     onClick={() =>
-                      setValue("currentYear", y.value, { shouldValidate: true })
+                      setValue("currentYear", y.value, {
+                        shouldValidate: true,
+                      })
                     }
                   >
                     📖 {y.label}
@@ -1105,25 +1175,21 @@ const Signup = () => {
               </div>
               <input
                 type="hidden"
-                {...register("currentYear", { required: "বর্ষ নির্বাচন করুন" })}
+                {...register("currentYear", {
+                  required: "বর্ষ নির্বাচন করুন",
+                })}
               />
               <ValidationMsg message={errors.currentYear?.message} />
             </div>
             <NavRow
               onBack={goBack}
-              onNext={async () => {
-                if (await trigger(["currentYear", "qualification"])) goNext();
-              }}
+              onNext={() => triggerAndGo(["currentYear", "qualification"])}
             />
           </StepShell>
         );
       }
 
       case "email":
-        setNextAction(async () => {
-          const ok = await trigger("email");
-          if (ok) goNext();
-        });
         return (
           <StepShell
             title="ইমেইল ঠিকানা"
@@ -1146,20 +1212,11 @@ const Signup = () => {
                 },
               })}
             />
-            <NavRow
-              onBack={goBack}
-              onNext={async () => {
-                const ok = await trigger("email");
-                if (ok) goNext();
-              }}
-            />
+            <NavRow onBack={goBack} onNext={() => triggerAndGo(["email"])} />
           </StepShell>
         );
 
       case "emergency-contact":
-        setNextAction(async () => {
-          if (await trigger("emergencyContact")) goNext();
-        });
         return (
           <StepShell
             title="জরুরি যোগাযোগ নম্বর"
@@ -1175,31 +1232,17 @@ const Signup = () => {
               error={errors.emergencyContact?.message}
               {...register("emergencyContact", {
                 required: "জরুরি যোগাযোগ নম্বর দেওয়া বাধ্যতামূলক",
-                validate: (v) => {
-                  const ascii = v.replace(/[০-৯]/g, (d) =>
-                    String("০১২৩৪৫৬৭৮৯".indexOf(d)),
-                  );
-                  return (
-                    /^01[3-9]\d{8}$/.test(ascii) ||
-                    "সঠিক বাংলাদেশি নম্বর দিন (০১৩–০১৯ দিয়ে শুরু, ১১ সংখ্যা)"
-                  );
-                },
+                validate: validateBdPhone,
               })}
             />
             <NavRow
               onBack={goBack}
-              onNext={async () => {
-                if (await trigger("emergencyContact")) goNext();
-              }}
+              onNext={() => triggerAndGo(["emergencyContact"])}
             />
           </StepShell>
         );
 
       case "avatar":
-        setNextAction(() => {
-          if (avatarFile) goNext();
-          else toast.error("প্রোফাইল ছবি দেওয়া বাধ্যতামূলক");
-        });
         return (
           <StepShell
             title="প্রোফাইল ছবি দিন"
@@ -1223,11 +1266,8 @@ const Signup = () => {
               </SecondaryBtn>
               <PrimaryBtn
                 onClick={() => {
-                  if (avatarFile) {
-                    goNext();
-                  } else {
-                    toast.error("প্রোফাইল ছবি আপলোড করুন — বাধ্যতামূলক");
-                  }
+                  if (avatarFile) goNext();
+                  else toast.error("প্রোফাইল ছবি আপলোড করুন — বাধ্যতামূলক");
                 }}
                 disabled={!avatarFile}
               >
@@ -1262,11 +1302,7 @@ const Signup = () => {
                     label: "ভূমিকা",
                     value: isStudent
                       ? "ছাত্র/ছাত্রী"
-                      : staffInfo?.role === "teacher"
-                        ? "শিক্ষক"
-                        : staffInfo?.role === "principal"
-                          ? "অধ্যক্ষ"
-                          : "প্রশাসক",
+                      : STAFF_ROLE_LABELS[staffInfo?.role ?? "teacher"],
                   },
                   {
                     label: "নাম",
@@ -1322,6 +1358,8 @@ const Signup = () => {
     }
   };
 
+  // ─── Page Shell ───────────────────────────────────────────────────────
+
   return (
     <PageShell
       stepIndex={stepIndex}
@@ -1340,14 +1378,18 @@ const Signup = () => {
     >
       <div
         className="pt-6 pb-4 text-center -mx-4 sm:-mx-8 px-4 sm:px-8 mb-1"
-        style={{ borderBottom: "1px solid var(--color-active-border)" }}
+        style={{
+          borderBottom: "1px solid var(--color-active-border)",
+        }}
       >
         <Link to="/">
           <motion.div
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             className="inline-flex items-center justify-center w-11 h-11 rounded-xl mb-2.5"
-            style={{ background: "linear-gradient(135deg,#3b82f6,#6366f1)" }}
+            style={{
+              background: "linear-gradient(135deg,#3b82f6,#6366f1)",
+            }}
           >
             <GraduationCap className="w-6 h-6 text-white" />
           </motion.div>
