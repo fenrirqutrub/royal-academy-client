@@ -18,6 +18,7 @@ import { useNavigate } from "react-router";
 import { toBn, type ClassColor, hexToRgb } from "../../utility/shared";
 import { useAuth } from "../../context/AuthContext";
 import DailyLessonModal from "./DailyLessonModal";
+import Button from "../../components/common/Button";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface TeacherInfo {
@@ -275,21 +276,8 @@ const DailyLessonCard = ({
   const { name: teacherName, avatarUrl } = extractTeacher(lesson.teacher);
   const refLabel = lesson.referenceType === "page" ? "পৃষ্ঠা" : "অধ্যায়";
 
-  const openLesson = () => {
-    if (isGuest) {
-      setShowLoginPrompt(true);
-      return;
-    }
-    setShowModal(true);
-  };
-
-  const handleDetailClick = (e: MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation();
-    openLesson();
-  };
-
   return (
-    <>
+    <div>
       <motion.div
         initial={{ opacity: 0, y: 28 }}
         animate={{ opacity: 1, y: 0 }}
@@ -299,7 +287,6 @@ const DailyLessonCard = ({
           ease: [0.22, 1, 0.36, 1],
         }}
         whileHover={{ y: -4, transition: { duration: 0.18 } }}
-        onClick={openLesson}
         className="group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-[var(--color-active-border)] bg-[var(--color-bg)] bangla transition-[box-shadow,border-color] duration-300"
         style={{ boxShadow: "0 2px 10px rgba(0,0,0,0.06)" }}
         onMouseEnter={(e) => {
@@ -417,21 +404,24 @@ const DailyLessonCard = ({
           </p>
 
           {/* Detail button */}
-          <motion.button
-            type="button"
-            whileHover={{ x: 2 }}
-            whileTap={{ scale: 0.96 }}
-            onClick={handleDetailClick}
-            className="
-              mt-auto flex h-10 items-center justify-center gap-2 self-end
-              rounded-xl bg-[var(--color-text)] px-4
-              text-sm font-semibold text-[var(--color-bg)]
-              transition-opacity hover:opacity-85 active:scale-[0.97]
-            "
+          <Button
+            variant="default"
+            size="md"
+            onClick={(e) => {
+              e.stopPropagation();
+
+              if (isGuest) {
+                setShowLoginPrompt(true);
+                return;
+              }
+
+              setShowModal(true);
+            }}
+            className="mt-auto self-end gap-2 rounded-xl px-4 text-sm font-semibold"
           >
-            বিস্তারিত
             <Eye className="h-4 w-4" />
-          </motion.button>
+            বিস্তারিত
+          </Button>
         </div>
       </motion.div>
 
@@ -451,7 +441,7 @@ const DailyLessonCard = ({
           formattedDate={lesson.date}
         />
       )}
-    </>
+    </div>
   );
 };
 

@@ -1,5 +1,5 @@
 // src/components/WeeklyExam/WeeklyExamCard.tsx
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay } from "swiper/modules";
@@ -176,9 +176,6 @@ const WeeklyExamCard = ({
   const [progressKey, setProgressKey] = useState(0);
   const [copied, setCopied] = useState(false);
 
-  const touchStartPos = useRef<{ x: number; y: number } | null>(null);
-  const isTouchMove = useRef(false);
-
   const isGuest = !isAuthenticated;
   const isStudent = user?.role === "student";
 
@@ -228,33 +225,6 @@ const WeeklyExamCard = ({
     setShowModal(true);
   };
 
-  const handleImageTouchStart = (e: React.TouchEvent) => {
-    touchStartPos.current = {
-      x: e.touches[0].clientX,
-      y: e.touches[0].clientY,
-    };
-    isTouchMove.current = false;
-  };
-
-  const handleImageTouchMove = (e: React.TouchEvent) => {
-    if (!touchStartPos.current) return;
-
-    const dx = Math.abs(e.touches[0].clientX - touchStartPos.current.x);
-    const dy = Math.abs(e.touches[0].clientY - touchStartPos.current.y);
-
-    if (dx > 8 || dy > 8) {
-      isTouchMove.current = true;
-    }
-  };
-
-  const handleImageTouchEnd = () => {
-    if (isTouchMove.current) return;
-    if (openLoginPromptIfGuest()) return;
-
-    setShowModal(true);
-    touchStartPos.current = null;
-  };
-
   const handleEditClick = (e?: React.MouseEvent | React.TouchEvent) => {
     e?.stopPropagation();
     onEdit?.();
@@ -281,12 +251,7 @@ const WeeklyExamCard = ({
         }`}
       >
         {/* ── Image Section ── */}
-        <div
-          className="relative aspect-video cursor-pointer overflow-hidden select-none bg-[var(--color-bg)]"
-          onTouchStart={handleImageTouchStart}
-          onTouchMove={handleImageTouchMove}
-          onTouchEnd={handleImageTouchEnd}
-        >
+        <div className="relative aspect-video overflow-hidden select-none bg-[var(--color-bg)]">
           {hasImages ? (
             <div className="h-full w-full">
               <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
