@@ -355,7 +355,7 @@ const WeeklyExamCard = ({
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              className="pointer-events-none absolute top-3 left-3 z-20 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold text-white shadow-lg bg-[var(--color-warning)]"
+              className="pointer-events-none absolute top-3 left-3 z-20 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold text-[var(--color-bg)] shadow-lg bg-[var(--color-text)]"
             >
               <HelpCircle className="w-3.5 h-3.5" />
               প্রশ্ন আছে
@@ -418,8 +418,8 @@ const WeeklyExamCard = ({
 
           {/* Guest hover overlay */}
           {isGuest && (
-            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/20 opacity-0 transition-opacity group-hover:opacity-100">
-              <div className="rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-[var(--color-text)] dark:bg-black/80">
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-[var(--color-bg)]/20 opacity-0 transition-opacity group-hover:opacity-100">
+              <div className="rounded-full bg-[var(--color-bg)] px-4 py-2 text-sm font-semibold text-[var(--color-text)] ">
                 দেখতে লগইন করুন
               </div>
             </div>
@@ -482,7 +482,7 @@ const WeeklyExamCard = ({
           </div>
 
           {/* Topics */}
-          <p className="mt-4 flex-1 text-md leading-relaxed text-[var(--color-gray)] line-clamp-3 md:text-lg">
+          <p className="mt-4 flex-1 text-md leading-relaxed text-[var(--color-gray)]  line-clamp-3 md:text-lg">
             {exam.topics}
           </p>
 
