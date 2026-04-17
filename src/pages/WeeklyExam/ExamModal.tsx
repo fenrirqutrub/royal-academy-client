@@ -337,16 +337,12 @@ const ExamModal = ({
                   </motion.button>
                 )}
 
-                {/* Minimal Copy Button - Fast */}
+                {/* Copy Button */}
                 <motion.button
                   onClick={handleCopy}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className={`
-    relative flex items-center justify-center gap-2 py-2.5 px-5 
-    rounded-xl text-sm font-medium transition-all duration-150 
-    shrink-0 border
-  `}
+                  className={`relative flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl text-sm font-medium transition-all duration-150 shrink-0 border`}
                   style={{
                     backgroundColor: copied
                       ? "var(--color-text)"
