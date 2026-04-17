@@ -1,4 +1,3 @@
-// src/utility/shared.tsx
 import { motion } from "framer-motion";
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
@@ -59,6 +58,28 @@ import { BN_DAYS_FULL, BN_MONTHS } from "../components/common/Datepicker";
 
 export const toBnDateStr = (d: Date): string =>
   `${BN_DAYS_FULL[d.getDay()]}, ${toBn(d.getDate())} ${BN_MONTHS[d.getMonth()]} ${toBn(d.getFullYear())}`;
+
+/* ─── Shared color helper ────────────────────────────────────────────────── */
+
+export const hexToRgb = (hex: string): string => {
+  const raw = hex.replace("#", "");
+  const normalized =
+    raw.length === 3
+      ? raw
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : raw;
+
+  if (normalized.length !== 6) return "0, 0, 0";
+
+  const r = parseInt(normalized.slice(0, 2), 16);
+  const g = parseInt(normalized.slice(2, 4), 16);
+  const b = parseInt(normalized.slice(4, 6), 16);
+
+  if ([r, g, b].some(Number.isNaN)) return "0, 0, 0";
+  return `${r}, ${g}, ${b}`;
+};
 
 /* ─── Helper: Get number display info ────────────────────────────────────── */
 

@@ -326,7 +326,7 @@ export const EditModal = ({
       animate="visible"
       exit="exit"
       transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-4"
+      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
       onClick={onClose}
     >
       <motion.div
@@ -334,7 +334,7 @@ export const EditModal = ({
         initial="hidden"
         animate="visible"
         exit="exit"
-        className={`bg-[var(--color-bg)] rounded-2xl shadow-xl border border-[var(--color-active-border)] w-full h-full sm:h-auto sm:my-auto overflow-y-auto ${scrollbarHideClass}`}
+        className={`bg-[var(--color-bg)] w-screen h-screen overflow-y-auto ${scrollbarHideClass}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

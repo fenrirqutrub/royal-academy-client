@@ -124,7 +124,7 @@ const ExamModal = ({ exam, onClose }: ExamModalProps) => {
           exit={{ y: 60, opacity: 0 }}
           transition={{ type: "spring", stiffness: 380, damping: 32 }}
           onClick={(e) => e.stopPropagation()}
-          className="bangla absolute top-0 left-0 w-full h-full overflow-y-auto bg-[var(--color-bg)] shadow-2xl flex flex-col"
+          className="bangla absolute inset-0 w-screen h-dvh overflow-y-auto bg-[var(--color-bg)] shadow-2xl flex flex-col"
         >
           {/* Close Button */}
           <motion.button
@@ -274,45 +274,50 @@ const ExamModal = ({ exam, onClose }: ExamModalProps) => {
             )}
 
             {/* Copy Button */}
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: canSeeQuestion ? 0.35 : 0.3 }}
-              className="pt-1"
+            <motion.button
+              onClick={handleCopy}
+              whileHover={{ scale: 1 }}
+              whileTap={{ scale: 0.94 }}
+              className="w-full flex items-center justify-center gap-2 py-3 px-5 rounded-xl text-sm font-black transition-all duration-200"
+              style={
+                copied
+                  ? {
+                      background: "#dcfce7",
+                      color: "#15803d",
+                    }
+                  : {
+                      background: "linear-gradient(135deg, #10b981, #14b8a6)",
+                      color: "#fff",
+                      boxShadow: "0 4px 14px rgba(16,185,129,0.35)",
+                    }
+              }
             >
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={handleCopy}
-                className="w-full flex items-center justify-center gap-2 py-3.5 px-5 rounded-xl text-[var(--color-gray)] bg-[var(--color-active-border)] font-semibold text-sm shadow-md"
-              >
-                <AnimatePresence mode="wait">
-                  {copied ? (
-                    <motion.span
-                      key="done"
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      className="flex items-center gap-2"
-                    >
-                      <CheckCircle2 size={16} />
-                      কপি হয়েছে
-                    </motion.span>
-                  ) : (
-                    <motion.span
-                      key="copy"
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      className="flex items-center gap-2"
-                    >
-                      <Copy size={16} />
-                      কপি করুন
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </motion.button>
-            </motion.div>
+              <AnimatePresence mode="wait">
+                {copied ? (
+                  <motion.span
+                    key="done"
+                    initial={{ scale: 0.6, opacity: 0 }}
+                    animate={{ scale: 0.7, opacity: 1 }}
+                    exit={{ scale: 0.6, opacity: 0 }}
+                    className="flex items-center gap-2"
+                  >
+                    <CheckCircle2 size={16} />
+                    কপি হয়েছে
+                  </motion.span>
+                ) : (
+                  <motion.span
+                    key="copy"
+                    initial={{ scale: 0.6, opacity: 0 }}
+                    animate={{ scale: 0.7, opacity: 1 }}
+                    exit={{ scale: 0.6, opacity: 0 }}
+                    className="flex items-center gap-2"
+                  >
+                    <Copy size={16} />
+                    কপি করুন
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </motion.button>
           </div>
         </motion.div>
       </motion.div>

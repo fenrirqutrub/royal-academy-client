@@ -94,11 +94,10 @@ const DailyLessonModal = ({
         exit={{ opacity: 0, scale: 0.93, y: 30 }}
         transition={{ type: "spring", stiffness: 340, damping: 30 }}
         onClick={(e) => e.stopPropagation()}
-        className="fixed z-[201] inset-0 flex items-center sm:items-center justify-center sm:p-4 bangla"
-        style={{ pointerEvents: "none" }}
+        className="fixed inset-0 z-[201] bangla"
       >
         <div
-          className="relative w-full  pointer-events-auto overflow-hidden bg-[var(--color-bg)] min-h-[50%] rounded bangla"
+          className="relative w-screen h-dvh overflow-hidden bg-[var(--color-bg)] bangla touch-pan-y"
           style={{
             boxShadow: `0 0 0 1px rgba(${accentRgb}, 0.15), 0 32px 80px rgba(0,0,0,0.45), 0 0 60px rgba(${accentRgb}, 0.12)`,
           }}
@@ -114,7 +113,7 @@ const DailyLessonModal = ({
           {/* Scrollable content */}
           <div
             className="overflow-y-auto"
-            style={{ maxHeight: "90dvh", scrollbarWidth: "none" }}
+            style={{ height: "100%", scrollbarWidth: "none" }}
           >
             {/* ── Hero section ── */}
             <div

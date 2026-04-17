@@ -1,18 +1,18 @@
-// src/pages/DailyLesson/DailyLesson.tsx
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useEffect, useState } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import toast from "react-hot-toast";
 import axiosPublic from "../../hooks/axiosPublic";
 import DailyLessonCard from "./DailyLessonCard";
-import DatePicker, {
-  BN_DAYS_FULL,
-  BN_MONTHS,
-} from "../../components/common/Datepicker";
+import DatePicker from "../../components/common/Datepicker";
 import Skeleton from "../../components/common/Skeleton";
-import { Pencil, Trash2 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import { CLASS_COLORS, DEFAULT_CLASS_COLOR, toBn } from "../../utility/shared";
+import {
+  CLASS_COLORS,
+  DEFAULT_CLASS_COLOR,
+  toBn,
+  toBnDateStr,
+} from "../../utility/shared";
 import { CLASS_ORDER } from "../../utility/Constants";
 import EmptyState from "../../components/common/Emptystate";
 import Button from "../../components/common/Button";
@@ -29,20 +29,11 @@ import ClassTabs from "../../components/common/ClassTabs";
 // ─── Constants ────────────────────────────────────────────────────────────────
 const MANAGER_ROLES = ["principal", "admin", "owner"];
 const STAFF_ROLES = ["teacher", "principal", "admin", "owner"];
-
-// The class shown to guests
 const GUEST_PREVIEW_CLASS = "৬ষ্ঠ শ্রেণি";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-export const formatDate = (iso: string) => {
-  const d = new Date(iso);
-  return `${BN_DAYS_FULL[d.getDay()]}, ${toBn(String(d.getDate()))} ${BN_MONTHS[d.getMonth()]} ${toBn(String(d.getFullYear()))}`;
-};
-
-const todayBn = () => {
-  const d = new Date();
-  return `${BN_DAYS_FULL[d.getDay()]}, ${toBn(String(d.getDate()))} ${BN_MONTHS[d.getMonth()]}`;
-};
+export const formatDate = (iso: string) => toBnDateStr(new Date(iso));
+const todayBn = () => toBnDateStr(new Date());
 
 const isSameDay = (iso: string, reference: Date) => {
   const d = new Date(iso);
@@ -54,25 +45,12 @@ const isSameDay = (iso: string, reference: Date) => {
 };
 
 // ─── Animation Variants ───────────────────────────────────────────────────────
-const cardVariants: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: { delay: i * 0.05, duration: 0.3 },
-  }),
-};
-
 const groupTitleVariants: Variants = {
   hidden: { opacity: 0, x: -20 },
   visible: (i: number) => ({
     opacity: 1,
     x: 0,
-    transition: {
-      delay: i * 0.07,
-      duration: 0.45,
-      ease: [0.22, 1, 0.36, 1],
-    },
+    transition: { delay: i * 0.07, duration: 0.45, ease: [0.22, 1, 0.36, 1] },
   }),
 };
 
@@ -83,23 +61,10 @@ const contentVariants: Variants = {
     y: 0,
     transition: { duration: 0.32, ease: "easeOut" },
   },
-  exit: {
-    opacity: 0,
-    y: -10,
-    transition: { duration: 0.2 },
-  },
+  exit: { opacity: 0, y: -10, transition: { duration: 0.2 } },
 };
 
-const actionButtonVariants: Variants = {
-  hidden: { opacity: 0, scale: 0.8 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    transition: { duration: 0.2 },
-  },
-};
-
-// ─── ClassGroupTitle ───────────────────────────────────────
+// ─── ClassGroupTitle ──────────────────────────────────────────────────────────
 const ClassGroupTitle = ({
   className,
   index,
@@ -114,98 +79,20 @@ const ClassGroupTitle = ({
     variants={groupTitleVariants}
     initial="hidden"
     animate="visible"
-    className="relative flex items-center gap-0 mb-5 mt-8 sm:mt-10 overflow-hidden rounded bangla"
+    className="relative mb-5 mt-8 overflow-hidden rounded bangla sm:mt-10"
   >
-    <div className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-x-10 px-4 sm:px-5 py-3 sm:py-3.5 border-y border-[var(--color-active-border)] mt-3 sm:mt-5 bg-[var(--color-active-bg)]">
-      <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold leading-tight text-[var(--color-text)]">
+    <div className="mt-3 flex flex-1 flex-col items-center justify-center gap-2 border-y border-[var(--color-active-border)] bg-[var(--color-active-bg)] px-4 py-3 sm:mt-5 sm:flex-row sm:gap-x-10 sm:px-5 sm:py-3.5">
+      <h2 className="text-lg font-extrabold leading-tight text-[var(--color-text)] sm:text-xl md:text-2xl">
         {className}
       </h2>
-      <span className="text-xs font-black px-3 sm:border-x border-[var(--color-gray)] text-[var(--color-gray)]">
+      <span className="px-3 text-xs font-black text-[var(--color-gray)] sm:border-x sm:border-[var(--color-gray)]">
         {toBn(String(count))}টি পাঠ
       </span>
     </div>
   </motion.div>
 );
 
-// ─── Enhanced Lesson Card ─────────────────────────────────────────────────────
-const EnhancedLessonCard = ({
-  lesson,
-  index,
-  classColor,
-  canEdit,
-  canDelete,
-  onEdit,
-  onDelete,
-}: {
-  lesson: DailyLessonData;
-  index: number;
-  classColor: typeof DEFAULT_CLASS_COLOR;
-  canEdit: boolean;
-  canDelete: boolean;
-  onEdit: () => void;
-  onDelete: () => void;
-}) => {
-  const showActions = canEdit || canDelete;
-
-  return (
-    <motion.div
-      custom={index}
-      variants={cardVariants}
-      initial="hidden"
-      animate="visible"
-      className="relative group"
-    >
-      {showActions && (
-        <motion.div
-          variants={actionButtonVariants}
-          initial="hidden"
-          animate="visible"
-          className="absolute top-2 sm:top-3 right-2 sm:right-3 z-10 flex items-center gap-1 sm:gap-1.5"
-        >
-          {canEdit && (
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit();
-              }}
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center bg-emerald-500/90 hover:bg-emerald-600 text-white shadow-lg transition-colors"
-              title="সম্পাদনা করুন"
-            >
-              <Pencil className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-            </motion.button>
-          )}
-          {canDelete && (
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center bg-rose-500/90 hover:bg-rose-600 text-white shadow-lg transition-colors"
-              title="মুছে ফেলুন"
-            >
-              <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-            </motion.button>
-          )}
-        </motion.div>
-      )}
-
-      <DailyLessonCard
-        lesson={{
-          ...lesson,
-          date: formatDate(lesson.date),
-        }}
-        index={index}
-        classColor={classColor}
-      />
-    </motion.div>
-  );
-};
-
-// ─── Main Component ────────────────────────────────────────
+// ─── Main Component ───────────────────────────────────────────────────────────
 const DailyLesson = () => {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -228,6 +115,7 @@ const DailyLesson = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
+  // ─── Query ────────────────────────────────────────────────────────────────
   const { data, isLoading, isError } = useQuery<DailyLessonData[]>({
     queryKey: ["daily-lessons"],
     queryFn: async () => {
@@ -242,6 +130,7 @@ const DailyLesson = () => {
     refetchOnWindowFocus: true,
   });
 
+  // ─── Derived data ─────────────────────────────────────────────────────────
   const activeDates = useMemo(() => {
     if (!data) return new Set<string>();
     const set = new Set<string>();
@@ -252,19 +141,19 @@ const DailyLesson = () => {
     return set;
   }, [data]);
 
-  // Filter by date first
-  const dateFilteredData = useMemo(() => {
-    if (!data) return [];
-    return data.filter((lesson) => isSameDay(lesson.date, selectedDate));
-  }, [data, selectedDate]);
+  const dateFilteredData = useMemo(
+    () => (data ?? []).filter((l) => isSameDay(l.date, selectedDate)),
+    [data, selectedDate],
+  );
 
-  // Then filter by class
-  const filteredData = useMemo(() => {
-    if (selectedClass === "all") return dateFilteredData;
-    return dateFilteredData.filter((lesson) => lesson.class === selectedClass);
-  }, [dateFilteredData, selectedClass]);
+  const filteredData = useMemo(
+    () =>
+      selectedClass === "all"
+        ? dateFilteredData
+        : dateFilteredData.filter((l) => l.class === selectedClass),
+    [dateFilteredData, selectedClass],
+  );
 
-  // Group by class for display
   const groupedByClass = useMemo(() => {
     const map = new Map<string, DailyLessonData[]>();
     filteredData.forEach((lesson) => {
@@ -282,25 +171,18 @@ const DailyLesson = () => {
       .map(([className, lessons]) => ({ className, lessons }));
   }, [filteredData]);
 
-  // Get total count before class filter (for display)
   const totalLessonsForDate = dateFilteredData.length;
 
-  const canEditLesson = (lesson: DailyLessonData): boolean => {
-    if (isGuest) return false;
-    if (isManager) return true;
+  // ─── Permissions ──────────────────────────────────────────────────────────
+  const getLessonPermissions = (lesson: DailyLessonData) => {
+    if (isGuest) return { canEdit: false, canDelete: false };
+    if (isManager) return { canEdit: true, canDelete: true };
     const lessonSlug = resolveTeacherSlug(lesson.teacher, lesson.teacherSlug);
-    if (userRole === "teacher" && lessonSlug === userSlug) return true;
-    return false;
+    const isOwn = userRole === "teacher" && lessonSlug === userSlug;
+    return { canEdit: isOwn, canDelete: isOwn };
   };
 
-  const canDeleteLesson = (lesson: DailyLessonData): boolean => {
-    if (isGuest) return false;
-    if (isManager) return true;
-    const lessonSlug = resolveTeacherSlug(lesson.teacher, lesson.teacherSlug);
-    if (userRole === "teacher" && lessonSlug === userSlug) return true;
-    return false;
-  };
-
+  // ─── Delete ───────────────────────────────────────────────────────────────
   const deleteMutation = useMutation({
     mutationFn: (id: string) => axiosPublic.delete(`/api/daily-lesson/${id}`),
     onSuccess: () => {
@@ -314,18 +196,15 @@ const DailyLesson = () => {
       ),
   });
 
+  // ─── Resets ───────────────────────────────────────────────────────────────
   const handleReset = () => {
-    setSelectedDate(new Date());
+    const today = new Date();
+    setSelectedDate(today);
     setDatePickerValue(todayBn());
     setSelectedClass("all");
   };
 
-  const handleResetClassFilter = () => {
-    setSelectedClass("all");
-  };
-
-  // Get class label for empty state message
-  const getClassLabel = (classId: string): string => {
+  const getClassLabel = (classId: string) => {
     if (classId.includes("৬ষ্ঠ")) return "ষষ্ঠ";
     if (classId.includes("৭ম")) return "সপ্তম";
     if (classId.includes("৮ম")) return "অষ্টম";
@@ -335,7 +214,7 @@ const DailyLesson = () => {
     return classId;
   };
 
-  // ─── Guest Preview Builder ───────────────────────────────────────────────
+  // ─── Guest content ────────────────────────────────────────────────────────
   const buildGuestContent = () => {
     const class6Group = groupedByClass.find(
       ({ className }) => className === GUEST_PREVIEW_CLASS,
@@ -344,7 +223,7 @@ const DailyLesson = () => {
     if (!class6Group) {
       return (
         <div>
-          <p className="text-[var(--color-gray)] text-center py-8 bangla text-sm">
+          <p className="py-8 text-center text-sm text-[var(--color-gray)] bangla">
             আজকের ৬ষ্ঠ শ্রেণির কোনো পাঠ পাওয়া যায়নি।
           </p>
           <LoginPromptOverlay />
@@ -354,7 +233,6 @@ const DailyLesson = () => {
 
     const { className, lessons } = class6Group;
     const color = CLASS_COLORS[className] ?? DEFAULT_CLASS_COLOR;
-    const visibleLessons = lessons.slice(0, 2);
 
     return (
       <div>
@@ -363,17 +241,15 @@ const DailyLesson = () => {
           index={0}
           count={lessons.length}
         />
-        <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
-          {visibleLessons.map((lesson, i) => (
-            <EnhancedLessonCard
+        <div className="mb-6 grid grid-cols-1 gap-3 sm:mb-8 sm:grid-cols-2 sm:gap-4 2xl:grid-cols-3">
+          {lessons.slice(0, 2).map((lesson, i) => (
+            <DailyLessonCard
               key={lesson._id}
-              lesson={lesson}
+              lesson={{ ...lesson, date: formatDate(lesson.date) }}
               index={i}
               classColor={color}
               canEdit={false}
               canDelete={false}
-              onEdit={() => {}}
-              onDelete={() => {}}
             />
           ))}
         </div>
@@ -382,17 +258,18 @@ const DailyLesson = () => {
     );
   };
 
+  // ─── Render ───────────────────────────────────────────────────────────────
   if (isLoading) return <Skeleton variant="daily-lesson" />;
 
   return (
     <div className="relative">
       {/* Header */}
-      <header className="text-center bangla mb-6 sm:mb-8 px-3">
+      <header className="mb-6 px-3 text-center bangla sm:mb-8">
         <motion.h1
           initial={{ opacity: 0, y: -14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="text-xl sm:text-2xl md:text-5xl font-bold text-[var(--color-text)]"
+          className="text-xl font-bold text-[var(--color-text)] sm:text-2xl md:text-5xl"
         >
           আজকের পড়া
         </motion.h1>
@@ -400,15 +277,14 @@ const DailyLesson = () => {
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.08, duration: 0.5 }}
-          className="text-sm sm:text-base md:text-2xl font-medium text-[var(--color-gray)] mt-2"
+          className="mt-2 text-sm font-medium text-[var(--color-gray)] sm:text-base md:text-2xl"
         >
           প্রতিদিনের পাঠ্যক্রম ও নির্দেশনা
         </motion.p>
       </header>
 
       {/* Filter Bar */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 px-2 sm:px-3 md:px-0 mb-4 sm:mb-6">
-        {/* Date Filter */}
+      <div className="mb-4 flex flex-col items-center justify-between gap-4 px-2 sm:mb-6 sm:px-3 md:flex-row md:px-0">
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -418,6 +294,14 @@ const DailyLesson = () => {
           <DatePicker
             value={datePickerValue}
             onDateChange={(date) => {
+              if (
+                !date ||
+                Number.isNaN(date.getTime()) ||
+                date.getTime() === 0
+              ) {
+                handleReset();
+                return;
+              }
               setSelectedDate(date);
               setSelectedClass("all");
             }}
@@ -428,7 +312,6 @@ const DailyLesson = () => {
           />
         </motion.div>
 
-        {/* Class Filter Tabs */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -441,15 +324,14 @@ const DailyLesson = () => {
           />
         </motion.div>
 
-        {/* Merged Count Badge */}
         <AnimatePresence mode="wait">
-          {dateFilteredData.length > 0 && (
+          {totalLessonsForDate > 0 && (
             <motion.div
               key={`${selectedDate.toDateString()}-${selectedClass}`}
               initial={{ opacity: 0, scale: 0.85 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.85 }}
-              className="text-xs sm:text-sm bangla px-3 py-1.5 rounded-full bg-[var(--color-active-bg)] border border-[var(--color-active-border)] text-[var(--color-gray)]"
+              className="rounded-full border border-[var(--color-active-border)] bg-[var(--color-active-bg)] px-3 py-1.5 text-xs text-[var(--color-gray)] bangla sm:text-sm"
             >
               {isGuest ? (
                 <>
@@ -470,7 +352,7 @@ const DailyLesson = () => {
                   <span className="font-bold text-[var(--color-text)]">
                     {toBn(String(filteredData.length))}
                   </span>
-                  টি পাঠ পাওয়া গেছে (মোট{" "}
+                  টি পাঠ (মোট{" "}
                   <span className="font-bold text-[var(--color-text)]">
                     {toBn(String(totalLessonsForDate))}
                   </span>
@@ -490,15 +372,15 @@ const DailyLesson = () => {
         </AnimatePresence>
       </div>
 
-      {/* Staff indicator — logged in staff only */}
+      {/* Staff indicator */}
       {!isGuest && isStaff && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.3 }}
-          className="mb-4 mx-2 sm:mx-0 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800"
+          className="mx-2 mb-4 rounded-2xl border border-[var(--color-success-soft)] bg-[var(--color-success-soft)] px-3 py-2.5 sm:mx-0 sm:px-4 sm:py-3"
         >
-          <p className="text-xs sm:text-sm text-emerald-700 dark:text-emerald-300 bangla text-center sm:text-left">
+          <p className="text-center text-xs text-[var(--color-success)] bangla sm:text-left sm:text-sm">
             {isManager
               ? "🔑 আপনি সকল পাঠ সম্পাদনা ও মুছে ফেলতে পারবেন"
               : "✏️ আপনি শুধু নিজের যোগ করা পাঠ সম্পাদনা ও মুছে ফেলতে পারবেন"}
@@ -508,7 +390,7 @@ const DailyLesson = () => {
 
       {/* Content */}
       {isError ? (
-        <div className="text-center py-16 sm:py-20 text-rose-400 text-xs sm:text-sm bangla">
+        <div className="py-16 text-center text-xs text-[var(--color-danger)] bangla sm:py-20 sm:text-sm">
           ডেটা লোড করতে সমস্যা হয়েছে। পুনরায় চেষ্টা করুন।
         </div>
       ) : (
@@ -534,19 +416,34 @@ const DailyLesson = () => {
                         index={groupIndex}
                         count={lessons.length}
                       />
-                      <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
-                        {lessons.map((lesson, i) => (
-                          <EnhancedLessonCard
-                            key={lesson._id}
-                            lesson={lesson}
-                            index={i}
-                            classColor={color}
-                            canEdit={canEditLesson(lesson)}
-                            canDelete={canDeleteLesson(lesson)}
-                            onEdit={() => setEditTarget(lesson)}
-                            onDelete={() => setDeleteTarget(lesson)}
-                          />
-                        ))}
+                      <div className="mb-6 grid grid-cols-1 gap-3 sm:mb-8 sm:grid-cols-2 sm:gap-4 2xl:grid-cols-3">
+                        {lessons.map((lesson, i) => {
+                          const { canEdit, canDelete } =
+                            getLessonPermissions(lesson);
+                          return (
+                            <DailyLessonCard
+                              key={lesson._id}
+                              lesson={{
+                                ...lesson,
+                                date: formatDate(lesson.date),
+                              }}
+                              index={i}
+                              classColor={color}
+                              canEdit={canEdit}
+                              canDelete={canDelete}
+                              onEdit={
+                                canEdit
+                                  ? () => setEditTarget(lesson)
+                                  : undefined
+                              }
+                              onDelete={
+                                canDelete
+                                  ? () => setDeleteTarget(lesson)
+                                  : undefined
+                              }
+                            />
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -557,9 +454,7 @@ const DailyLesson = () => {
                 <EmptyState
                   message="এই তারিখে কোনো পাঠ নেই"
                   action={
-                    <Button onClick={handleReset} className="btn">
-                      আজকের পাঠ দেখুন
-                    </Button>
+                    <Button onClick={handleReset}>আজকের পাঠ দেখুন</Button>
                   }
                 />
                 <LoginPromptOverlay />
@@ -568,10 +463,10 @@ const DailyLesson = () => {
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-center py-12 sm:py-16"
+                className="py-12 text-center sm:py-16"
               >
-                <div className="text-4xl sm:text-5xl mb-4">📭</div>
-                <p className="text-[var(--color-gray)] bangla text-sm sm:text-base mb-4">
+                <div className="mb-4 text-5xl">📭</div>
+                <p className="mb-4 text-sm text-[var(--color-gray)] bangla sm:text-base">
                   {selectedClass !== "all"
                     ? `${getClassLabel(selectedClass)} শ্রেণির কোনো পাঠ পাওয়া যায়নি`
                     : "এই তারিখে কোনো পাঠ নেই"}
@@ -579,7 +474,7 @@ const DailyLesson = () => {
                 <div className="flex flex-wrap justify-center gap-2">
                   {selectedClass !== "all" && (
                     <Button
-                      onClick={handleResetClassFilter}
+                      onClick={() => setSelectedClass("all")}
                       variant="secondary"
                       className="bangla"
                     >
@@ -596,7 +491,7 @@ const DailyLesson = () => {
         </AnimatePresence>
       )}
 
-      {/* Edit / Delete Modals */}
+      {/* Modals */}
       <AnimatePresence>
         {editTarget && !isGuest && (
           <EditModal
