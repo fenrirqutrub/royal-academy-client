@@ -35,7 +35,7 @@ interface ExamModalProps {
   onClose: () => void;
 }
 
-const ExamModal = ({ exam, color, onClose }: ExamModalProps) => {
+const ExamModal = ({ exam, onClose }: ExamModalProps) => {
   const { user } = useAuth();
   const [copied, setCopied] = useState(false);
 
@@ -70,7 +70,7 @@ const ExamModal = ({ exam, color, onClose }: ExamModalProps) => {
       ``,
       `📝 বিষয়বস্তু:`,
       exam.topics,
-      // Question শুধু non-student দের জন্য copy হবে
+
       canSeeQuestion ? `\n❓ প্রশ্ন:\n${exam.question}` : null,
     ].filter((l): l is string => l !== null);
 
@@ -178,7 +178,7 @@ const ExamModal = ({ exam, color, onClose }: ExamModalProps) => {
                   animate={{ scale: 1, y: 0 }}
                   transition={{ delay: 0.3, type: "spring" }}
                   className="absolute top-4 left-4 z-20 flex items-center gap-1.5 px-3 py-1.5 
-                    rounded-full bg-amber-500 text-white text-xs font-semibold shadow-lg"
+                    rounded-full bg-[var(--color-text)]  text-[var(--color-bg)]  text-xs font-semibold shadow-lg"
                 >
                   <HelpCircle className="w-4 h-4" />
                   প্রশ্ন সংযুক্ত আছে
@@ -196,10 +196,10 @@ const ExamModal = ({ exam, color, onClose }: ExamModalProps) => {
               transition={{ delay: 0.1 }}
               className="text-center pr-8"
             >
-              <span className="text-md font-semibold tracking-widest text-slate-400 dark:text-slate-500 uppercase">
+              <span className="text-md font-semibold tracking-widest text-[var(--color-gray)] uppercase">
                 সাপ্তাহিক পরীক্ষা নং-{toBn(exam.ExamNumber)}
               </span>
-              <h2 className="mt-1 text-2xl sm:text-3xl font-bold text-slate-800 dark:text-white leading-tight">
+              <h2 className="mt-1 text-2xl sm:text-3xl font-bold text-[var(--color-text)]  leading-tight">
                 {exam.subject}
               </h2>
             </motion.div>
@@ -227,7 +227,7 @@ const ExamModal = ({ exam, color, onClose }: ExamModalProps) => {
               {infoTags.map(({ icon: Icon, label }, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm font-medium"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-[var(--color-active-bg)]  text-[var(--color-gray)]  text-sm font-medium"
                 >
                   <Icon size={14} className="flex-shrink-0" />
                   <span>{label}</span>
@@ -242,16 +242,13 @@ const ExamModal = ({ exam, color, onClose }: ExamModalProps) => {
               transition={{ delay: 0.25 }}
             >
               <div className="flex items-center gap-2 mb-3">
-                <div
-                  className="w-1 h-4 rounded-full"
-                  style={{ backgroundColor: color.from }}
-                />
-                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <div className="w-1 h-4 rounded-full bg-[var(--color-text)] " />
+                <span className="text-sm font-semibold text-[var(--color-text)]  flex items-center gap-1.5">
                   <MessageSquareText size={14} />
                   বিষয়বস্তু ও নির্দেশনা
                 </span>
               </div>
-              <div className="text-[16px] leading-relaxed text-slate-700 dark:text-slate-200 whitespace-pre-line bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60 p-4 sm:p-5 rounded-2xl text-left">
+              <div className="text-[16px] leading-relaxed text-[var(--color-active-text)]  whitespace-pre-line border border-[var(--color-active-border)]  p-4 sm:p-5 rounded-xl text-left">
                 {exam.topics}
               </div>
             </motion.div>
@@ -264,18 +261,13 @@ const ExamModal = ({ exam, color, onClose }: ExamModalProps) => {
                 transition={{ delay: 0.3 }}
               >
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-1 h-4 rounded-full bg-amber-500" />
-                  <span className="text-sm font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                  <div className="w-1 h-4 rounded-full bg-[var(--color-active-text)] " />
+                  <span className="text-sm font-semibold text-[var(--color-text)]  flex items-center gap-1.5">
                     <HelpCircle size={14} />
                     প্রশ্ন
                   </span>
                 </div>
-                <div
-                  className="text-[16px] leading-relaxed whitespace-pre-line p-4 sm:p-5 rounded-2xl text-left
-                    bg-amber-50 dark:bg-amber-900/20 
-                    border border-amber-200 dark:border-amber-800/50
-                    text-amber-900 dark:text-amber-100"
-                >
+                <div className="text-[16px] leading-relaxed whitespace-pre-line p-4 sm:p-5 rounded-2xl text-left bg-[var(--color-active-bg)] ">
                   {exam.question}
                 </div>
               </motion.div>
@@ -292,11 +284,7 @@ const ExamModal = ({ exam, color, onClose }: ExamModalProps) => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={handleCopy}
-                style={{
-                  backgroundColor: copied ? "#22c55e" : color.from,
-                  transition: "background-color 0.3s",
-                }}
-                className="w-full flex items-center justify-center gap-2 py-3.5 px-5 rounded-2xl text-white font-semibold text-sm shadow-md"
+                className="w-full flex items-center justify-center gap-2 py-3.5 px-5 rounded-xl text-[var(--color-gray)] bg-[var(--color-active-border)] font-semibold text-sm shadow-md"
               >
                 <AnimatePresence mode="wait">
                   {copied ? (

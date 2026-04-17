@@ -320,10 +320,12 @@ const WeeklyExam = () => {
       key={exam._id}
       exam={{
         ...exam,
+
         date: formatCreatedAt(exam.createdAt),
         images: normalizeImages(exam.images),
       }}
       index={i}
+      activeExamNumber={activeExamNumber}
       canEdit={canEditExam(exam)}
       canDelete={canDeleteExam(exam)}
       onEdit={() => setEditTarget(exam)}
@@ -437,11 +439,11 @@ const WeeklyExam = () => {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.3 }}
-          className="mt-4 sm:mt-6 mb-4 mx-2 sm:mx-0 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800"
+          className="mt-4 sm:mt-6 mb-4 mx-2 sm:mx-0 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl  border border-[var(--color-active-bg)] "
         >
-          <p className="text-xs sm:text-sm text-violet-700 dark:text-violet-300 bangla text-center sm:text-left">
+          <p className="text-xs sm:text-sm text-[var(--color-gray)]  text-center sm:text-left">
             {isManager
-              ? "🔑 আপনি সকল পরীক্ষা সম্পাদনা ও মুছে ফেলতে পারবেন"
+              ? "🔑  আপনি সকল পরীক্ষা সম্পাদনা ও মুছে ফেলতে পারবেন"
               : "✏️ আপনি শুধু নিজের যোগ করা পরীক্ষা সম্পাদনা ও মুছে ফেলতে পারবেন"}
           </p>
         </motion.div>

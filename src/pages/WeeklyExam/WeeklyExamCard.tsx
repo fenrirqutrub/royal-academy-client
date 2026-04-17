@@ -152,6 +152,7 @@ const LoginPromptModal = ({ onClose }: { onClose: () => void }) => {
 interface WeeklyExamCardProps {
   exam: Exam;
   index: number;
+  activeExamNumber?: string | null; // ← was missing
   canEdit?: boolean;
   canDelete?: boolean;
   onEdit?: () => void;
@@ -161,6 +162,7 @@ interface WeeklyExamCardProps {
 const WeeklyExamCard = ({
   exam,
   index,
+  activeExamNumber,
   canEdit = false,
   canDelete = false,
   onEdit,
@@ -342,7 +344,7 @@ const WeeklyExamCard = ({
                 {exam.subject}
               </p>
               <p className="z-10 mt-3 text-lg font-bold tracking-wide text-[var(--color-text)]">
-                পরীক্ষার ধারণা
+                পরীক্ষার ধারণা নং - {toBn(activeExamNumber ?? "")}
               </p>
               <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gradient-to-r from-transparent via-white/30 to-transparent" />
             </div>
@@ -368,7 +370,7 @@ const WeeklyExamCard = ({
               transition={{ duration: 0.2 }}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.92 }}
-              className="absolute bottom-0 left-0 z-30"
+              className="absolute bottom-0 left-0 z-30 "
             >
               <Button
                 size="sm"
@@ -378,7 +380,7 @@ const WeeklyExamCard = ({
                   e.preventDefault();
                   handleDeleteClick(e);
                 }}
-                className="rounded-none rounded-tr-xl px-4 py-2.5 text-xs font-bold shadow-lg touch-manipulation"
+                className="rounded px-4 py-2.5 text-xs font-bold shadow-lg touch-manipulation"
                 title="মুছে ফেলুন"
               >
                 <Trash2 className="w-4 h-4 shrink-0" />
@@ -405,7 +407,7 @@ const WeeklyExamCard = ({
                   e.preventDefault();
                   handleEditClick(e);
                 }}
-                className="rounded-none rounded-tl-xl px-4 py-2.5 text-xs font-bold shadow-lg touch-manipulation"
+                className="rounded-tl-xl px-4 py-2.5 text-xs font-bold shadow-lg touch-manipulation"
                 title="সম্পাদনা করুন"
               >
                 <Pencil className="w-4 h-4 shrink-0" />
@@ -484,23 +486,6 @@ const WeeklyExamCard = ({
             {exam.topics}
           </p>
 
-          {/* Question preview */}
-          {canSeeQuestion && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              className="mt-3 rounded-lg border p-3 bg-[var(--color-warning-soft)] border-[var(--color-warning)]/30"
-            >
-              <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-[var(--color-warning)]">
-                <HelpCircle className="w-3.5 h-3.5" />
-                প্রশ্ন
-              </div>
-              <p className="line-clamp-2 text-sm text-[var(--color-text)]">
-                {exam.question}
-              </p>
-            </motion.div>
-          )}
-
           {/* Footer */}
           <div className="mt-6 flex items-center justify-between gap-3">
             <div className="flex flex-wrap gap-2">
@@ -522,7 +507,7 @@ const WeeklyExamCard = ({
                   e.preventDefault();
                   handleDetailClick(e);
                 }}
-                className="touch-manipulation"
+                className="touch-manipulation rounded-sm"
               >
                 <Eye className="h-4 w-4" />
                 বিস্তারিত

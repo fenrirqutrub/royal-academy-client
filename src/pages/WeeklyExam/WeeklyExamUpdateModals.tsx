@@ -25,7 +25,7 @@ export interface WeeklyExamData {
   mark: number;
   ExamNumber: string;
   topics: string;
-  question?: string;
+  question?: string | null;
   images: (string | ExamImage)[];
   createdAt: string;
 }
@@ -532,7 +532,7 @@ export const EditModal = ({
                   value={field.value}
                   onChange={(v) => {
                     field.onChange(v);
-                    // Also update teacher name
+
                     const selected = teachers.find((t) => t.slug === v);
                     if (selected) {
                       setValue("teacher", selected.name, { shouldDirty: true });
@@ -658,11 +658,11 @@ export const EditModal = ({
                 }`}
             >
               {mutation.isPending ? (
-                <>
+                <div>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   <span className="hidden sm:inline">আপডেট হচ্ছে…</span>
                   <span className="sm:hidden">অপেক্ষা করুন</span>
-                </>
+                </div>
               ) : (
                 "আপডেট করুন"
               )}
