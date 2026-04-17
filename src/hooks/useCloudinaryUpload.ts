@@ -8,6 +8,12 @@ export interface CloudinaryResult {
   height: number;
   format: string;
   bytes: number;
+  eager?: Array<{
+    secure_url: string;
+    format: string;
+    width: number;
+    height: number;
+  }>;
 }
 
 // ── Check browser WebP support ────────────────────────────────────────────────
@@ -20,11 +26,16 @@ const supportsWebP = (): Promise<boolean> => {
   });
 };
 
-// ── Browser e WebP convert (with fallback) ────────────────────────────────────
+// ── Optimize & convert to WebP (no JPEG fallback, resize large images) ──────
 const convertToWebP = async (
   file: File | Blob,
-): Promise<{ blob: Blob; ext: string }> => {
+): Promise<{ blob: Blob; ext: "webp" }> => {
   const canWebP = await supportsWebP();
+  if (!canWebP) {
+    // WebP সমর্থন না থাকলে অরিজিনাল ফাইল পাঠানোর পরিবর্তে একটি ত্রুটি ছুঁড়বো,
+    // কারণ তুমি JPEG ফ্যালব্যাক চাচ্ছো না।
+    throw new Error("Browser does not support WebP encoding.");
+  }
 
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -33,9 +44,21 @@ const convertToWebP = async (
     img.onload = () => {
       URL.revokeObjectURL(url);
 
+      // বড় ইমেজের জন্য সর্বোচ্চ মাত্রা নির্ধারণ (মেমরি ও পারফরম্যান্স বাঁচাতে)
+      const MAX_WIDTH = 2048;
+      const MAX_HEIGHT = 2048;
+      let width = img.naturalWidth;
+      let height = img.naturalHeight;
+
+      if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+        const ratio = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+
       const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
+      canvas.width = width;
+      canvas.height = height;
 
       const ctx = canvas.getContext("2d");
       if (!ctx) {
@@ -43,20 +66,18 @@ const convertToWebP = async (
         return;
       }
 
-      ctx.drawImage(img, 0, 0);
-
-      // ✅ WebP support থাকলে WebP, না থাকলে JPEG fallback
-      const format = canWebP ? "image/webp" : "image/jpeg";
-      const ext = canWebP ? "webp" : "jpg";
-      const quality = 0.85;
+      ctx.drawImage(img, 0, 0, width, height);
 
       canvas.toBlob(
         (blob) => {
-          if (blob) resolve({ blob, ext });
-          else reject(new Error("Image conversion failed"));
+          if (blob) {
+            resolve({ blob, ext: "webp" });
+          } else {
+            reject(new Error("Image conversion to WebP failed"));
+          }
         },
-        format,
-        quality,
+        "image/webp",
+        0.85, // quality
       );
     };
 
@@ -69,12 +90,12 @@ const convertToWebP = async (
   });
 };
 
-// ── Single file direct Cloudinary upload ──────────────────────────────────────
+// ── Single file direct Cloudinary upload (with eager AVIF/WebP) ──────────────
 export const uploadToCloudinaryDirect = async (
   file: File | Blob,
   folder: string = "uploads",
 ): Promise<CloudinaryResult> => {
-  // ✅ Convert to WebP (or JPEG fallback)
+  // WebP-তে কনভার্ট (সাইজ ছোট ও অপ্টিমাইজড)
   const { blob, ext } = await convertToWebP(file);
 
   const fd = new FormData();
@@ -82,17 +103,36 @@ export const uploadToCloudinaryDirect = async (
   fd.append("upload_preset", UPLOAD_PRESET);
   fd.append("folder", folder);
 
-  const res = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
-    { method: "POST", body: fd },
-  );
+  // Cloudinary eager transformations: AVIF এবং WebP ডেরিভেটিভ তৈরি করবে
+  fd.append("eager", "f_avif,q_auto");
+  fd.append("eager", "f_webp,q_auto");
 
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.error?.message || "Cloudinary upload failed");
+  // দীর্ঘ আপলোডের জন্য AbortController ব্যবহার করে টাইমআউট বাড়ানো (৬০ সেকেন্ড)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+  try {
+    const res = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+      {
+        method: "POST",
+        body: fd,
+        signal: controller.signal,
+      },
+    );
+
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error?.message || "Cloudinary upload failed");
+    }
+
+    return res.json();
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
   }
-
-  return res.json();
 };
 
 // ── Multiple files with progress ──────────────────────────────────────────────
@@ -113,4 +153,22 @@ export const uploadMultipleToCloudinary = async (
   }
 
   return results;
+};
+
+export const getCloudinaryOptimizedUrls = (baseUrl: string) => {
+  if (!baseUrl || typeof baseUrl !== "string") {
+    return { avif: "", webp: "", original: "" };
+  }
+
+  const parts = baseUrl.split("/upload/");
+  if (parts.length !== 2) {
+    return { avif: baseUrl, webp: baseUrl, original: baseUrl };
+  }
+
+  const [prefix, suffix] = parts;
+  return {
+    avif: `${prefix}/upload/f_avif,q_auto/${suffix}`,
+    webp: `${prefix}/upload/f_webp,q_auto/${suffix}`,
+    original: baseUrl,
+  };
 };

@@ -23,6 +23,7 @@ import ExamModal from "./ExamModal";
 import {
   COLORS,
   type Exam,
+  type ExamImage,
   AnimatedSlide,
   SlideDots,
   SlideProgress,
@@ -31,6 +32,8 @@ import {
 } from "../../utility/shared";
 import { useAuth } from "../../context/AuthContext";
 import Button from "../../components/common/Button";
+import { getCloudinaryOptimizedUrls } from "../../hooks/useCloudinaryUpload";
+import toast from "react-hot-toast";
 
 /* ─── Animation Variants ─────────────────────────────────────────────────── */
 
@@ -211,8 +214,8 @@ const WeeklyExamCard = ({
       await navigator.clipboard.writeText(lines.join("\n"));
       setCopied(true);
       setTimeout(() => setCopied(false), 2200);
-    } catch {
-      // optionally toast দিতে পারো
+    } catch (err) {
+      toast.error(err);
     }
   };
 
@@ -220,6 +223,11 @@ const WeeklyExamCard = ({
     e.stopPropagation();
     if (openLoginPromptIfGuest()) return;
     setShowModal(true);
+  };
+
+  const getImageUrl = (img: ExamImage): string => {
+    if (typeof img === "string") return img;
+    return img.secure_url ?? img.url ?? "";
   };
 
   return (
@@ -265,15 +273,25 @@ const WeeklyExamCard = ({
                 loop={multipleImages}
                 className="h-full w-full"
               >
-                {images.map((img, i) => (
-                  <SwiperSlide key={i}>
-                    <AnimatedSlide
-                      img={img}
-                      isActive={i === activeSlide}
-                      className="h-full w-full object-cover"
-                    />
-                  </SwiperSlide>
-                ))}
+                {images.map((img, i) => {
+                  const imgUrl = getImageUrl(img);
+                  const { avif, webp, original } =
+                    getCloudinaryOptimizedUrls(imgUrl);
+
+                  return (
+                    <SwiperSlide key={i}>
+                      <picture>
+                        <source srcSet={avif} type="image/avif" />
+                        <source srcSet={webp} type="image/webp" />
+                        <AnimatedSlide
+                          img={original}
+                          isActive={i === activeSlide}
+                          className="h-full w-full object-cover"
+                        />
+                      </picture>
+                    </SwiperSlide>
+                  );
+                })}
               </Swiper>
 
               {multipleImages && (
