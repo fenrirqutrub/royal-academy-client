@@ -334,7 +334,7 @@ const AddWeeklyExam = () => {
   const [submitted, setSubmitted] = useState(false);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
-  const [uploadProgress, setUploadProgress] = useState(0); // ✅ Progress state
+  const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const qc = useQueryClient();
 
@@ -795,7 +795,7 @@ const AddWeeklyExam = () => {
                   control={control}
                   rules={{
                     required: "বিষয়বস্তু আবশ্যিক",
-                    minLength: { value: 20, message: "কমপক্ষে ২০ অক্ষর লিখুন" },
+                    minLength: { value: 5, message: "কমপক্ষে ৫ অক্ষর লিখুন" },
                   }}
                   render={({ field, fieldState }) => {
                     const [isFocused, setIsFocused] = useState(false);
@@ -1017,6 +1017,7 @@ const AddWeeklyExam = () => {
               />
 
               {/* ── Buttons ── */}
+              {/* ── Buttons ── */}
               <AnimatedCard index={10}>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <motion.button
@@ -1031,52 +1032,45 @@ const AddWeeklyExam = () => {
                       isValid && !mutation.isPending ? { scale: 0.98 } : {}
                     }
                     className={`flex-1 py-3.5 rounded-xl font-semibold text-sm flex items-center 
-                      justify-center gap-2 transition-all duration-300 bangla border-2
-                      ${
-                        isValid && !mutation.isPending
-                          ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white border-transparent shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30"
-                          : "bg-[var(--color-active-bg)] text-[var(--color-gray)] border-[var(--color-active-border)] cursor-not-allowed"
-                      }`}
+        justify-center gap-2 transition-all duration-300 bangla border-2
+        ${
+          isValid && !mutation.isPending
+            ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white border-transparent shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30"
+            : "bg-[var(--color-active-bg)] text-[var(--color-gray)] border-[var(--color-active-border)] cursor-not-allowed"
+        }`}
                   >
-                    <AnimatePresence mode="wait">
-                      {mutation.isPending ? (
-                        <motion.span
-                          key="loading"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          className="flex items-center gap-2"
-                        >
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          {/* ✅ Dynamic text based on progress */}
-                          {imageFiles.length > 0 && uploadProgress < 100
-                            ? `ছবি আপলোড… ${toBanglaDigits(String(uploadProgress))}%`
-                            : "সংরক্ষণ হচ্ছে…"}
-                        </motion.span>
-                      ) : submitted ? (
-                        <motion.span
-                          key="done"
-                          initial={{ scale: 0.8, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          className="flex items-center gap-2"
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                          সফলভাবে যোগ হয়েছে
-                        </motion.span>
-                      ) : (
-                        <motion.span
-                          key="idle"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          className="flex items-center gap-2"
-                        >
-                          <Sparkles className="w-4 h-4" />
-                          পরীক্ষা যোগ করুন
-                        </motion.span>
-                      )}
-                    </AnimatePresence>
+                    {mutation.isPending ? (
+                      <div className="flex flex-col gap-2 w-full px-2">
+                        <span className="flex items-center justify-between text-xs bangla">
+                          <span className="flex items-center gap-1.5">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            {imageFiles.length > 0
+                              ? uploadProgress <= 30
+                                ? `ছবি কম্প্রেস হচ্ছে (${toBanglaDigits(String(imageFiles.length))}টি)…`
+                                : uploadProgress < 100
+                                  ? "আপলোড হচ্ছে…"
+                                  : "ডেটা সংরক্ষণ হচ্ছে…"
+                              : "সংরক্ষণ হচ্ছে…"}
+                          </span>
+                          <span className="font-bold">
+                            {toBanglaDigits(String(uploadProgress))}%
+                          </span>
+                        </span>
+                        <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
+                          <motion.div
+                            className="h-full rounded-full bg-white/70"
+                            initial={{ width: "0%" }}
+                            animate={{ width: `${uploadProgress}%` }}
+                            transition={{ duration: 0.3, ease: "easeOut" }}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4" />
+                        পরীক্ষা যোগ করুন
+                      </>
+                    )}
                   </motion.button>
 
                   <motion.button
@@ -1086,9 +1080,9 @@ const AddWeeklyExam = () => {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     className="sm:w-36 py-3.5 rounded-xl text-sm font-medium border-2 
-                      border-[var(--color-active-border)] bg-[var(--color-bg)] 
-                      hover:bg-[var(--color-active-bg)] text-[var(--color-text)] 
-                      transition-all disabled:opacity-50 bangla"
+        border-[var(--color-active-border)] bg-[var(--color-bg)] 
+        hover:bg-[var(--color-active-bg)] text-[var(--color-text)] 
+        transition-all disabled:opacity-50 bangla"
                   >
                     রিসেট
                   </motion.button>

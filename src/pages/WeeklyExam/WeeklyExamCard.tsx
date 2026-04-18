@@ -215,7 +215,9 @@ const WeeklyExamCard = ({
       setCopied(true);
       setTimeout(() => setCopied(false), 2200);
     } catch (err) {
-      toast.error(err);
+      toast.error(
+        err instanceof Error ? err.message : "কপি করতে ব্যর্থ হয়েছে",
+      );
     }
   };
 
@@ -225,9 +227,9 @@ const WeeklyExamCard = ({
     setShowModal(true);
   };
 
-  const getImageUrl = (img: ExamImage): string => {
+  const getImageUrl = (img: string | ExamImage): string => {
     if (typeof img === "string") return img;
-    return img.secure_url ?? img.url ?? "";
+    return img.url ?? img.imageUrl ?? "";
   };
 
   return (
@@ -275,20 +277,15 @@ const WeeklyExamCard = ({
               >
                 {images.map((img, i) => {
                   const imgUrl = getImageUrl(img);
-                  const { avif, webp, original } =
-                    getCloudinaryOptimizedUrls(imgUrl);
+                  const urls = getCloudinaryOptimizedUrls(imgUrl);
 
                   return (
                     <SwiperSlide key={i}>
-                      <picture>
-                        <source srcSet={avif} type="image/avif" />
-                        <source srcSet={webp} type="image/webp" />
-                        <AnimatedSlide
-                          img={original}
-                          isActive={i === activeSlide}
-                          className="h-full w-full object-cover"
-                        />
-                      </picture>
+                      <AnimatedSlide
+                        img={urls.thumb || imgUrl}
+                        isActive={i === activeSlide}
+                        className="h-full w-full object-cover"
+                      />
                     </SwiperSlide>
                   );
                 })}

@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 
 export interface ExamImage {
   url?: string;
+
   imageUrl?: string;
   publicId?: string;
 }

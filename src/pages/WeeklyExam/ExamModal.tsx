@@ -30,6 +30,7 @@ import { Navigation, Pagination, Autoplay } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
+import { getCloudinaryOptimizedUrls } from "../../hooks/useCloudinaryUpload";
 
 interface ExamModalProps {
   exam: Exam;
@@ -182,15 +183,21 @@ const ExamModal = ({
                 navigation={multipleImages}
                 className="w-full h-full"
               >
-                {images.map((img, i) => (
-                  <SwiperSlide key={i}>
-                    <img
-                      src={getImageUrl(img)}
-                      alt={exam.subject}
-                      className="w-full h-full object-cover"
-                    />
-                  </SwiperSlide>
-                ))}
+                {images.map((img, i) => {
+                  const imgUrl = getImageUrl(img);
+                  const urls = getCloudinaryOptimizedUrls(imgUrl);
+
+                  return (
+                    <SwiperSlide key={i}>
+                      <img
+                        src={urls.auto}
+                        alt={exam.subject}
+                        className="w-full h-full object-cover"
+                        loading="eager"
+                      />
+                    </SwiperSlide>
+                  );
+                })}
               </Swiper>
 
               {/* Gradient Overlay */}

@@ -8,6 +8,7 @@ import { Trash2, X, Loader2, ImagePlus } from "lucide-react";
 import axiosPublic from "../../hooks/axiosPublic";
 import SelectInput from "../../components/common/SelectInput";
 import { CLASS_OPTIONS, getSubjects } from "../../utility/Constants";
+import { uploadMultipleToCloudinary } from "../../hooks/useCloudinaryUpload";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface ExamImage {
@@ -384,36 +385,34 @@ export const EditModal = ({
 
   const mutation = useMutation({
     mutationFn: async (data: EditFormValues) => {
-      const imagesChanged =
-        imageFiles.length > 0 ||
-        existingImages.length !== (record.images ?? []).length;
-
-      const fd = new FormData();
-      fd.append("subject", data.subject);
-      fd.append("class", data.class);
-      fd.append("ExamNumber", data.ExamNumber);
-      fd.append("topics", data.topics);
-      fd.append("teacher", data.teacher);
-      fd.append("teacherSlug", data.teacherSlug);
-      fd.append("mark", data.mark);
-      fd.append("question", data.question);
-      existingImages.forEach((img) =>
-        fd.append("existingImages", img.imageUrl),
-      );
-      imageFiles.forEach((f) => fd.append("images", f));
-
-      if (imagesChanged) {
-        return axiosPublic.put(`/api/weekly-exams/${record._id}`, fd, {
-          headers: { "Content-Type": "multipart/form-data" },
+      // Step 1: নতুন ছবি থাকলে Cloudinary তে upload
+      let uploadedNewImages: { imageUrl: string; publicId: string }[] = [];
+      if (imageFiles.length > 0) {
+        const results = await uploadMultipleToCloudinary(imageFiles, {
+          folder: "weekly-exams",
         });
+        uploadedNewImages = results.map((r) => ({
+          imageUrl: r.secure_url,
+          publicId: r.public_id,
+        }));
       }
 
-      const json: Record<string, string> = {};
-      fd.forEach((val, key) => {
-        json[key] = val as string;
-      });
-      return axiosPublic.put(`/api/weekly-exams/${record._id}`, json);
+      // Step 2: শুধু JSON পাঠাও
+      const payload = {
+        subject: data.subject,
+        class: data.class,
+        ExamNumber: data.ExamNumber,
+        topics: data.topics,
+        teacher: data.teacher,
+        teacherSlug: data.teacherSlug,
+        mark: data.mark,
+        question: data.question,
+        images: [...existingImages, ...uploadedNewImages],
+      };
+
+      return axiosPublic.put(`/api/weekly-exams/${record._id}`, payload);
     },
+
     onSuccess: () => {
       toast.success("সফলভাবে আপডেট হয়েছে!");
       onSuccess();
