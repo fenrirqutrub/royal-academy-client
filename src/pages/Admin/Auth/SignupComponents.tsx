@@ -11,11 +11,8 @@ import {
   User,
   UserRound,
 } from "lucide-react";
-import type {
-  FieldState,
-  Gender,
-  SignupForm,
-} from "../../../utility/Constants";
+import type { FieldState, Gender } from "../../../utility/Constants";
+import type { SignupForm } from "../../../types/types";
 
 export const toBanglaDigits = (val: string): string =>
   val.replace(/[0-9]/g, (d) => "০১২৩৪৫৬৭৮৯"[+d]);

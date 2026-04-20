@@ -6,9 +6,7 @@ import { Loader2, BookOpen, FileText } from "lucide-react";
 import toast from "react-hot-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PiChalkboardTeacherFill } from "react-icons/pi";
-import SelectInput, {
-  type SelectOption,
-} from "../../../components/common/SelectInput";
+import SelectInput from "../../../components/common/SelectInput";
 import axiosPublic from "../../../hooks/axiosPublic";
 import Skeleton from "../../../components/common/Skeleton";
 import ErrorState from "../../../components/common/ErrorState";
@@ -21,6 +19,7 @@ import {
   toBn,
   toEn,
 } from "../../../utility/Formatters";
+import type { SelectOption } from "../../../types/types";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 interface DailyLessonFormData {

@@ -17,7 +17,6 @@ import {
 import toast from "react-hot-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PiChalkboardTeacherFill } from "react-icons/pi";
-import type { SelectOption } from "../../../components/common/SelectInput";
 import axiosPublic from "../../../hooks/axiosPublic";
 import SelectInput from "../../../components/common/SelectInput";
 import Skeleton from "../../../components/common/Skeleton";
@@ -25,6 +24,7 @@ import ErrorState from "../../../components/common/ErrorState";
 import { useAuth } from "../../../context/AuthContext";
 import { CLASS_OPTIONS, getSubjects } from "../../../utility/Constants";
 import { uploadMultipleToCloudinary } from "../../../hooks/useCloudinaryUpload";
+import type { SelectOption } from "../../../types/types";
 
 // ─── Types ────────────────────────────────────────────────
 interface WeeklyExamFormData {
