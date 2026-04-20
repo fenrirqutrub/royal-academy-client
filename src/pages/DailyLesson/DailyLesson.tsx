@@ -187,7 +187,6 @@ const DailyLesson = () => {
     useState<string>(getTodayBnDate());
 
   const [selectedClass, setSelectedClass] = useState<string>("all");
-
   const [selectedTeacher, setSelectedTeacher] = useState<string>("all");
   const prevDefaultRef = useRef("all");
 
@@ -196,14 +195,15 @@ const DailyLesson = () => {
     null,
   );
 
+  // ── Guest login prompt state ──
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+
   // ── Sync teacher filter when auth loads ──
   useEffect(() => {
     const prevDefault = prevDefaultRef.current;
-
     setSelectedTeacher((prev) =>
       prev === prevDefault ? defaultTeacherFilter : prev,
     );
-
     prevDefaultRef.current = defaultTeacherFilter;
   }, [defaultTeacherFilter]);
 
@@ -252,9 +252,7 @@ const DailyLesson = () => {
           : typeof l.teacher === "string"
             ? l.teacher
             : "";
-
       const slug = resolveTeacherSlug(l.teacher, l.teacherSlug);
-
       if (name && slug) map.set(slug, name);
     });
 
@@ -365,7 +363,6 @@ const DailyLesson = () => {
           <p className="py-8 text-center text-sm text-[var(--color-gray)] bangla">
             আজকের ৬ষ্ঠ শ্রেণির কোনো পাঠ পাওয়া যায়নি।
           </p>
-          <LoginPromptOverlay />
         </div>
       );
     }
@@ -394,7 +391,6 @@ const DailyLesson = () => {
             </motion.div>
           ))}
         </motion.div>
-        <LoginPromptOverlay />
       </div>
     );
   };
@@ -469,7 +465,12 @@ const DailyLesson = () => {
             />
 
             {/* Guest intercept */}
-            {isGuest && <LoginPromptOverlay />}
+            {isGuest && (
+              <div
+                className="absolute inset-0 z-10 cursor-pointer"
+                onClick={() => setShowLoginPrompt(true)}
+              />
+            )}
           </div>
 
           {/* ── Teacher filter ── */}
@@ -480,11 +481,16 @@ const DailyLesson = () => {
               onChange={setSelectedTeacher}
               placeholder="শিক্ষক বাছুন"
               options={teacherOptions}
-              disabled={isGuest || teacherOptions.length <= 1}
+              disabled={teacherOptions.length <= 1}
             />
 
             {/* Guest intercept */}
-            {isGuest && <LoginPromptOverlay />}
+            {isGuest && (
+              <div
+                className="absolute inset-0 z-10 cursor-pointer"
+                onClick={() => setShowLoginPrompt(true)}
+              />
+            )}
           </div>
 
           {/* Add lesson (staff) */}
@@ -510,7 +516,7 @@ const DailyLesson = () => {
                   >
                     <BookPlus size={17} strokeWidth={2.2} />
                   </motion.span>
-                  পড়া জমা দিন
+                  পড়া জমা দিন
                 </motion.button>
               </motion.div>
             )}
@@ -611,11 +617,16 @@ const DailyLesson = () => {
               activeId={selectedClass}
               onChange={setSelectedClass}
               data={dateFilteredData}
-              disabled={isGuest}
+              disabled={false}
             />
 
             {/* Guest intercept */}
-            {isGuest && <LoginPromptOverlay />}
+            {isGuest && (
+              <div
+                className="absolute inset-0 z-10 cursor-pointer"
+                onClick={() => setShowLoginPrompt(true)}
+              />
+            )}
           </div>
         </motion.div>
       </motion.div>
@@ -736,7 +747,6 @@ const DailyLesson = () => {
                     <Button onClick={handleReset}>আজকের পাঠ দেখুন</Button>
                   }
                 />
-                <LoginPromptOverlay />
               </div>
             ) : (
               <motion.div
@@ -808,6 +818,12 @@ const DailyLesson = () => {
           />
         )}
       </AnimatePresence>
+
+      {/* ── Guest Login Prompt ── */}
+      <LoginPromptOverlay
+        isOpen={showLoginPrompt}
+        onClose={() => setShowLoginPrompt(false)}
+      />
     </div>
   );
 };

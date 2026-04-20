@@ -99,3 +99,9 @@ export interface DailyLessonModalProps {
   onEdit?: () => void;
   onDelete?: () => void;
 }
+
+// login promt
+export interface LoginPromptOverlayProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
