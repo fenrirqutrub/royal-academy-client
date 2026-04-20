@@ -13,45 +13,12 @@ import {
   Key,
 } from "lucide-react";
 import { useNavigate } from "react-router";
-import { toBn, type ClassColor, hexToRgb } from "../../utility/Formatters";
+
 import { useAuth } from "../../context/AuthContext";
 import DailyLessonModal from "./DailyLessonModal";
 import Button from "../../components/common/Button";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-export interface TeacherInfo {
-  _id: string;
-  name: string;
-  avatar?: { url: string | null; publicId?: string | null } | string | null;
-  role?: string;
-  slug?: string;
-}
-
-export interface DailyLessonItem {
-  _id: string;
-  subject: string;
-  teacher: TeacherInfo | string;
-  class: string;
-  mark: number;
-  referenceType: "chapter" | "page";
-  chapterNumber: string;
-  topics: string;
-  images: { url: string; public_id: string }[];
-  date: string;
-  createdAt: string;
-  slug?: string;
-  teacherSlug?: string;
-}
-
-interface DailyLessonCardProps {
-  lesson: DailyLessonItem;
-  index: number;
-  classColor: ClassColor;
-  canEdit?: boolean;
-  canDelete?: boolean;
-  onEdit?: () => void;
-  onDelete?: () => void;
-}
+import { toBn } from "../../utility/Formatters";
+import type { DailyLessonCardProps, TeacherInfo } from "../../types/types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 export const extractTeacher = (teacher: TeacherInfo | string | null) => {
@@ -104,8 +71,7 @@ const LoginPromptModal = ({ onClose }: { onClose: () => void }) => {
       animate="visible"
       exit="exit"
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-      style={{ backgroundColor: "rgba(0,0,0,0.55)" }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-overlay)] p-4 backdrop-blur-sm"
     >
       <motion.div
         variants={promptVariants}
@@ -115,16 +81,8 @@ const LoginPromptModal = ({ onClose }: { onClose: () => void }) => {
         onClick={(e) => e.stopPropagation()}
         className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-[var(--color-active-border)] bg-[var(--color-bg)] shadow-2xl"
       >
-        {/* top accent */}
-        <div
-          className="h-1 w-full"
-          style={{
-            background:
-              "linear-gradient(90deg, var(--color-brand), var(--color-brand-hover))",
-          }}
-        />
+        <div className="h-1 w-full bg-gradient-to-r from-[var(--color-brand)] to-[var(--color-brand-hover)]" />
 
-        {/* close */}
         <button
           type="button"
           onClick={onClose}
@@ -135,7 +93,6 @@ const LoginPromptModal = ({ onClose }: { onClose: () => void }) => {
         </button>
 
         <div className="px-6 pb-8 pt-6 text-center bangla">
-          {/* icon */}
           <div className="relative mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--color-brand-soft)]">
             <Key className="h-8 w-8 text-[var(--color-brand)]" />
           </div>
@@ -159,6 +116,7 @@ const LoginPromptModal = ({ onClose }: { onClose: () => void }) => {
               <Key className="h-4 w-4" />
               লগইন করুন
             </button>
+
             <button
               type="button"
               onClick={() => {
@@ -181,7 +139,6 @@ const LoginPromptModal = ({ onClose }: { onClose: () => void }) => {
 const DailyLessonCard = ({
   lesson,
   index,
-  classColor,
   canEdit = false,
   canDelete = false,
   onEdit,
@@ -191,10 +148,7 @@ const DailyLessonCard = ({
   const [showModal, setShowModal] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
-  const color = classColor;
-  const accentRgb = hexToRgb(color.from);
   const isGuest = !isAuthenticated;
-
   const { name: teacherName, avatarUrl } = extractTeacher(lesson.teacher);
   const refLabel = lesson.referenceType === "page" ? "পৃষ্ঠা" : "অধ্যায়";
 
@@ -209,23 +163,11 @@ const DailyLessonCard = ({
           ease: [0.22, 1, 0.36, 1],
         }}
         whileHover={{ y: -4, transition: { duration: 0.18 } }}
-        className="group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-[var(--color-active-border)] bg-[var(--color-bg)] bangla transition-[box-shadow,border-color] duration-300"
-        style={{ boxShadow: "0 2px 10px rgba(0,0,0,0.06)" }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.boxShadow = `0 8px 32px rgba(${accentRgb},0.15), 0 2px 10px rgba(0,0,0,0.06)`;
-          e.currentTarget.style.borderColor = `${color.from}55`;
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.06)";
-          e.currentTarget.style.borderColor = "var(--color-active-border)";
-        }}
+        className="group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-[var(--color-active-border)] bg-[var(--color-bg)] shadow-sm transition-all duration-300 hover:border-[var(--color-brand)] hover:shadow-xl bangla"
       >
-        {/* ── Guest hover lock ── */}
+        {/* Guest hover lock */}
         {isGuest && (
-          <div
-            className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-2xl opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-            style={{ backgroundColor: "rgba(0,0,0,0.35)" }}
-          >
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-[var(--color-overlay)] opacity-0 transition-opacity duration-300 group-hover:opacity-100">
             <span className="flex items-center gap-2 rounded-full border border-[var(--color-active-border)] bg-[var(--color-bg)] px-4 py-2 text-xs font-semibold text-[var(--color-text)] shadow-lg backdrop-blur-sm">
               <LogIn className="h-3.5 w-3.5" />
               দেখতে লগইন করুন
@@ -233,19 +175,13 @@ const DailyLessonCard = ({
           </div>
         )}
 
-        {/* ── Top gradient bar ── */}
-        <div
-          className="h-[3px] w-full shrink-0"
-          style={{
-            background: `linear-gradient(90deg, ${color.from}, ${color.to})`,
-          }}
-        />
+        {/* Top gradient bar */}
+        <div className="h-[3px] w-full shrink-0 bg-gradient-to-r from-[var(--color-brand)] to-[var(--color-brand-hover)]" />
 
-        {/* ── Body ── */}
+        {/* Body */}
         <div className="flex flex-1 flex-col gap-4 p-5">
           {/* Teacher + subject */}
           <div className="flex items-start gap-3">
-            {/* Avatar */}
             <div className="relative shrink-0">
               {avatarUrl ? (
                 <img
@@ -257,19 +193,13 @@ const DailyLessonCard = ({
                       .nextElementSibling as HTMLElement | null;
                     if (fb) fb.style.display = "flex";
                   }}
-                  className="h-11 w-11 rounded-xl object-cover shadow-sm"
-                  style={{
-                    outline: `2px solid ${color.from}28`,
-                    outlineOffset: "1px",
-                  }}
+                  className="h-11 w-11 rounded-xl object-cover ring-2 ring-[var(--color-brand-soft)] ring-offset-1 ring-offset-[var(--color-bg)]"
                 />
               ) : null}
+
               <div
-                className="h-11 w-11 items-center justify-center rounded-xl text-sm font-bold text-white shadow-sm"
-                style={{
-                  background: `linear-gradient(135deg, ${color.from}, ${color.to})`,
-                  display: avatarUrl ? "none" : "flex",
-                }}
+                className="h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--color-brand)] to-[var(--color-brand-hover)] text-sm font-bold text-white shadow-sm"
+                style={{ display: avatarUrl ? "none" : "flex" }}
               >
                 {teacherName !== "—" ? (
                   teacherName.charAt(0).toUpperCase()
@@ -279,7 +209,6 @@ const DailyLessonCard = ({
               </div>
             </div>
 
-            {/* Subject + teacher */}
             <div className="min-w-0 flex-1">
               <h3 className="line-clamp-1 text-base font-extrabold leading-tight text-[var(--color-text)] sm:text-lg">
                 {lesson.subject}
@@ -301,21 +230,19 @@ const DailyLessonCard = ({
               )}
               {refLabel} {toBn(lesson.chapterNumber)}
             </span>
+
             <span className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-active-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-gray)]">
               <Calendar className="h-3 w-3" />
               {lesson.date}
             </span>
           </div>
 
-          {/* Divider */}
           <div className="h-px rounded-full bg-[var(--color-active-border)]" />
 
-          {/* Topics */}
           <p className="line-clamp-4 flex-1 whitespace-pre-line text-sm leading-relaxed text-[var(--color-gray)]">
             {lesson.topics}
           </p>
 
-          {/* Detail button */}
           <Button
             variant="default"
             size="md"
@@ -337,18 +264,15 @@ const DailyLessonCard = ({
         </div>
       </motion.div>
 
-      {/* Login Prompt */}
       <AnimatePresence>
         {showLoginPrompt && (
           <LoginPromptModal onClose={() => setShowLoginPrompt(false)} />
         )}
       </AnimatePresence>
 
-      {/* Lesson Modal */}
       {showModal && !isGuest && (
         <DailyLessonModal
           lesson={lesson}
-          color={color}
           onClose={() => setShowModal(false)}
           formattedDate={lesson.date}
           canEdit={canEdit}

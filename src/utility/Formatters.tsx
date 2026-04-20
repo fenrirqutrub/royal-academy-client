@@ -2,7 +2,6 @@ import { motion } from "framer-motion";
 
 export interface ExamImage {
   url?: string;
-
   imageUrl?: string;
   publicId?: string;
 }
@@ -69,6 +68,7 @@ export const BN_MONTHS = [
   "নভেম্বর",
   "ডিসেম্বর",
 ];
+
 export const BN_DAYS_FULL = [
   "রবিবার",
   "সোমবার",
@@ -81,21 +81,42 @@ export const BN_DAYS_FULL = [
 
 const BN_DIGITS = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"];
 
+export type DateInput = string | number | Date;
+
+const toDate = (input: DateInput): Date =>
+  input instanceof Date ? input : new Date(input);
+
 export const toBn = (n: number | string | null | undefined): string => {
   if (n === null || n === undefined) return "";
-  return String(n).replace(/\d/g, (d) => BN_DIGITS[parseInt(d)]);
+  return String(n).replace(/\d/g, (d) => BN_DIGITS[Number(d)]);
 };
 
-export const toEn = (s: string) =>
+export const toEn = (s: string): string =>
   s.replace(/[০-৯]/g, (d) => String("০১২৩৪৫৬৭৮৯".indexOf(d)));
 
-/* ─── Bengali date string ────────────────────────────────────────────────── */
+export const toBnDateStr = (input: DateInput): string => {
+  const d = toDate(input);
+  return `${BN_DAYS_FULL[d.getDay()]}, ${toBn(d.getDate())} ${
+    BN_MONTHS[d.getMonth()]
+  } ${toBn(d.getFullYear())}`;
+};
 
-export const toBnDateStr = (d: Date): string =>
-  `${BN_DAYS_FULL[d.getDay()]}, ${toBn(d.getDate())} ${BN_MONTHS[d.getMonth()]} ${toBn(d.getFullYear())}`;
+export const formatBnDate = (input: DateInput): string => toBnDateStr(input);
 
-/* ─── Shared color helper ────────────────────────────────────────────────── */
+export const getTodayBnDate = (): string => formatBnDate(new Date());
 
+export const isSameCalendarDay = (a: DateInput, b: DateInput): boolean => {
+  const left = toDate(a);
+  const right = toDate(b);
+
+  return (
+    left.getDate() === right.getDate() &&
+    left.getMonth() === right.getMonth() &&
+    left.getFullYear() === right.getFullYear()
+  );
+};
+
+/* Shared color helper */
 export const hexToRgb = (hex: string): string => {
   const raw = hex.replace("#", "");
   const normalized =
@@ -167,7 +188,7 @@ export const SlideDots = ({ count, active, color }: SlideDotsProps) => (
 export const SlideProgress = ({ color }: SlideProgressProps) => (
   <motion.div
     key={Math.random()}
-    className="absolute top-0 left-0 z-20 h-0.5"
+    className="absolute left-0 top-0 z-20 h-0.5"
     initial={{ width: "0%" }}
     animate={{ width: "100%" }}
     transition={{ duration: 3.8, ease: "linear" }}
@@ -176,8 +197,6 @@ export const SlideProgress = ({ color }: SlideProgressProps) => (
     }}
   />
 );
-
-// ────────────────────── UTILITY FUNCTIONS ──────────────────────
 
 export const formatTimeAgo = (date: string): string => {
   const now = new Date();
@@ -208,10 +227,10 @@ export const truncateText = (text: string, maxLength: number = 120): string => {
 };
 
 export const formatDate = (
-  date: string,
+  input: DateInput,
   format: "long" | "short" = "long",
 ): string => {
-  const dateObj = new Date(date);
+  const dateObj = toDate(input);
 
   if (format === "short") {
     return dateObj.toLocaleDateString("en-US", {

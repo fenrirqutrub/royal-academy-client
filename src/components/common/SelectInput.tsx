@@ -1,80 +1,55 @@
-// src/components/common/SelectInput.tsx
 import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Check } from "lucide-react";
-import type { ReactNode, RefObject } from "react";
+import type { DropdownPortalProps, SelectInputProps } from "../../types/types";
 
-export interface SelectOption {
-  value: string;
-  label: string;
-  icon?: ReactNode;
-}
-
-interface SelectInputProps {
-  options: SelectOption[];
-  value?: string;
-  onChange: (value: string) => void;
-  onBlur?: () => void;
-  placeholder?: string;
-  label?: string;
-  required?: boolean;
-  disabled?: boolean;
-  error?: string;
-  isTouched?: boolean;
-  className?: string;
-}
-
-// ─── Dropdown Portal Component ────────────────────────────
-interface DropdownPortalProps {
-  children: React.ReactNode;
-  triggerRef: RefObject<HTMLButtonElement | null>; // ✅ FIX: Added | null
-  isOpen: boolean;
-}
-
+/* ─── Portal: renders dropdown at exact screen position ─────────────────────── */
 const DropdownPortal = ({
   children,
   triggerRef,
   isOpen,
 }: DropdownPortalProps) => {
-  const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
 
-  const updatePosition = useCallback(() => {
+  const sync = useCallback(() => {
     if (triggerRef.current && isOpen) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      setPosition({
-        top: rect.bottom + window.scrollY + 8,
-        left: rect.left + window.scrollX,
-        width: rect.width,
+      const r = triggerRef.current.getBoundingClientRect();
+      setPos({
+        top: r.bottom + window.scrollY + 8,
+        left: r.left + window.scrollX,
+        width: r.width,
       });
     }
   }, [triggerRef, isOpen]);
 
   useEffect(() => {
-    updatePosition();
-
+    sync();
     if (isOpen) {
-      window.addEventListener("scroll", updatePosition, true);
-      window.addEventListener("resize", updatePosition);
+      window.addEventListener("scroll", sync, true);
+      window.addEventListener("resize", sync);
     }
-
     return () => {
-      window.removeEventListener("scroll", updatePosition, true);
-      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", sync, true);
+      window.removeEventListener("resize", sync);
     };
-  }, [isOpen, updatePosition]);
+  }, [isOpen, sync]);
 
   if (!isOpen) return null;
 
   return createPortal(
     <div
-      style={{
-        position: "absolute",
-        top: position.top,
-        left: position.left,
-        width: position.width,
-        zIndex: 999999,
-      }}
+      className="absolute z-[999999]"
+      style={
+        {
+          "--_t": `${pos.top}px`,
+          "--_l": `${pos.left}px`,
+          "--_w": `${pos.width}px`,
+          top: "var(--_t)",
+          left: "var(--_l)",
+          width: "var(--_w)",
+        } as React.CSSProperties
+      }
     >
       {children}
     </div>,
@@ -82,7 +57,7 @@ const DropdownPortal = ({
   );
 };
 
-// ─── Main SelectInput Component ───────────────────────────
+/* ─── SelectInput ───────────────────────────────────────────────────────────── */
 const SelectInput = ({
   options,
   value,
@@ -94,38 +69,51 @@ const SelectInput = ({
   disabled,
   error,
   isTouched,
+  defaultValue,
   className = "",
 }: SelectInputProps) => {
   const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const hasAppliedDefault = useRef(false);
+
   const selected = options.find((o) => o.value === value);
 
-  // Close on outside click
+  /* ── Apply defaultValue once when options become available ── */
+  useEffect(() => {
+    if (
+      defaultValue &&
+      !hasAppliedDefault.current &&
+      !value &&
+      options.length > 0
+    ) {
+      const exists = options.some((o) => o.value === defaultValue);
+      if (exists) {
+        onChange(defaultValue);
+        hasAppliedDefault.current = true;
+      }
+    }
+  }, [defaultValue, value, options, onChange]);
+
+  /* ── Outside click ── */
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       const target = e.target as Node;
-
-      // Check if click is outside both trigger and dropdown
-      const isOutsideTrigger =
+      const outsideTrigger =
         containerRef.current && !containerRef.current.contains(target);
       const dropdownEl = document.getElementById("select-dropdown-portal");
-      const isOutsideDropdown = !dropdownEl?.contains(target);
+      const outsideDropdown = !dropdownEl?.contains(target);
 
-      if (isOutsideTrigger && isOutsideDropdown) {
+      if (outsideTrigger && outsideDropdown) {
         setOpen(false);
         onBlur?.();
       }
     };
-
-    if (open) {
-      document.addEventListener("mousedown", handler);
-    }
-
+    if (open) document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [open, onBlur]);
 
-  // Close on escape
+  /* ── Escape key ── */
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape" && open) {
@@ -133,7 +121,6 @@ const SelectInput = ({
         triggerRef.current?.focus();
       }
     };
-
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
   }, [open]);
@@ -142,16 +129,12 @@ const SelectInput = ({
   const isValidTouched = isTouched && !error && !!value;
 
   const getBorderClass = () => {
-    if (isError) {
-      return "border-rose-400 shadow-[0_0_0_3px_rgba(244,63,94,0.1)]";
-    }
-    if (isValidTouched) {
-      return "border-emerald-400 shadow-[0_0_0_3px_rgba(16,185,129,0.1)]";
-    }
-    if (open) {
-      return "border-violet-500 shadow-[0_0_0_3px_rgba(139,92,246,0.15)]";
-    }
-    return "border-[var(--color-active-border)] hover:border-violet-300";
+    if (isError) return "border-red-400 shadow-[0_0_0_3px_rgba(239,68,68,0.1)]";
+    if (isValidTouched)
+      return "border-[var(--color-text-hover)] shadow-[0_0_0_3px_rgba(37,99,235,0.1)]";
+    if (open)
+      return "border-[var(--color-text-hover)] shadow-[0_0_0_3px_rgba(37,99,235,0.12)]";
+    return "border-[var(--color-active-border)] hover:border-[var(--color-text-hover)]/50";
   };
 
   const handleSelect = (optValue: string) => {
@@ -162,16 +145,16 @@ const SelectInput = ({
 
   return (
     <div ref={containerRef} className={`w-full ${className}`}>
-      {/* Label */}
+      {/* ── Label ── */}
       {label && (
-        <label className="flex items-center gap-2 text-xs font-semibold tracking-wide uppercase mb-2 bangla text-[var(--color-gray)]">
+        <label className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-gray)] bangla">
           {label}
           {required && (
             <motion.span
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: "spring", stiffness: 500 }}
-              className="text-rose-500"
+              className="text-red-500"
             >
               *
             </motion.span>
@@ -179,7 +162,7 @@ const SelectInput = ({
         </label>
       )}
 
-      {/* Trigger Button */}
+      {/* ── Trigger Button ── */}
       <motion.button
         ref={triggerRef}
         type="button"
@@ -187,12 +170,11 @@ const SelectInput = ({
         onClick={() => setOpen((v) => !v)}
         whileTap={{ scale: disabled ? 1 : 0.995 }}
         className={`
-          w-full px-4 py-3.5 rounded-xl border-2 text-sm 
-          transition-all duration-300 
-          flex items-center justify-between gap-2 
-          disabled:opacity-50 disabled:cursor-not-allowed 
-          bg-[var(--color-bg)] text-[var(--color-text)] 
-          focus:outline-none bangla cursor-pointer
+          flex w-full cursor-pointer items-center justify-between gap-2
+          rounded-xl border-2 bg-[var(--color-bg)] px-4 py-3.5
+          text-sm text-[var(--color-text)] transition-all duration-300
+          focus:outline-none disabled:cursor-not-allowed disabled:opacity-50
+          bangla
           ${getBorderClass()}
         `}
       >
@@ -201,7 +183,7 @@ const SelectInput = ({
             <motion.span
               initial={{ scale: 0.8 }}
               animate={{ scale: 1 }}
-              className="text-base shrink-0 text-violet-500"
+              className="shrink-0 text-base text-[var(--color-text-hover)]"
             >
               {selected.icon}
             </motion.span>
@@ -220,11 +202,11 @@ const SelectInput = ({
           transition={{ duration: 0.2, ease: "easeOut" }}
           className="shrink-0 text-[var(--color-gray)]"
         >
-          <ChevronDown className="w-4 h-4" />
+          <ChevronDown className="h-4 w-4" />
         </motion.span>
       </motion.button>
 
-      {/* Dropdown via Portal */}
+      {/* ── Dropdown ── */}
       <DropdownPortal triggerRef={triggerRef} isOpen={open}>
         <AnimatePresence>
           {open && (
@@ -234,25 +216,14 @@ const SelectInput = ({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.96 }}
               transition={{ duration: 0.15, ease: "easeOut" }}
-              className="rounded-xl overflow-hidden border-2 border-[var(--color-active-border)] 
-                bg-[var(--color-bg)] shadow-2xl"
-              style={{
-                boxShadow:
-                  "0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0,0,0,0.05)",
-              }}
+              className="overflow-hidden rounded-xl border-2 border-[var(--color-active-border)] bg-[var(--color-bg)] shadow-2xl ring-1 ring-black/5"
             >
               {options.length === 0 ? (
-                <p className="px-4 py-4 text-sm text-center bangla text-[var(--color-gray)]">
+                <p className="px-4 py-4 text-center text-sm text-[var(--color-gray)] bangla">
                   কোনো বিকল্প নেই
                 </p>
               ) : (
-                <div
-                  className="overflow-y-auto max-h-[240px] py-1"
-                  style={{
-                    scrollbarWidth: "thin",
-                    scrollbarColor: "var(--color-active-border) transparent",
-                  }}
-                >
+                <div className="max-h-[240px] overflow-y-auto py-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[var(--color-active-border)]">
                   {options.map((opt, index) => {
                     const isSelected = opt.value === value;
 
@@ -269,29 +240,29 @@ const SelectInput = ({
                         onClick={() => handleSelect(opt.value)}
                         whileHover={{ x: 4 }}
                         className={`
-                          w-full px-4 py-3 text-left text-sm 
-                          flex items-center gap-3 bangla 
-                          transition-colors relative cursor-pointer
-                          hover:bg-[var(--color-active-bg)]
+                          relative flex w-full cursor-pointer items-center gap-3
+                          px-4 py-3 text-left text-sm transition-colors
+                          hover:bg-[var(--color-active-bg)] bangla
                           ${
                             isSelected
-                              ? "bg-violet-500/10 text-violet-600 font-semibold"
+                              ? "bg-[var(--color-active-bg)] font-semibold text-[var(--color-text-hover)]"
                               : "text-[var(--color-text)]"
                           }
                         `}
                       >
-                        {/* Selected indicator bar */}
+                        {/* Selected accent bar */}
                         {isSelected && (
                           <motion.div
                             layoutId="selectedBar"
-                            className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 
-                              bg-gradient-to-b from-violet-500 to-fuchsia-500 rounded-r-full"
+                            className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-[var(--color-text-hover)]"
                           />
                         )}
 
                         {opt.icon && (
                           <span
-                            className={`text-base shrink-0 ${isSelected ? "text-violet-500" : ""}`}
+                            className={`shrink-0 text-base ${
+                              isSelected ? "text-[var(--color-text-hover)]" : ""
+                            }`}
                           >
                             {opt.icon}
                           </span>
@@ -305,7 +276,7 @@ const SelectInput = ({
                             animate={{ scale: 1 }}
                             transition={{ type: "spring", stiffness: 500 }}
                           >
-                            <Check className="w-4 h-4 text-violet-500" />
+                            <Check className="h-4 w-4 text-[var(--color-text-hover)]" />
                           </motion.span>
                         )}
                       </motion.button>
@@ -318,7 +289,7 @@ const SelectInput = ({
         </AnimatePresence>
       </DropdownPortal>
 
-      {/* Error message */}
+      {/* ── Error Message ── */}
       <AnimatePresence>
         {error && (
           <motion.p
@@ -326,7 +297,7 @@ const SelectInput = ({
             animate={{ opacity: 1, height: "auto", y: 0 }}
             exit={{ opacity: 0, height: 0, y: -5 }}
             transition={{ duration: 0.2 }}
-            className="text-rose-500 text-xs mt-1.5 bangla"
+            className="mt-1.5 text-xs text-red-500 bangla"
           >
             {error}
           </motion.p>

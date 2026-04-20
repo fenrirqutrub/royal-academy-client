@@ -11,7 +11,8 @@ import { GiEarthAsiaOceania, GiDna1 } from "react-icons/gi";
 import { FaBookOpen, FaFlask } from "react-icons/fa";
 
 import { Crown, GraduationCap, ShieldCheck, Star } from "lucide-react";
-import type { SelectOption } from "../components/common/SelectInput";
+import { toEn } from "./Formatters";
+import type { SelectOption } from "../types/types";
 
 // ─────────────────────────────────────────────────────────────
 // 🔹 CORE TYPES
@@ -283,8 +284,7 @@ export const YEARS: SelectOption[] = [
 
 export const BD_PHONE_REGEX = /^01[3-9]\d{8}$/;
 
-export const toAsciiDigits = (val: string): string =>
-  val.replace(/[০-৯]/g, (d) => String("০১২৩৪৫৬৭৮৯".indexOf(d)));
+export const toAsciiDigits = (val: string): string => toEn(val);
 
 export const validateBdPhone = (val: string): true | string => {
   const ascii = toAsciiDigits(val);

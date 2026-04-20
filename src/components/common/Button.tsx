@@ -29,7 +29,7 @@ type PropsOf<T extends AnyComponent> = T extends React.ElementType
     ? P
     : Record<string, unknown>;
 
-type ButtonProps<T extends AnyComponent = "button"> = ButtonOwnProps & {
+export type ButtonProps<T extends AnyComponent = "button"> = ButtonOwnProps & {
   as?: T;
 } & Omit<PropsOf<T>, keyof ButtonOwnProps | "as">;
 
@@ -44,30 +44,26 @@ const baseClasses = [
   "transition-all duration-150 ease-out",
   "active:scale-[0.96]",
   "focus-visible:outline-none focus-visible:ring-2",
-  "focus-visible:ring-[var(--color-text-hover)] focus-visible:ring-offset-2",
-  "focus-visible:ring-offset-[var(--color-bg)]",
+  "focus-visible:ring-blue-500 focus-visible:ring-offset-2",
+  "focus-visible:ring-offset-white",
   "disabled:opacity-40 disabled:pointer-events-none disabled:select-none",
 ].join(" ");
 
 const variantClasses: Record<ButtonVariants, string> = {
-  default: "bg-[var(--color-text)] text-[var(--color-bg)] hover:opacity-85",
+  default: "bg-[#1f2125] text-white hover:opacity-85",
 
-  secondary:
-    "bg-[var(--color-active-bg)] text-[var(--color-text)] hover:bg-[var(--color-active-border)]",
+  secondary: "bg-gray-100 text-[#1f2125] hover:bg-gray-200",
 
   outline:
-    "border border-[var(--color-active-border)] text-[var(--color-text)] bg-transparent " +
-    "hover:bg-[var(--color-active-bg)] hover:text-[var(--color-text-hover)]",
+    "border border-gray-300 text-[#1f2125] bg-transparent " +
+    "hover:bg-gray-100 hover:text-blue-600",
 
   ghost:
-    "text-[var(--color-text)] bg-transparent " +
-    "hover:bg-[var(--color-active-bg)] hover:text-[var(--color-active-text)]",
+    "text-[#1f2125] bg-transparent " + "hover:bg-gray-100 hover:text-gray-900",
 
-  accent:
-    "bg-[var(--color-brand)] text-white hover:bg-[var(--color-brand-hover)]",
+  accent: "bg-violet-600 text-white hover:bg-violet-700",
 
-  destructive:
-    "bg-[var(--color-danger)] text-white hover:bg-[var(--color-danger-hover)]",
+  destructive: "bg-rose-600 text-white hover:bg-rose-700",
 };
 
 const sizeClasses: Record<ButtonSizes, string> = {
@@ -110,4 +106,4 @@ const Button = React.forwardRef(
 (Button as unknown as { displayName: string }).displayName = "Button";
 
 export default Button;
-export type { ButtonProps, ButtonVariants, ButtonSizes, AnyComponent };
+export type { ButtonVariants, ButtonSizes, AnyComponent };
