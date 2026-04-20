@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useEffect, useState, useRef, useCallback } from "react";
+import { useMemo, useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { BookPlus, RotateCcw, CalendarDays, Filter } from "lucide-react";
 import toast from "react-hot-toast";
@@ -36,6 +36,7 @@ import {
   type DailyLessonData,
 } from "./DailyLessonUpdateModals";
 import DailyLessonCard from "./DailyLessonCard";
+import { useNavigate } from "react-router";
 
 const GUEST_PREVIEW_CLASS = "৬ষ্ঠ শ্রেণি";
 
@@ -98,69 +99,6 @@ const badgePulse: Variants = {
   },
   exit: { opacity: 0, scale: 0.85, transition: { duration: 0.15 } },
 };
-
-const loginPromptVariants: Variants = {
-  hidden: { opacity: 0, scale: 0.95, y: 6 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    y: 0,
-    transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] },
-  },
-  exit: {
-    opacity: 0,
-    scale: 0.95,
-    y: 6,
-    transition: { duration: 0.15 },
-  },
-};
-
-// ─── GuestLoginPrompt ─────────────────────────────────────────────────────────
-const GuestLoginPrompt = ({ onClose }: { onClose: () => void }) => (
-  <motion.div
-    variants={loginPromptVariants}
-    initial="hidden"
-    animate="visible"
-    exit="exit"
-    className="absolute inset-0 z-50 flex items-center justify-center rounded-xl backdrop-blur-[3px]"
-    onClick={onClose}
-  >
-    <div className="absolute inset-0 rounded-xl bg-[var(--color-active-bg)]" />
-
-    <motion.div
-      onClick={(e) => e.stopPropagation()}
-      className="relative z-10 mx-4 w-full max-w-[260px] rounded-2xl border border-[var(--color-active-border)] bg-[var(--color-bg)] p-5 shadow-xl"
-    >
-      <div className="mb-3 flex justify-center">
-        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--color-active-bg)] text-2xl">
-          🔒
-        </div>
-      </div>
-
-      <p className="mb-1 text-center text-sm font-bold text-[var(--color-text)] bangla">
-        লগইন প্রয়োজন
-      </p>
-      <p className="mb-4 text-center text-xs text-[var(--color-gray)] bangla">
-        সকল ফিচার ব্যবহার করতে লগইন করুন
-      </p>
-
-      <div className="flex gap-2">
-        <button
-          onClick={onClose}
-          className="flex-1 rounded-xl border border-[var(--color-active-border)] bg-[var(--color-active-bg)] py-2 text-xs font-semibold text-[var(--color-gray)] transition-colors hover:text-[var(--color-text)] bangla"
-        >
-          বাতিল
-        </button>
-        <a
-          href="/login"
-          className="flex-1 rounded-xl bg-[var(--color-text-hover)] py-2 text-center text-xs font-bold text-white transition-opacity hover:opacity-90 bangla"
-        >
-          লগইন করুন
-        </a>
-      </div>
-    </motion.div>
-  </motion.div>
-);
 
 // ─── ClassGroupTitle ──────────────────────────────────────────────────────────
 const ClassGroupTitle = ({
@@ -237,6 +175,7 @@ const DailyLesson = () => {
   const userSlug = user?.slug ?? "";
   const isManager = PRIVILEGED_ROLES.includes(userRole);
   const isStaff = STAFF_DASHBOARD_ROLES.includes(userRole);
+  const navigate = useNavigate();
 
   const defaultTeacherFilter = useMemo(
     () => getTeacherDefault(userRole, userSlug),
@@ -256,12 +195,6 @@ const DailyLesson = () => {
   const [deleteTarget, setDeleteTarget] = useState<DailyLessonData | null>(
     null,
   );
-
-  // ─── Guest prompt state ───
-  const [guestPromptArea, setGuestPromptArea] = useState<
-    "date" | "class" | "teacher" | null
-  >(null);
-  const closeGuestPrompt = useCallback(() => setGuestPromptArea(null), []);
 
   // ── Sync teacher filter when auth loads ──
   useEffect(() => {
@@ -406,6 +339,10 @@ const DailyLesson = () => {
     setSelectedTeacher(defaultTeacherFilter);
   };
 
+  const handleAddLesson = () => {
+    navigate("/dashboard/add-daily-lesson");
+  };
+
   const getClassLabel = (classId: string) => {
     if (classId.includes("৬ষ্ঠ")) return "ষষ্ঠ";
     if (classId.includes("৭ম")) return "সপ্তম";
@@ -494,34 +431,6 @@ const DailyLesson = () => {
         >
           প্রতিদিনের পাঠ্যক্রম ও নির্দেশনা
         </motion.p>
-
-        {/* Add lesson (staff) */}
-        <AnimatePresence>
-          {!isGuest && isStaff && (
-            <motion.div
-              initial={{ opacity: 0, y: 8, scale: 0.94 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 4, scale: 0.94 }}
-              transition={{ delay: 0.25, duration: 0.35, ease: "easeOut" }}
-              className="mt-5 flex justify-center"
-            >
-              <motion.button
-                whileHover={{ scale: 1.04, y: -1 }}
-                whileTap={{ scale: 0.96 }}
-                className="group flex items-center gap-2.5 rounded-full border-[1.5px] border-[var(--color-text-hover)] bg-[var(--color-active-bg)] px-5 py-2.5 text-sm font-bold text-[var(--color-text-hover)] shadow-sm outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[var(--color-text-hover)] focus-visible:ring-offset-2 bangla sm:px-6 sm:text-base"
-              >
-                <motion.span
-                  className="flex items-center"
-                  whileHover={{ rotate: 12 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 18 }}
-                >
-                  <BookPlus size={17} strokeWidth={2.2} />
-                </motion.span>
-                পাঠ যোগ করুন
-              </motion.button>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </header>
 
       {/* ── Filter Bar ── */}
@@ -560,18 +469,7 @@ const DailyLesson = () => {
             />
 
             {/* Guest intercept */}
-            {isGuest && (
-              <div
-                className="absolute inset-0 z-10 cursor-pointer rounded-xl"
-                onClick={() => setGuestPromptArea("date")}
-                aria-label="লগইন প্রয়োজন"
-              />
-            )}
-            <AnimatePresence>
-              {isGuest && guestPromptArea === "date" && (
-                <GuestLoginPrompt onClose={closeGuestPrompt} />
-              )}
-            </AnimatePresence>
+            {isGuest && <LoginPromptOverlay />}
           </div>
 
           {/* ── Teacher filter ── */}
@@ -586,19 +484,37 @@ const DailyLesson = () => {
             />
 
             {/* Guest intercept */}
-            {isGuest && (
-              <div
-                className="absolute inset-0 z-10 cursor-pointer rounded-xl"
-                onClick={() => setGuestPromptArea("teacher")}
-                aria-label="লগইন প্রয়োজন"
-              />
-            )}
-            <AnimatePresence>
-              {isGuest && guestPromptArea === "teacher" && (
-                <GuestLoginPrompt onClose={closeGuestPrompt} />
-              )}
-            </AnimatePresence>
+            {isGuest && <LoginPromptOverlay />}
           </div>
+
+          {/* Add lesson (staff) */}
+          <AnimatePresence>
+            {!isGuest && isStaff && (
+              <motion.div
+                initial={{ opacity: 0, y: 8, scale: 0.94 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 4, scale: 0.94 }}
+                transition={{ delay: 0.25, duration: 0.35, ease: "easeOut" }}
+                className="flex-1 justify-center items-center w-full"
+              >
+                <motion.button
+                  whileHover={{ scale: 1.04, y: -1 }}
+                  whileTap={{ scale: 0.96 }}
+                  className="group flex items-center gap-2.5 rounded bg-[var(--color-text)] px-5 py-3 text-sm font-bold text-[var(--color-bg)] shadow-sm outline-none transition-all duration-200 sm:px-6 sm:text-base"
+                  onClick={handleAddLesson}
+                >
+                  <motion.span
+                    className="flex items-center"
+                    whileHover={{ rotate: 12 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 18 }}
+                  >
+                    <BookPlus size={17} strokeWidth={2.2} />
+                  </motion.span>
+                  পড়া জমা দিন
+                </motion.button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Badge + Reset */}
           <div className="flex items-end gap-2.5 sm:ml-auto">
@@ -699,18 +615,7 @@ const DailyLesson = () => {
             />
 
             {/* Guest intercept */}
-            {isGuest && (
-              <div
-                className="absolute inset-0 z-10 cursor-pointer rounded-xl"
-                onClick={() => setGuestPromptArea("class")}
-                aria-label="লগইন প্রয়োজন"
-              />
-            )}
-            <AnimatePresence>
-              {isGuest && guestPromptArea === "class" && (
-                <GuestLoginPrompt onClose={closeGuestPrompt} />
-              )}
-            </AnimatePresence>
+            {isGuest && <LoginPromptOverlay />}
           </div>
         </motion.div>
       </motion.div>

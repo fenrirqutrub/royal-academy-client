@@ -16,30 +16,31 @@ const LoginPromptOverlay = () => {
       <div className="absolute -top-24 left-0 right-0 h-24 bg-gradient-to-b from-transparent to-[var(--color-bg)] z-10 pointer-events-none" />
 
       {/* Prompt box */}
-      <div className="relative z-20 mx-2 sm:mx-0 rounded-2xl border border-[var(--color-active-border)] bg-[var(--color-active-bg)] px-6 py-8 flex flex-col justify-center items-center bangla shadow-xl">
-        <LockKeyhole className="w-10 h-10 my-5" />
+      <div className="relative z-20 mx-2 sm:mx-0 rounded-2xl border border-[var(--color-active-border)] bg-[var(--color-active-bg)] px-6 py-8 flex flex-col justify-center items-center text-center bangla shadow-xl">
+        <LockKeyhole className="w-9 h-9 mb-4 text-[var(--color-text-hover)]" />
 
-        <h3 className="text-lg sm:text-xl font-extrabold text-[var(--color-text)] mb-2">
+        <h3 className="text-lg sm:text-xl font-extrabold text-[var(--color-text)] mb-2 leading-snug">
           সব তথ্য দেখতে লগইন করুন
         </h3>
-        <p className="text-sm text-[var(--color-gray)] mb-6">
+        <p className="text-sm text-[var(--color-gray)] mb-6 max-w-xs leading-relaxed">
           সম্পূর্ণ পাঠ্যক্রম ও পরীক্ষার তথ্য দেখতে আপনার অ্যাকাউন্টে প্রবেশ
           করুন।
         </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+
+        <div className="flex flex-col items-center justify-center gap-3 w-full max-w-xs">
           <button
             onClick={() => navigate("/login")}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-[var(--color-text)] text-[var(--color-bg)] font-bold text-sm hover:opacity-90 transition-opacity"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--color-text)] text-[var(--color-bg)] font-bold text-sm hover:opacity-90 transition-opacity whitespace-nowrap"
           >
-            <Key className="w-4 h-4" />
+            <Key className="w-4 h-4 shrink-0" />
             লগইন করুন
           </button>
           <button
             onClick={() => navigate("/signup")}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl border border-[var(--color-active-border)] text-[var(--color-text)] font-bold text-sm hover:bg-[var(--color-active-bg)] transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-[var(--color-active-border)] text-[var(--color-text)] font-bold text-sm hover:bg-[var(--color-active-bg)] transition-colors whitespace-nowrap"
           >
-            <UserPlus className="w-4 h-4" />
-            নতুন অ্যাকাউন্ট খুলুন
+            <UserPlus className="w-4 h-4 shrink-0" />
+            অ্যাকাউন্ট খুলুন
           </button>
         </div>
       </div>
