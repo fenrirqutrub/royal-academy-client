@@ -6,7 +6,7 @@ import { useNavigate, useLocation } from "react-router";
 import axiosPublic from "../../hooks/axiosPublic";
 import NoticeModal, { type NoticeItem } from "./NoticeModal";
 import { Pagination } from "../../components/common/Pagination";
-import { toBn } from "../../utility/shared";
+import { toBn } from "../../utility/Formatters";
 import ErrorState from "../../components/common/ErrorState";
 import Skeleton from "../../components/common/Skeleton";
 import EmptyState from "../../components/common/Emptystate";

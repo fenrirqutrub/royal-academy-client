@@ -21,7 +21,7 @@ import {
   getNumberInfo,
   type ColorConfig,
   type Exam,
-} from "../../utility/shared";
+} from "../../utility/Formatters";
 import { useAuth } from "../../context/AuthContext";
 
 import { Swiper, SwiperSlide } from "swiper/react";

@@ -7,7 +7,7 @@ import { type Teacher, TeacherCard } from "./TeacherFiles.Ui";
 import SearchBar from "../common/Searchbar";
 import EmptyState from "../common/Emptystate";
 import { useAuth } from "../../context/AuthContext";
-import { toBn } from "../../utility/shared";
+import { toBn } from "../../utility/Formatters";
 
 const TeacherFiles = () => {
   const [search, setSearch] = useState("");

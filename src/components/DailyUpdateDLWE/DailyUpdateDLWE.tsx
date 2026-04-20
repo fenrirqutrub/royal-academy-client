@@ -4,12 +4,17 @@ import { useNavigate } from "react-router";
 import { motion } from "framer-motion";
 import Marquee from "react-fast-marquee";
 import { BookOpen, FileText, GraduationCap, Folder } from "lucide-react";
-import { BN_DAYS_FULL, BN_MONTHS } from "../common/Datepicker";
-import { CLASS_COLORS, DEFAULT_CLASS_COLOR, toBn } from "../../utility/shared";
+
+import { BN_DAYS_FULL, BN_MONTHS, toBn } from "../../utility/Formatters";
 
 import axiosPublic from "../../hooks/axiosPublic";
-import { CLASS_ORDER, EXAM_COLORS } from "../../utility/Constants";
+import { CLASS_ORDER } from "../../utility/Constants";
 import type { DailyLessonData } from "../../pages/DailyLesson/DailyLessonUpdateModals";
+import {
+  CLASS_COLORS,
+  DEFAULT_CLASS_COLOR,
+  EXAM_COLORS,
+} from "../../styles/colors";
 
 // ─── Types ────────────────────────────────────────────────
 interface WeeklyExamRaw {

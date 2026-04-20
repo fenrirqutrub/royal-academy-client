@@ -21,7 +21,6 @@ import { useNavigate } from "react-router";
 import ExamModal from "./ExamModal";
 
 import {
-  COLORS,
   type Exam,
   type ExamImage,
   AnimatedSlide,
@@ -29,11 +28,12 @@ import {
   SlideProgress,
   toBn,
   getNumberInfo,
-} from "../../utility/shared";
+} from "../../utility/Formatters";
 import { useAuth } from "../../context/AuthContext";
 import Button from "../../components/common/Button";
 import { getCloudinaryOptimizedUrls } from "../../hooks/useCloudinaryUpload";
 import toast from "react-hot-toast";
+import { COLORS } from "../../styles/colors";
 
 /* ─── Animation Variants ─────────────────────────────────────────────────── */
 

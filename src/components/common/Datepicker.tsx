@@ -7,40 +7,12 @@ import {
   IoCalendarOutline,
 } from "react-icons/io5";
 import { RxCross2 } from "react-icons/rx";
-import { toBn } from "../../utility/shared";
-
-export const BN_DAYS_SHORT = [
-  "রবি",
-  "সোম",
-  "মঙ্গল",
-  "বুধ",
-  "বৃহ",
-  "শুক্র",
-  "শনি",
-];
-export const BN_MONTHS = [
-  "জানুয়ারি",
-  "ফেব্রুয়ারি",
-  "মার্চ",
-  "এপ্রিল",
-  "মে",
-  "জুন",
-  "জুলাই",
-  "আগস্ট",
-  "সেপ্টেম্বর",
-  "অক্টোবর",
-  "নভেম্বর",
-  "ডিসেম্বর",
-];
-export const BN_DAYS_FULL = [
-  "রবিবার",
-  "সোমবার",
-  "মঙ্গলবার",
-  "বুধবার",
-  "বৃহস্পতিবার",
-  "শুক্রবার",
-  "শনিবার",
-];
+import {
+  BN_DAYS_FULL,
+  BN_DAYS_SHORT,
+  BN_MONTHS,
+  toBn,
+} from "../../utility/Formatters";
 
 const formatDisplay = (date: Date) =>
   `${BN_DAYS_FULL[date.getDay()]}, ${toBn(date.getDate())} ${BN_MONTHS[date.getMonth()]} ${toBn(date.getFullYear())}`;

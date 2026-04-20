@@ -8,7 +8,7 @@ import Skeleton from "../../components/common/Skeleton";
 import EmptyState from "../../components/common/Emptystate";
 import { useAuth } from "../../context/AuthContext";
 import Swal from "sweetalert2";
-import { toBn } from "../../utility/shared";
+import { toBn } from "../../utility/Formatters";
 
 const StudentsFiles = () => {
   const [search, setSearch] = useState("");

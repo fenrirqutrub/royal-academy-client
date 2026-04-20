@@ -15,7 +15,7 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
-import { toBn, type ClassColor } from "../../utility/shared";
+import { toBn, type ClassColor } from "../../utility/Formatters";
 import type { DailyLessonItem } from "./DailyLessonCard";
 import { extractTeacher } from "./DailyLessonCard";
 

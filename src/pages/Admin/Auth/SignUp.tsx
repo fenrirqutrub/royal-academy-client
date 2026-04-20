@@ -74,9 +74,9 @@ import {
   type FieldState,
   type Gender,
   type Religion,
-  type SignupForm,
   type StaffRole,
 } from "../../../utility/Constants";
+import type { SignupForm } from "../../../types/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

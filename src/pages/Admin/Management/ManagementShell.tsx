@@ -22,7 +22,7 @@ import {
   ROLE_BADGE_CLASS,
   type UserRole,
 } from "../../../utility/Constants";
-import { toBn, toBnDateStr } from "../../../utility/shared";
+import { toBn, toBnDateStr } from "../../../utility/Formatters";
 
 import {
   RequiredStar,

@@ -14,23 +14,26 @@ import Skeleton from "../../../components/common/Skeleton";
 import ErrorState from "../../../components/common/ErrorState";
 import { useAuth } from "../../../context/AuthContext";
 import { CLASS_OPTIONS, getSubjects } from "../../../utility/Constants";
-import DatePicker, {
+import DatePicker from "../../../components/common/Datepicker";
+import {
   BN_DAYS_FULL,
   BN_MONTHS,
-} from "../../../components/common/Datepicker";
+  toBn,
+  toEn,
+} from "../../../utility/Formatters";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 interface DailyLessonFormData {
   subject: string;
-  teacher: string; // ← ObjectId string
+  teacher: string;
   class: string;
   chapterNumber: string;
   topics: string;
-  date: string; // শুধু UI display এর জন্য (বাংলা string)
+  date: string;
 }
 
 interface TeacherItem {
-  _id: string; // raw MongoDB _id from /api/users
+  _id: string;
   name: string;
   slug: string;
   role: string;
@@ -39,23 +42,6 @@ interface TeacherItem {
 type ReferenceType = "chapter" | "page";
 
 // ─── Bangla numeral helpers ────────────────────────────────────────────────────
-const BN: Record<string, string> = {
-  "0": "০",
-  "1": "১",
-  "2": "২",
-  "3": "৩",
-  "4": "৪",
-  "5": "৫",
-  "6": "৬",
-  "7": "৭",
-  "8": "৮",
-  "9": "৯",
-};
-
-const toBn = (s: string) => s.replace(/[0-9]/g, (d) => BN[d] ?? d);
-
-const toEn = (s: string) =>
-  s.replace(/[০-৯]/g, (d) => String("০১২৩৪৫৬৭৮৯".indexOf(d)));
 
 const normaliseInput = (raw: string): string =>
   toBn(raw.replace(/[^0-9০-৯.,\-\s]/g, ""));
@@ -708,7 +694,7 @@ const AddDailyLesson = () => {
                 control={control}
                 rules={{
                   required: "বিষয়বস্তু আবশ্যিক",
-                  minLength: { value: 20, message: "কমপক্ষে ২০ অক্ষর লিখুন" },
+                  minLength: { value: 5, message: "কমপক্ষে ৫ অক্ষর লিখুন" },
                 }}
                 render={({ field, fieldState }) => (
                   <textarea

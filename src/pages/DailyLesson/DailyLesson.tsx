@@ -1,18 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useEffect, useState } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
+import { BookPlus } from "lucide-react";
 import toast from "react-hot-toast";
 import axiosPublic from "../../hooks/axiosPublic";
 import DailyLessonCard from "./DailyLessonCard";
 import DatePicker from "../../components/common/Datepicker";
 import Skeleton from "../../components/common/Skeleton";
 import { useAuth } from "../../context/AuthContext";
-import {
-  CLASS_COLORS,
-  DEFAULT_CLASS_COLOR,
-  toBn,
-  toBnDateStr,
-} from "../../utility/shared";
+import { toBn, toBnDateStr } from "../../utility/Formatters";
 import { CLASS_ORDER } from "../../utility/Constants";
 import EmptyState from "../../components/common/Emptystate";
 import Button from "../../components/common/Button";
@@ -24,7 +20,8 @@ import {
 } from "./DailyLessonUpdateModals";
 import { useGuestPreview } from "../../hooks/useGuestPreview";
 import LoginPromptOverlay from "../Admin/Auth/LoginPromptOverlay";
-import ClassTabs from "../../components/common/ClassTabs";
+import { CLASS_COLORS, DEFAULT_CLASS_COLOR } from "../../styles/colors";
+import ClassFilterBtns from "../../components/common/ClassFilterBtns";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const MANAGER_ROLES = ["principal", "admin", "owner"];
@@ -263,7 +260,7 @@ const DailyLesson = () => {
 
   return (
     <div className="relative">
-      {/* Header */}
+      {/* ── Header ── */}
       <header className="mb-6 px-3 text-center bangla sm:mb-8">
         <motion.h1
           initial={{ opacity: 0, y: -14 }}
@@ -281,10 +278,48 @@ const DailyLesson = () => {
         >
           প্রতিদিনের পাঠ্যক্রম ও নির্দেশনা
         </motion.p>
+
+        {/* ── Add lesson button (staff only) ── */}
+        <AnimatePresence>
+          {!isGuest && isStaff && (
+            <motion.div
+              initial={{ opacity: 0, y: 6, scale: 0.94 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 4, scale: 0.94 }}
+              transition={{ delay: 0.18, duration: 0.3, ease: "easeOut" }}
+              className="mt-4 flex justify-center"
+            >
+              <motion.button
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  /* navigate to add-lesson or open modal */
+                }}
+                className="group flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-[var(--color-brand)] bangla sm:px-5 sm:text-base"
+                style={{
+                  border: "1.5px solid var(--color-brand)",
+                  background: "var(--color-brand-soft)",
+                  color: "var(--color-brand)",
+                }}
+              >
+                <motion.span
+                  className="flex items-center"
+                  animate={{ rotate: 0 }}
+                  whileHover={{ rotate: 12 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 18 }}
+                >
+                  <BookPlus size={16} strokeWidth={2.2} />
+                </motion.span>
+                পাঠ যোগ করুন
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
-      {/* Filter Bar */}
-      <div className="mb-4 flex flex-col items-center justify-between gap-4 px-2 sm:mb-6 sm:px-3 md:flex-row md:px-0">
+      {/* ── Filter Bar ── */}
+      <div className="mb-4 flex flex-col items-center justify-between gap-3 px-2 sm:mb-6 sm:gap-4 sm:px-3 md:flex-row md:px-0">
+        {/* Date picker */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -312,18 +347,15 @@ const DailyLesson = () => {
           />
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-        >
-          <ClassTabs
-            activeId={selectedClass}
-            onChange={isGuest ? () => {} : setSelectedClass}
-            data={dateFilteredData}
-          />
-        </motion.div>
+        {/* Class filter buttons */}
+        <ClassFilterBtns
+          activeId={selectedClass}
+          onChange={setSelectedClass}
+          data={dateFilteredData}
+          disabled={isGuest}
+        />
 
+        {/* Lesson count badge */}
         <AnimatePresence mode="wait">
           {totalLessonsForDate > 0 && (
             <motion.div
@@ -331,7 +363,7 @@ const DailyLesson = () => {
               initial={{ opacity: 0, scale: 0.85 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.85 }}
-              className="rounded-full border border-[var(--color-active-border)] bg-[var(--color-active-bg)] px-3 py-1.5 text-xs text-[var(--color-gray)] bangla sm:text-sm"
+              className="shrink-0 rounded-full border border-[var(--color-active-border)] bg-[var(--color-active-bg)] px-3 py-1.5 text-xs text-[var(--color-gray)] bangla sm:text-sm"
             >
               {isGuest ? (
                 <>
@@ -372,7 +404,7 @@ const DailyLesson = () => {
         </AnimatePresence>
       </div>
 
-      {/* Staff indicator */}
+      {/* ── Staff indicator ── */}
       {!isGuest && isStaff && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -388,7 +420,7 @@ const DailyLesson = () => {
         </motion.div>
       )}
 
-      {/* Content */}
+      {/* ── Content ── */}
       {isError ? (
         <div className="py-16 text-center text-xs text-[var(--color-danger)] bangla sm:py-20 sm:text-sm">
           ডেটা লোড করতে সমস্যা হয়েছে। পুনরায় চেষ্টা করুন।
@@ -491,7 +523,7 @@ const DailyLesson = () => {
         </AnimatePresence>
       )}
 
-      {/* Modals */}
+      {/* ── Modals ── */}
       <AnimatePresence>
         {editTarget && !isGuest && (
           <EditModal

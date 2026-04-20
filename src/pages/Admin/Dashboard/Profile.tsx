@@ -42,15 +42,15 @@ import { uploadToCloudinaryDirect } from "../../../hooks/useCloudinaryUpload";
 import {
   ROLE_CONFIG,
   CLASS_OPTIONS,
-  RELIGION_SELECT_OPTIONS,
-  SUBJECT_GROUP_SELECT_OPTIONS,
-  DEGREE_SELECT_OPTIONS,
-  ACADEMIC_YEAR_OPTIONS,
-  SUBJECT_REQUIRED_CLASSES,
-  DEGREE_LABEL,
   toLocalIso,
   validateBdPhone,
   type UserRole,
+  SUBJECT_REQUIRED_CLASSES,
+  SUBJECT_GROUPS,
+  DEGREE_LABEL,
+  DEGREE_SELECT_OPTIONS,
+  YEARS,
+  RELIGION_SELECT_OPTIONS,
 } from "../../../utility/Constants";
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
@@ -1414,7 +1414,7 @@ const Profile = () => {
                             label="বিভাগ"
                           />
                           <SelectInput
-                            options={SUBJECT_GROUP_SELECT_OPTIONS}
+                            options={SUBJECT_GROUPS}
                             value={
                               formData.studentSubject ??
                               profile?.studentSubject ??
@@ -1561,7 +1561,7 @@ const Profile = () => {
                             label="বর্তমান বর্ষ"
                           />
                           <SelectInput
-                            options={ACADEMIC_YEAR_OPTIONS}
+                            options={YEARS}
                             value={
                               formData.currentYear ?? profile?.currentYear ?? ""
                             }

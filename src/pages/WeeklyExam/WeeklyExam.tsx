@@ -8,7 +8,6 @@ import ExamPagination from "../../components/common/ExamPagination";
 import axiosPublic from "../../hooks/axiosPublic";
 import Marquee from "react-fast-marquee";
 import Skeleton from "../../components/common/Skeleton";
-import { BN_DAYS_FULL, BN_MONTHS } from "../../components/common/Datepicker";
 import { TfiLayoutLineSolid } from "react-icons/tfi";
 import { Fan } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -20,7 +19,7 @@ import {
 import { useGuestPreview } from "../../hooks/useGuestPreview";
 import LoginPromptOverlay from "../Admin/Auth/LoginPromptOverlay";
 import ClassTabs from "../../components/common/ClassTabs";
-import { toBn } from "../../utility/shared";
+import { BN_DAYS_FULL, BN_MONTHS, toBn } from "../../utility/Formatters";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface NormalizedImage {

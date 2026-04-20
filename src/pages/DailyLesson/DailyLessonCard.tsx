@@ -13,7 +13,7 @@ import {
   Key,
 } from "lucide-react";
 import { useNavigate } from "react-router";
-import { toBn, type ClassColor, hexToRgb } from "../../utility/shared";
+import { toBn, type ClassColor, hexToRgb } from "../../utility/Formatters";
 import { useAuth } from "../../context/AuthContext";
 import DailyLessonModal from "./DailyLessonModal";
 import Button from "../../components/common/Button";

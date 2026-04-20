@@ -8,7 +8,7 @@ import axiosPublic from "../../../hooks/axiosPublic";
 import type { TeacherData } from "../../../components/Teachers/Teacher";
 import { useQuery } from "@tanstack/react-query";
 import { TriangleAlert } from "lucide-react";
-import { toBn } from "../../../utility/shared";
+import { toBn } from "../../../utility/Formatters";
 
 const stagger: Variants = {
   hidden: {},
