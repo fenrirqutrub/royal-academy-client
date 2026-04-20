@@ -64,26 +64,6 @@ const getLastSaturdayMidnight = (): Date => {
   return sat;
 };
 
-// ─── Custom Hook for Responsive Guest Limit ───────────────────────────────────
-const useResponsiveGuestLimit = (): number => {
-  const [limit, setLimit] = useState<number>(() => {
-    if (typeof window !== "undefined") {
-      return window.innerWidth < 640 ? 2 : 3;
-    }
-    return 3;
-  });
-
-  useEffect(() => {
-    const handleResize = () => {
-      setLimit(window.innerWidth < 640 ? 2 : 3);
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  return limit;
-};
-
 // ─── Animation Variants ───────────────────────────────────────────────────────
 const groupTitleVariants: Variants = {
   hidden: { opacity: 0, x: -20 },
@@ -147,7 +127,6 @@ const WeeklyExam = () => {
   const { user } = useAuth();
   const qc = useQueryClient();
   const { isGuest } = useGuestPreview();
-  const responsiveLimit = useResponsiveGuestLimit();
 
   const [selectedExamNumber, setSelectedExamNumber] = useState<string | null>(
     null,
@@ -155,6 +134,7 @@ const WeeklyExam = () => {
   const [selectedClass, setSelectedClass] = useState<string>("all");
   const [editTarget, setEditTarget] = useState<WeeklyExamData | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<WeeklyExamData | null>(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
   const userRole = user?.role ?? "student";
   const userSlug = user?.slug ?? "";
@@ -319,7 +299,6 @@ const WeeklyExam = () => {
       key={exam._id}
       exam={{
         ...exam,
-
         date: formatCreatedAt(exam.createdAt),
         images: normalizeImages(exam.images),
       }}
@@ -334,37 +313,33 @@ const WeeklyExam = () => {
 
   // ─── Guest content ────────────────────────────────────────────────────────
   const buildGuestContent = () => {
-    let cardCount = 0;
-    const elements: React.ReactNode[] = [];
+    const class6 = groupedByClass.find(({ className }) =>
+      className.includes("৬ষ্ঠ"),
+    );
 
-    for (const { className, exams } of groupedByClass) {
-      if (cardCount >= responsiveLimit) break;
-      const remaining = responsiveLimit - cardCount;
-      const visibleExams = exams.slice(0, remaining);
-      cardCount += visibleExams.length;
+    if (!class6) return null;
 
-      elements.push(
-        <div key={className}>
-          <ClassGroupTitle
-            className={className}
-            index={elements.length}
-            count={exams.length}
-          />
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4 mb-8 sm:mb-10">
-            {visibleExams.map((exam, i) => renderCard(exam, i))}
-          </div>
-        </div>,
-      );
-    }
+    const visibleExams = class6.exams.slice(0, 2);
 
     return (
-      <div className="relative">
-        {elements}
-        <LoginPromptOverlay />
-      </div>
+      <>
+        <ClassGroupTitle
+          className={class6.className}
+          index={0}
+          count={class6.exams.length}
+        />
+        <div
+          className="relative grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4 mb-8 sm:mb-10 cursor-pointer"
+          onClick={() => setShowLoginPrompt(true)}
+        >
+          {visibleExams.map((exam, i) => renderCard(exam, i))}
+
+          {/* Fade overlay at bottom */}
+          <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[var(--color-bg)] to-transparent pointer-events-none" />
+        </div>
+      </>
     );
   };
-
   // ─── Guards ───────────────────────────────────────────────────────────────
   if (isLoading) return <Skeleton variant="daily-lesson" />;
   if (isError) {
@@ -390,12 +365,19 @@ const WeeklyExam = () => {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.1 }}
-        className="flex justify-center mt-4 sm:mt-6 px-2"
+        className="relative flex justify-center mt-4 sm:mt-6 px-2"
       >
         <ClassTabs
           activeId={selectedClass}
           onChange={isGuest ? () => {} : setSelectedClass}
         />
+        {/* Guest intercept */}
+        {isGuest && (
+          <div
+            className="absolute inset-0 z-10 cursor-pointer"
+            onClick={() => setShowLoginPrompt(true)}
+          />
+        )}
       </motion.div>
 
       {/* Filter Info */}
@@ -438,9 +420,9 @@ const WeeklyExam = () => {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.3 }}
-          className="mt-4 sm:mt-6 mb-4 mx-2 sm:mx-0 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl  border border-[var(--color-active-bg)] "
+          className="mt-4 sm:mt-6 mb-4 mx-2 sm:mx-0 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-[var(--color-active-bg)]"
         >
-          <p className="text-xs sm:text-sm text-[var(--color-gray)]  text-center sm:text-left">
+          <p className="text-xs sm:text-sm text-[var(--color-gray)] text-center sm:text-left">
             {isManager
               ? "🔑  আপনি সকল পরীক্ষা সম্পাদনা ও মুছে ফেলতে পারবেন"
               : "✏️ আপনি শুধু নিজের যোগ করা পরীক্ষা সম্পাদনা ও মুছে ফেলতে পারবেন"}
@@ -532,14 +514,23 @@ const WeeklyExam = () => {
 
       {/* Pagination */}
       {displayExamNumbers.length > 0 && activeExamNumber && (
-        <ExamPagination
-          examNumbers={displayExamNumbers}
-          selected={activeExamNumber}
-          onSelect={isGuest ? () => {} : setSelectedExamNumber}
-        />
+        <div className="relative">
+          <ExamPagination
+            examNumbers={displayExamNumbers}
+            selected={activeExamNumber}
+            onSelect={isGuest ? () => {} : setSelectedExamNumber}
+          />
+          {/* Guest intercept */}
+          {isGuest && (
+            <div
+              className="absolute inset-0 z-10 cursor-pointer"
+              onClick={() => setShowLoginPrompt(true)}
+            />
+          )}
+        </div>
       )}
 
-      {/* ✅ Modals — lagbe, ekhane thakbe */}
+      {/* Modals */}
       <AnimatePresence>
         {editTarget && (
           <EditModal
@@ -561,6 +552,12 @@ const WeeklyExam = () => {
           />
         )}
       </AnimatePresence>
+
+      {/* Guest Login Prompt */}
+      <LoginPromptOverlay
+        isOpen={showLoginPrompt}
+        onClose={() => setShowLoginPrompt(false)}
+      />
     </div>
   );
 };
