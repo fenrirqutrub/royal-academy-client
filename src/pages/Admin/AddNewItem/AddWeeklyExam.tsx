@@ -24,68 +24,22 @@ import ErrorState from "../../../components/common/ErrorState";
 import { useAuth } from "../../../context/AuthContext";
 import { CLASS_OPTIONS, getSubjects } from "../../../utility/Constants";
 import { uploadMultipleToCloudinary } from "../../../hooks/useCloudinaryUpload";
-import type { SelectOption } from "../../../types/types";
-import { toBn } from "../../../utility/Formatters";
+import type {
+  SelectOption,
+  TeacherItem,
+  WeeklyExamFormData,
+} from "../../../types/types";
+import { toBn, toEn } from "../../../utility/Formatters";
 
 // ─── Types ────────────────────────────────────────────────
-interface WeeklyExamFormData {
-  subject: string;
-  teacher: string;
-  class: string;
-  mark: number;
-  ExamNumber: string;
-  numberType: "pageNumber" | "chapterNumber";
-  numberValue: string;
-  topics: string;
-  question: string;
-  slug?: string;
-}
 
-interface TeacherItem {
-  name: string;
-  slug: string;
-  role: string;
-}
-
-// ─── Bangla numeral helpers ────────────────────────────────
-const EN_TO_BN: Record<string, string> = {
-  "0": "০",
-  "1": "১",
-  "2": "২",
-  "3": "৩",
-  "4": "৪",
-  "5": "৫",
-  "6": "৬",
-  "7": "৭",
-  "8": "৮",
-  "9": "৯",
-};
-
-const toBanglaDigits = (str: string): string =>
-  str.replace(/[0-9]/g, (d) => EN_TO_BN[d] ?? d);
-
-const toAsciiDigits = (str: string): string =>
-  str
-    .replace(/০/g, "0")
-    .replace(/১/g, "1")
-    .replace(/২/g, "2")
-    .replace(/৩/g, "3")
-    .replace(/৪/g, "4")
-    .replace(/৫/g, "5")
-    .replace(/৬/g, "6")
-    .replace(/৭/g, "7")
-    .replace(/৮/g, "8")
-    .replace(/৯/g, "9")
-    .replace(/।/g, ".")
-    .replace(/–/g, "-")
-    .replace(/—/g, "-");
-
+// ─── Validation helpers ────────────────────────────────────
 const validatePositiveNumber = (
   raw: string,
   fieldLabel: string,
 ): string | true => {
   if (!raw) return `${fieldLabel} আবশ্যিক`;
-  const ascii = toAsciiDigits(raw).trim();
+  const ascii = toEn(raw).trim();
   if (!/^\d+$/.test(ascii)) return "শুধু পূর্ণসংখ্যা দিন (যেমন: ১, ২, ৩)";
   if (parseInt(ascii) <= 0) return "নম্বর ০-এর চেয়ে বড় হতে হবে";
   return true;
@@ -96,7 +50,7 @@ const validateNumberValue = (
   fieldLabel: string,
 ): string | true => {
   if (!raw?.trim()) return `${fieldLabel} আবশ্যিক`;
-  const ascii = toAsciiDigits(raw).trim();
+  const ascii = toEn(raw).trim();
   if (!/^[\d.\-–, ]+$/.test(ascii)) {
     return "শুধু সংখ্যা, দশমিক (.), হাইফেন (-) এবং কমা (,) ব্যবহার করুন";
   }
@@ -122,7 +76,7 @@ const validateNumberValue = (
 const MARK_OPTIONS: SelectOption[] = [5, 10, 15, 20, 25, 30, 35, 40].map(
   (n) => ({
     value: String(n),
-    label: toBanglaDigits(String(n)),
+    label: toBn(n),
   }),
 );
 
@@ -291,7 +245,7 @@ const BanglaNumberInput = ({
           input = input.replace(/[^\d০-৯।.\-–—,]/g, "");
           input = input.replace(/[-–—]{2,}/g, "-");
           input = input.replace(/[.।]{2,}/g, ".");
-          onChange(toBanglaDigits(input));
+          onChange(toBn(input));
         }}
         onFocus={() => setIsFocused(true)}
         onBlur={() => {
@@ -359,7 +313,12 @@ const AddWeeklyExam = () => {
         user?.slug &&
         !staff.some((t) => t.slug === user.slug)
       ) {
-        staff.unshift({ name: user.name, slug: user.slug, role: user.role });
+        staff.unshift({
+          name: user.name,
+          slug: user.slug,
+          role: user.role,
+          _id: "",
+        });
       }
       return staff;
     },
@@ -428,16 +387,15 @@ const AddWeeklyExam = () => {
       formData: WeeklyExamFormData;
       images: File[];
     }) => {
-      // ── Step 1: Images direct Cloudinary te upload ──────
       let uploadedImages: { imageUrl: string; publicId: string }[] = [];
 
       if (data.images.length > 0) {
-        setUploadProgress(0); // reset
+        setUploadProgress(0);
         const cloudinaryResults = await uploadMultipleToCloudinary(
           data.images,
           {
             folder: "weekly-exams",
-            onProgress: setUploadProgress, // ✅ Progress callback
+            onProgress: setUploadProgress,
           },
         );
         uploadedImages = cloudinaryResults.map((r) => ({
@@ -446,15 +404,14 @@ const AddWeeklyExam = () => {
         }));
       }
 
-      // ── Step 2: Server e shudhu JSON + URLs ────────────
       const payload = {
         subject: data.formData.subject,
         teacher: data.formData.teacher,
         class: data.formData.class,
         mark: data.formData.mark,
-        ExamNumber: toAsciiDigits(data.formData.ExamNumber),
+        ExamNumber: toEn(data.formData.ExamNumber),
         numberType: data.formData.numberType,
-        [data.formData.numberType]: toAsciiDigits(data.formData.numberValue),
+        [data.formData.numberType]: toEn(data.formData.numberValue),
         topics: data.formData.topics,
         question: data.formData.question,
         teacherSlug: user?.slug,
@@ -470,7 +427,7 @@ const AddWeeklyExam = () => {
       reset();
       setImageFiles([]);
       setPreviews([]);
-      setUploadProgress(0); // ✅ Reset progress
+      setUploadProgress(0);
       setSubmitted(true);
       setTimeout(() => setSubmitted(false), 2500);
     },
@@ -478,7 +435,7 @@ const AddWeeklyExam = () => {
       toast.error(
         err?.response?.data?.message || err?.message || "Failed to create exam",
       );
-      setUploadProgress(0); // ✅ Reset on error
+      setUploadProgress(0);
     },
   });
 
@@ -847,7 +804,7 @@ const AddWeeklyExam = () => {
                         <textarea
                           rows={4}
                           placeholder="পরীক্ষার প্রশ্ন লিখুন (যদি থাকে)..."
-                          value={toBn(field.value)}
+                          value={field.value}
                           onChange={field.onChange}
                           onFocus={() => setIsFocused(true)}
                           onBlur={() => {
@@ -972,7 +929,7 @@ const AddWeeklyExam = () => {
                     className="text-xs text-[var(--color-gray)] mt-2 bangla flex items-center gap-1.5"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                    {toBanglaDigits(String(previews.length))}টি ছবি নির্বাচিত
+                    {toBn(previews.length)}টি ছবি নির্বাচিত
                   </motion.p>
                 )}
               </AnimatedCard>
@@ -990,11 +947,11 @@ const AddWeeklyExam = () => {
                       <span className="flex items-center gap-1.5">
                         <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-500" />
                         {uploadProgress < 100
-                          ? `ছবি আপলোড হচ্ছে (${toBanglaDigits(String(imageFiles.length))}টি)…`
+                          ? `ছবি আপলোড হচ্ছে (${toBn(imageFiles.length)}টি)…`
                           : "ডেটা সংরক্ষণ হচ্ছে…"}
                       </span>
                       <span className="font-bold text-violet-500">
-                        {toBanglaDigits(String(uploadProgress))}%
+                        {toBn(uploadProgress)}%
                       </span>
                     </div>
                     <div className="w-full h-2.5 bg-[var(--color-active-bg)] rounded-full overflow-hidden border border-[var(--color-active-border)]">
@@ -1018,7 +975,6 @@ const AddWeeklyExam = () => {
               />
 
               {/* ── Buttons ── */}
-              {/* ── Buttons ── */}
               <AnimatedCard index={10}>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <motion.button
@@ -1033,12 +989,12 @@ const AddWeeklyExam = () => {
                       isValid && !mutation.isPending ? { scale: 0.98 } : {}
                     }
                     className={`flex-1 py-3.5 rounded-xl font-semibold text-sm flex items-center 
-        justify-center gap-2 transition-all duration-300 bangla border-2
-        ${
-          isValid && !mutation.isPending
-            ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white border-transparent shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30"
-            : "bg-[var(--color-active-bg)] text-[var(--color-gray)] border-[var(--color-active-border)] cursor-not-allowed"
-        }`}
+                      justify-center gap-2 transition-all duration-300 bangla border-2
+                      ${
+                        isValid && !mutation.isPending
+                          ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white border-transparent shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30"
+                          : "bg-[var(--color-active-bg)] text-[var(--color-gray)] border-[var(--color-active-border)] cursor-not-allowed"
+                      }`}
                   >
                     {mutation.isPending ? (
                       <div className="flex flex-col gap-2 w-full px-2">
@@ -1047,14 +1003,14 @@ const AddWeeklyExam = () => {
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             {imageFiles.length > 0
                               ? uploadProgress <= 30
-                                ? `ছবি কম্প্রেস হচ্ছে (${toBanglaDigits(String(imageFiles.length))}টি)…`
+                                ? `ছবি কম্প্রেস হচ্ছে (${toBn(imageFiles.length)}টি)…`
                                 : uploadProgress < 100
                                   ? "আপলোড হচ্ছে…"
                                   : "ডেটা সংরক্ষণ হচ্ছে…"
                               : "সংরক্ষণ হচ্ছে…"}
                           </span>
                           <span className="font-bold">
-                            {toBanglaDigits(String(uploadProgress))}%
+                            {toBn(uploadProgress)}%
                           </span>
                         </span>
                         <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
@@ -1081,9 +1037,9 @@ const AddWeeklyExam = () => {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     className="sm:w-36 py-3.5 rounded-xl text-sm font-medium border-2 
-        border-[var(--color-active-border)] bg-[var(--color-bg)] 
-        hover:bg-[var(--color-active-bg)] text-[var(--color-text)] 
-        transition-all disabled:opacity-50 bangla"
+                      border-[var(--color-active-border)] bg-[var(--color-bg)] 
+                      hover:bg-[var(--color-active-bg)] text-[var(--color-text)] 
+                      transition-all disabled:opacity-50 bangla"
                   >
                     রিসেট
                   </motion.button>

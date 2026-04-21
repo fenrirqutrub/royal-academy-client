@@ -105,3 +105,40 @@ export interface LoginPromptOverlayProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+export interface DailyLessonFormData {
+  subject: string;
+  teacher: string;
+  class: string;
+  chapterNumber: string;
+  topics: string;
+  date: string;
+}
+
+export interface TeacherItem {
+  _id: string;
+  name: string;
+  slug: string;
+  role: string;
+}
+
+export type ReferenceType = "chapter" | "page";
+
+export interface WeeklyExamFormData {
+  subject: string;
+  teacher: string;
+  class: string;
+  mark: number;
+  ExamNumber: string;
+  numberType: "pageNumber" | "chapterNumber";
+  numberValue: string;
+  topics: string;
+  question: string;
+  slug?: string;
+}
+
+export interface TeacherItem {
+  name: string;
+  slug: string;
+  role: string;
+}

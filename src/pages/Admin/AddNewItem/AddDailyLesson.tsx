@@ -19,26 +19,12 @@ import {
   toBn,
   toEn,
 } from "../../../utility/Formatters";
-import type { SelectOption } from "../../../types/types";
-
-// ─── Types ─────────────────────────────────────────────────────────────────────
-interface DailyLessonFormData {
-  subject: string;
-  teacher: string;
-  class: string;
-  chapterNumber: string;
-  topics: string;
-  date: string;
-}
-
-interface TeacherItem {
-  _id: string;
-  name: string;
-  slug: string;
-  role: string;
-}
-
-type ReferenceType = "chapter" | "page";
+import type {
+  DailyLessonFormData,
+  ReferenceType,
+  SelectOption,
+  TeacherItem,
+} from "../../../types/types";
 
 // ─── Bangla numeral helpers ────────────────────────────────────────────────────
 
@@ -254,7 +240,6 @@ const AddDailyLesson = () => {
         ["teacher", "principal", "admin"].includes(t.role),
       );
 
-      // ✅ FIX: use user.id (AuthUser shape) not user._id
       if (
         user?.id &&
         user?.name &&
@@ -262,7 +247,7 @@ const AddDailyLesson = () => {
         !staff.some((t) => t.slug === user.slug)
       ) {
         staff.unshift({
-          _id: user.id, // ✅ map AuthUser.id → TeacherItem._id
+          _id: user.id,
           name: user.name,
           slug: user.slug,
           role: user.role,

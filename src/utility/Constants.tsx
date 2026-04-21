@@ -208,6 +208,7 @@ export const ADVANCED_CLASSES = ["৯ম শ্রেণি", "১০ম শ্�
 export const BASE_SUBJECTS: SelectOption[] = [
   { value: "বাংলা ১ম", label: "বাংলা ১ম", icon: <TbLanguage /> },
   { value: "বাংলা ২য়", label: "বাংলা ২য়", icon: <TbLanguage /> },
+  { value: "সহপাঠ", label: "সহপাঠ", icon: <TbLanguage /> },
   { value: "ইংরেজি ১ম", label: "ইংরেজি ১ম", icon: <FaBookOpen /> },
   { value: "ইংরেজি ২য়", label: "ইংরেজি ২য়", icon: <FaBookOpen /> },
   { value: "গণিত", label: "গণিত", icon: <TbMath /> },
