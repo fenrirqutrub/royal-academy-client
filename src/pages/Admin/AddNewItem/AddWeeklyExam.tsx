@@ -25,6 +25,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { CLASS_OPTIONS, getSubjects } from "../../../utility/Constants";
 import { uploadMultipleToCloudinary } from "../../../hooks/useCloudinaryUpload";
 import type { SelectOption } from "../../../types/types";
+import { toBn } from "../../../utility/Formatters";
 
 // ─── Types ────────────────────────────────────────────────
 interface WeeklyExamFormData {
@@ -846,7 +847,7 @@ const AddWeeklyExam = () => {
                         <textarea
                           rows={4}
                           placeholder="পরীক্ষার প্রশ্ন লিখুন (যদি থাকে)..."
-                          value={field.value}
+                          value={toBn(field.value)}
                           onChange={field.onChange}
                           onFocus={() => setIsFocused(true)}
                           onBlur={() => {

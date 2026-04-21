@@ -76,8 +76,6 @@ const uploadSingleWithProgress = (
     fd.append("file", blob, "image.webp");
     fd.append("upload_preset", UPLOAD_PRESET);
     fd.append("folder", folder);
-    fd.append("eager", "f_avif,q_auto|f_webp,q_auto");
-    fd.append("eager_async", "true");
 
     const xhr = new XMLHttpRequest();
     xhr.open(
