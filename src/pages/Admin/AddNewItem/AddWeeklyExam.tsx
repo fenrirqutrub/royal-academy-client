@@ -22,7 +22,11 @@ import SelectInput from "../../../components/common/SelectInput";
 import Skeleton from "../../../components/common/Skeleton";
 import ErrorState from "../../../components/common/ErrorState";
 import { useAuth } from "../../../context/AuthContext";
-import { CLASS_OPTIONS, getSubjects } from "../../../utility/Constants";
+import {
+  CLASS_OPTIONS,
+  getSubjects,
+  NUMBER_TYPE_OPTIONS,
+} from "../../../utility/Constants";
 import { uploadMultipleToCloudinary } from "../../../hooks/useCloudinaryUpload";
 import type {
   SelectOption,
@@ -79,19 +83,6 @@ const MARK_OPTIONS: SelectOption[] = [5, 10, 15, 20, 25, 30, 35, 40].map(
     label: toBn(n),
   }),
 );
-
-const NUMBER_TYPE_OPTIONS: SelectOption[] = [
-  {
-    value: "chapterNumber",
-    label: "অধ্যায় নম্বর",
-    icon: <BookOpen className="w-4 h-4" />,
-  },
-  {
-    value: "pageNumber",
-    label: "পৃষ্ঠা নম্বর",
-    icon: <FileText className="w-4 h-4" />,
-  },
-];
 
 // ─── Animation Variants ───────────────────────────────────
 const fadeUp: Variants = {

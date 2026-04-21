@@ -10,7 +10,14 @@ import { TbMath, TbLanguage, TbMathIntegrals } from "react-icons/tb";
 import { GiEarthAsiaOceania, GiDna1 } from "react-icons/gi";
 import { FaBookOpen, FaFlask } from "react-icons/fa";
 
-import { Crown, GraduationCap, ShieldCheck, Star } from "lucide-react";
+import {
+  BookOpen,
+  Crown,
+  FileText,
+  GraduationCap,
+  ShieldCheck,
+  Star,
+} from "lucide-react";
 import { toEn } from "./Formatters";
 import type { SelectOption } from "../types/types";
 
@@ -240,6 +247,19 @@ export const getSubjects = (cls: string): SelectOption[] =>
   ADVANCED_CLASSES.includes(cls)
     ? [...BASE_SUBJECTS, ...ADVANCED_SUBJECTS]
     : BASE_SUBJECTS;
+
+export const NUMBER_TYPE_OPTIONS: SelectOption[] = [
+  {
+    value: "chapterNumber",
+    label: "অধ্যায় নম্বর",
+    icon: <BookOpen className="w-4 h-4" />,
+  },
+  {
+    value: "pageNumber",
+    label: "পৃষ্ঠা নম্বর",
+    icon: <FileText className="w-4 h-4" />,
+  },
+];
 
 // ─────────────────────────────────────────────────────────────
 // 🔹 DEGREE
