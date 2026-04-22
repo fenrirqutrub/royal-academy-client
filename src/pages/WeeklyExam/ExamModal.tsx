@@ -16,12 +16,7 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
-import {
-  toBn,
-  getNumberInfo,
-  type ColorConfig,
-  type Exam,
-} from "../../utility/Formatters";
+import { toBn, getNumberInfo } from "../../utility/Formatters";
 import { useAuth } from "../../context/AuthContext";
 
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -31,16 +26,7 @@ import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
 import { getCloudinaryOptimizedUrls } from "../../hooks/useCloudinaryUpload";
-
-interface ExamModalProps {
-  exam: Exam;
-  color: ColorConfig;
-  onClose: () => void;
-  canEdit?: boolean;
-  canDelete?: boolean;
-  onEdit?: () => void;
-  onDelete?: () => void;
-}
+import type { ExamModalProps } from "../../types/types";
 
 const ExamModal = ({
   exam,
@@ -62,10 +48,8 @@ const ExamModal = ({
   const numberInfo = getNumberInfo(exam);
   const isPageType = exam.numberType === "pageNumber";
 
-  // ─── Role Check: Student কিনা ─────────────────────────────
   const isStudent = user?.role === "student";
 
-  // Student না হলেই question দেখাবে
   const canSeeQuestion = !isStudent && !!exam.question;
 
   const getImageUrl = (img: unknown): string => {

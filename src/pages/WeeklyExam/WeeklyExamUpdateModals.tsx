@@ -9,43 +9,14 @@ import axiosPublic from "../../hooks/axiosPublic";
 import SelectInput from "../../components/common/SelectInput";
 import { CLASS_OPTIONS, getSubjects } from "../../utility/Constants";
 import { uploadMultipleToCloudinary } from "../../hooks/useCloudinaryUpload";
+import type {
+  EditFormValues,
+  ExamImage,
+  TeacherOption,
+  WeeklyExamData,
+} from "../../types/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-export interface ExamImage {
-  imageUrl: string;
-  publicId: string;
-}
-
-export interface WeeklyExamData {
-  _id: string;
-  slug: string;
-  subject: string;
-  teacher: string;
-  teacherSlug?: string;
-  class: string;
-  mark: number;
-  ExamNumber: string;
-  topics: string;
-  question?: string | null;
-  images: (string | ExamImage)[];
-  createdAt: string;
-}
-
-interface EditFormValues {
-  subject: string;
-  class: string;
-  ExamNumber: string;
-  topics: string;
-  teacher: string;
-  teacherSlug: string;
-  mark: string;
-  question: string;
-}
-
-interface TeacherOption {
-  slug: string;
-  name: string;
-}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const MARK_OPTIONS = [

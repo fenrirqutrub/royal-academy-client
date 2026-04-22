@@ -1,6 +1,7 @@
 // types.ts
 
 import type { ReactNode, RefObject } from "react";
+import type { ColorConfig, Exam } from "../utility/Formatters";
 
 // ─────────────────────────────────────────────────────────────
 // 🔹 FORM TYPES
@@ -100,6 +101,16 @@ export interface DailyLessonModalProps {
   onDelete?: () => void;
 }
 
+export interface ExamModalProps {
+  exam: Exam;
+  color: ColorConfig;
+  onClose: () => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
+}
+
 // login promt
 export interface LoginPromptOverlayProps {
   isOpen: boolean;
@@ -141,4 +152,40 @@ export interface TeacherItem {
   name: string;
   slug: string;
   role: string;
+}
+
+export interface ExamImage {
+  imageUrl: string;
+  publicId: string;
+}
+
+export interface WeeklyExamData {
+  _id: string;
+  slug: string;
+  subject: string;
+  teacher: string;
+  teacherSlug?: string;
+  class: string;
+  mark: number;
+  ExamNumber: string;
+  topics: string;
+  question?: string | null;
+  images: (string | ExamImage)[];
+  createdAt: string;
+}
+
+export interface EditFormValues {
+  subject: string;
+  class: string;
+  ExamNumber: string;
+  topics: string;
+  teacher: string;
+  teacherSlug: string;
+  mark: string;
+  question: string;
+}
+
+export interface TeacherOption {
+  slug: string;
+  name: string;
 }

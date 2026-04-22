@@ -37,7 +37,7 @@ const isValidToken = (token: string): boolean => {
 };
 
 const validateReference = (raw: string): string | true => {
-  if (!raw?.trim()) return "নম্বর আবশ্যিক";
+  if (!raw?.trim()) return true;
   const segments = raw
     .split(",")
     .map((s) => s.trim())
@@ -244,7 +244,7 @@ const AddDailyLesson = () => {
         user?.id &&
         user?.name &&
         user?.slug &&
-        !staff.some((t) => t.slug === user.slug)
+        !staff.some((t) => t._id === user.id)
       ) {
         staff.unshift({
           _id: user.id,
@@ -259,7 +259,6 @@ const AddDailyLesson = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  // TeacherItem._id is the raw MongoDB ObjectId string from /api/users
   const teacherOptions: SelectOption[] = teacherList.map((t) => ({
     value: t._id,
     label: t.name,
@@ -273,6 +272,7 @@ const AddDailyLesson = () => {
     control,
     watch,
     setValue,
+    clearErrors, // ✅ FIX 4: destructure clearErrors
     formState: { errors, isValid },
   } = useForm<DailyLessonFormData>({
     mode: "onTouched",
@@ -288,7 +288,6 @@ const AddDailyLesson = () => {
 
   const selectedClass = watch("class");
   const teacherValue = watch("teacher");
-  const dateValue = watch("date");
 
   const applyDate = useCallback(
     (date: Date) => {
@@ -302,25 +301,24 @@ const AddDailyLesson = () => {
     [setValue],
   );
 
-  // Auto-fill today's date on mount
+  // ✅ FIX 2: Run only on mount — no dateValue dependency to avoid double-call
   useEffect(() => {
-    if (dateValue) return;
     applyDate(new Date());
-  }, [dateValue, applyDate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // ✅ FIX: use user.id everywhere (AuthUser has id, not _id)
+  // Auto-set teacher for non-admin or when list is ready
   useEffect(() => {
-    if (!user?.id) return; // ✅ was user?._id
+    if (!user?.id) return;
     if (teacherValue) return;
     if (isAdmin && teacherList.length === 0) return;
     setValue("teacher", user.id, {
-      // ✅ was user._id
       shouldValidate: true,
       shouldTouch: true,
     });
-  }, [user?.id, isAdmin, teacherList.length, teacherValue, setValue]); // ✅ dep was user?._id
+  }, [user?.id, isAdmin, teacherList.length, teacherValue, setValue]);
 
-  // Clear chapterNumber on refType switch
+  // ✅ FIX 4: Clear chapterNumber value AND errors on refType switch
   const handleRefTypeChange = useCallback(
     (v: ReferenceType) => {
       setRefType(v);
@@ -328,8 +326,9 @@ const AddDailyLesson = () => {
         shouldTouch: false,
         shouldValidate: false,
       });
+      clearErrors("chapterNumber");
     },
-    [setValue],
+    [setValue, clearErrors],
   );
 
   // ── Mutation ──────────────────────────────────────────────────────────────────
@@ -353,11 +352,10 @@ const AddDailyLesson = () => {
 
   // ── onSubmit ──────────────────────────────────────────────────────────────────
   const onSubmit: SubmitHandler<DailyLessonFormData> = (data) => {
-    // ✅ FIX: use user.id (not user._id) for non-admin fallback
     const teacherId = isAdmin ? data.teacher : user?.id;
 
-    // Guard: never submit without a valid-looking ObjectId
-    if (!teacherId || teacherId.length !== 24) {
+    // ✅ FIX 3: Validate with regex instead of just length check
+    if (!teacherId || !/^[a-f\d]{24}$/i.test(teacherId)) {
       toast.error("শিক্ষকের তথ্য পাওয়া যায়নি। পৃষ্ঠা রিফ্রেশ করুন।");
       return;
     }
@@ -365,15 +363,27 @@ const AddDailyLesson = () => {
     const fd = new FormData();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { date: _date, teacher: _teacher, ...rest } = data;
-    const normalised = { ...rest, chapterNumber: toEn(data.chapterNumber) };
+    const normalised = { ...rest };
+
+    if (data.chapterNumber?.trim()) {
+      normalised.chapterNumber = toEn(data.chapterNumber);
+    }
     (Object.keys(normalised) as (keyof typeof normalised)[]).forEach((k) => {
-      if (normalised[k] !== undefined) fd.append(k, String(normalised[k]));
+      if (normalised[k] !== undefined && normalised[k] !== "")
+        fd.append(k, String(normalised[k]));
     });
 
     fd.append("teacher", teacherId);
     fd.append("date", rawDateRef.current.toISOString());
     fd.append("referenceType", refType);
-    if (user?.slug) fd.append("teacherSlug", user.slug);
+
+    // ✅ FIX 1: Use selected teacher's slug, not always the logged-in user's slug
+    if (isAdmin) {
+      const selectedTeacher = teacherList.find((t) => t._id === teacherId);
+      if (selectedTeacher?.slug) fd.append("teacherSlug", selectedTeacher.slug);
+    } else {
+      if (user?.slug) fd.append("teacherSlug", user.slug);
+    }
 
     mutation.mutate(fd);
   };
@@ -403,8 +413,8 @@ const AddDailyLesson = () => {
             </h1>
           </div>
           <p className="text-sm text-[var(--color-gray)] ml-4 pl-3 bangla">
-            নিচের ফর্মটি পূরণ করুন। সকল <span className="text-rose-500">*</span>{" "}
-            চিহ্নিত ঘর আবশ্যিক।
+            নিচের ফর্মটি পূরণ করুন। কিছু ঘর{" "}
+            <span className="text-rose-500">*</span> চিহ্নিত ঘর আবশ্যিক।
           </p>
         </motion.div>
 
@@ -575,10 +585,11 @@ const AddDailyLesson = () => {
                         exit="exit"
                         className="inline-block"
                       >
-                        {refType === "chapter" ? "অধ্যায় নং" : "পৃষ্ঠা নং"}
+                        {refType === "chapter"
+                          ? "অধ্যায় নং (ঐচ্ছিক)"
+                          : "পৃষ্ঠা নং (ঐচ্ছিক)"}
                       </motion.span>
                     </AnimatePresence>{" "}
-                    <RequiredStar />
                   </label>
 
                   <ReferenceToggle
@@ -590,9 +601,14 @@ const AddDailyLesson = () => {
                 <Controller
                   name="chapterNumber"
                   control={control}
-                  rules={{ validate: validateReference }}
+                  rules={{
+                    validate: (value) => {
+                      if (!value?.trim()) return true;
+                      return validateReference(value);
+                    },
+                  }}
                   render={({ field, fieldState }) => (
-                    <>
+                    <div>
                       <div className="relative">
                         <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
                           <AnimatePresence mode="wait">
@@ -621,7 +637,7 @@ const AddDailyLesson = () => {
                               ? "যেমন: ১  /  ১, ৩  /  ১-৩"
                               : "যেমন: ১০  /  ১০-১৫  /  ২০, ২২"
                           }
-                          value={field.value}
+                          value={field.value || ""}
                           onChange={(e) =>
                             field.onChange(normaliseInput(e.target.value))
                           }
@@ -644,7 +660,7 @@ const AddDailyLesson = () => {
                           />
                         )}
                       </AnimatePresence>
-                    </>
+                    </div>
                   )}
                 />
                 <ErrorMsg msg={errors.chapterNumber?.message} />
