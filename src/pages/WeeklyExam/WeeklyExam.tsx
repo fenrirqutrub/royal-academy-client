@@ -14,7 +14,11 @@ import { DeleteModal, EditModal } from "./WeeklyExamUpdateModals";
 import { useGuestPreview } from "../../hooks/useGuestPreview";
 import LoginPromptOverlay from "../Admin/Auth/LoginPromptOverlay";
 import { BN_DAYS_FULL, BN_MONTHS, toBn } from "../../utility/Formatters";
-import { MANAGER_ROLES, STAFF_ROLES } from "../../utility/Constants";
+import {
+  CLASS_ORDER,
+  MANAGER_ROLES,
+  STAFF_ROLES,
+} from "../../utility/Constants";
 import type { WeeklyExamData } from "../../types/types";
 import { useNavigate } from "react-router";
 import WeeklyExamHeaderFilters from "./WeeklyExamHeaderFilters";
@@ -63,14 +67,6 @@ const getLastSaturdayMidnight = (): Date => {
   sat.setHours(0, 0, 0, 0);
 
   return sat;
-};
-
-const CLASS_ORDER: Record<string, number> = {
-  "৬ষ্ঠ শ্রেণি": 1,
-  "৭ম শ্রেণি": 2,
-  "৮ম শ্রেণি": 3,
-  "৯ম শ্রেণি": 4,
-  "১০ম শ্রেণি": 5,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -495,7 +491,7 @@ const WeeklyExam = () => {
   // JSX
   // ───────────────────────────────────────────────────────────────────────────
   return (
-    <div className="relative mx-auto max-w-7xl">
+    <div className="relative mx-auto max-w-7xl ">
       <WeeklyExamHeaderFilters
         isGuest={isGuest}
         isStaff={isStaff}
@@ -515,7 +511,7 @@ const WeeklyExam = () => {
       />
 
       {/* Marquee Notice */}
-      <div className="mx-2 mb-6 overflow-hidden rounded-2xl border border-[var(--color-active-border)] bg-[var(--color-bg)] bangla sm:mx-0 sm:mb-8">
+      <div className="mx-2 mb-6 overflow-hidden rounded border border-[var(--color-active-border)] bg-[var(--color-bg)] bangla sm:mx-0 sm:mb-8">
         <div className="flex items-stretch">
           <div className="flex shrink-0 items-center justify-center bg-[var(--color-text)] px-4 sm:px-5">
             <span className="text-sm font-black tracking-wide text-[var(--color-bg)] sm:text-base">
@@ -535,25 +531,6 @@ const WeeklyExam = () => {
           </div>
         </div>
       </div>
-
-      {/* Staff indicator */}
-      <AnimatePresence>
-        {!isGuest && isStaff && (
-          <motion.div
-            initial={{ opacity: 0, y: -8, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: "auto" }}
-            exit={{ opacity: 0, y: -8, height: 0 }}
-            transition={{ duration: 0.25 }}
-            className="mx-2 mb-5 overflow-hidden rounded-2xl border border-[var(--color-active-border)] bg-[var(--color-active-bg)] px-4 py-3 sm:mx-0 sm:mb-6"
-          >
-            <p className="text-center text-xs text-[var(--color-text-hover)] bangla sm:text-left sm:text-sm">
-              {isManager
-                ? "🔑 আপনি সকল পরীক্ষা সম্পাদনা ও মুছে ফেলতে পারবেন"
-                : "✏️ আপনি শুধু নিজের যোগ করা পরীক্ষা সম্পাদনা ও মুছে ফেলতে পারবেন"}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Content */}
       <AnimatePresence mode="wait">

@@ -32,7 +32,7 @@ const WeeklyExamHeaderFilters = ({
       transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
       className="relative mb-5 overflow-hidden bangla"
     >
-      <div className="border border-t-0 border-[var(--color-active-border)] bg-[var(--color-bg)] px-4 pb-4 pt-5 sm:px-6">
+      <div className="border border-t-0 border-[var(--color-active-border)] rounded bg-[var(--color-bg)] px-4 pb-4 pt-5 sm:px-6">
         <span
           aria-hidden
           className="pointer-events-none absolute right-4 top-1 select-none font-bold leading-none text-[var(--color-text)] bangla sm:right-6"
@@ -43,11 +43,11 @@ const WeeklyExamHeaderFilters = ({
 
         <div className="relative flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <h1 className="text-xl font-bold leading-tight text-[var(--color-text)] sm:text-2xl">
+            <h1 className="text-xl md:text-4xl font-bold leading-tight text-[var(--color-text)]">
               {title} - {toBn(activeExamNumber)}
             </h1>
             {description && (
-              <p className="mt-1 hidden text-xs leading-relaxed text-[var(--color-gray)] sm:block">
+              <p className="mt-1 hidden text-sm md:text-lg leading-relaxed text-[var(--color-gray)] sm:block">
                 {description}
               </p>
             )}

@@ -154,8 +154,8 @@ const SelectInput = ({
   const borderClass = isError
     ? "border-red-400"
     : isValidTouched || open
-      ? "border-[var(--color-text-hover)]"
-      : "border-[var(--color-active-border)] hover:border-[var(--color-text-hover)]/50";
+      ? "border-[var(--color-gray)]"
+      : "border-[var(--color-active-border)] hover:border-[var(--color-gray)]/50";
 
   const handleSelect = (optValue: string) => {
     onChange(optValue);
