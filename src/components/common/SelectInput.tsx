@@ -1,10 +1,19 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Check } from "lucide-react";
 import type { DropdownPortalProps, SelectInputProps } from "../../types/types";
 
-/* ─── Portal: renders dropdown at exact screen position ─────────────────────── */
+/* ──────────────────────────────────────────────────────────────────────────
+   Dropdown Portal
+   trigger button-এর position ধরে dropdown body তে render হবে
+   ────────────────────────────────────────────────────────────────────────── */
 const DropdownPortal = ({
   children,
   triggerRef,
@@ -12,52 +21,51 @@ const DropdownPortal = ({
 }: DropdownPortalProps) => {
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
 
-  const sync = useCallback(() => {
-    if (triggerRef.current && isOpen) {
-      const r = triggerRef.current.getBoundingClientRect();
-      setPos({
-        top: r.bottom + window.scrollY + 8,
-        left: r.left + window.scrollX,
-        width: r.width,
-      });
-    }
+  const syncPosition = useCallback(() => {
+    if (!triggerRef.current || !isOpen) return;
+
+    const rect = triggerRef.current.getBoundingClientRect();
+
+    setPos({
+      top: rect.bottom + 8,
+      left: rect.left,
+      width: rect.width,
+    });
   }, [triggerRef, isOpen]);
 
   useEffect(() => {
-    sync();
-    if (isOpen) {
-      window.addEventListener("scroll", sync, true);
-      window.addEventListener("resize", sync);
-    }
+    syncPosition();
+
+    if (!isOpen) return;
+
+    window.addEventListener("scroll", syncPosition, true);
+    window.addEventListener("resize", syncPosition);
+
     return () => {
-      window.removeEventListener("scroll", sync, true);
-      window.removeEventListener("resize", sync);
+      window.removeEventListener("scroll", syncPosition, true);
+      window.removeEventListener("resize", syncPosition);
     };
-  }, [isOpen, sync]);
+  }, [isOpen, syncPosition]);
 
   if (!isOpen) return null;
 
+  const style: CSSProperties = {
+    top: pos.top,
+    left: pos.left,
+    width: pos.width,
+  };
+
   return createPortal(
-    <div
-      className="absolute z-[999999]"
-      style={
-        {
-          "--_t": `${pos.top}px`,
-          "--_l": `${pos.left}px`,
-          "--_w": `${pos.width}px`,
-          top: "var(--_t)",
-          left: "var(--_l)",
-          width: "var(--_w)",
-        } as React.CSSProperties
-      }
-    >
+    <div className="fixed z-[99999]" style={style}>
       {children}
     </div>,
     document.body,
   );
 };
 
-/* ─── SelectInput ───────────────────────────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────────────────────────
+   Select Input
+   ────────────────────────────────────────────────────────────────────────── */
 const SelectInput = ({
   options,
   value,
@@ -73,13 +81,15 @@ const SelectInput = ({
   className = "",
 }: SelectInputProps) => {
   const [open, setOpen] = useState(false);
+
   const containerRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
   const hasAppliedDefault = useRef(false);
 
   const selected = options.find((o) => o.value === value);
 
-  /* ── Apply defaultValue once when options become available ── */
+  /* defaultValue একবার apply হবে */
   useEffect(() => {
     if (
       defaultValue &&
@@ -88,6 +98,7 @@ const SelectInput = ({
       options.length > 0
     ) {
       const exists = options.some((o) => o.value === defaultValue);
+
       if (exists) {
         onChange(defaultValue);
         hasAppliedDefault.current = true;
@@ -95,25 +106,33 @@ const SelectInput = ({
     }
   }, [defaultValue, value, options, onChange]);
 
-  /* ── Outside click ── */
+  /* বাইরে click করলে dropdown বন্ধ */
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
+    const handleOutside = (e: MouseEvent) => {
       const target = e.target as Node;
-      const outsideTrigger =
-        containerRef.current && !containerRef.current.contains(target);
-      const dropdownEl = document.getElementById("select-dropdown-portal");
-      const outsideDropdown = !dropdownEl?.contains(target);
 
-      if (outsideTrigger && outsideDropdown) {
+      const clickedInsideTrigger =
+        !!containerRef.current && containerRef.current.contains(target);
+
+      const clickedInsideDropdown =
+        !!dropdownRef.current && dropdownRef.current.contains(target);
+
+      if (!clickedInsideTrigger && !clickedInsideDropdown) {
         setOpen(false);
         onBlur?.();
       }
     };
-    if (open) document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+
+    if (open) {
+      document.addEventListener("mousedown", handleOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutside);
+    };
   }, [open, onBlur]);
 
-  /* ── Escape key ── */
+  /* Escape press করলে dropdown বন্ধ */
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape" && open) {
@@ -121,21 +140,22 @@ const SelectInput = ({
         triggerRef.current?.focus();
       }
     };
+
     document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, [open]);
 
   const isError = !!error;
   const isValidTouched = isTouched && !error && !!value;
 
-  const getBorderClass = () => {
-    if (isError) return "border-red-400 shadow-[0_0_0_3px_rgba(239,68,68,0.1)]";
-    if (isValidTouched)
-      return "border-[var(--color-text-hover)] shadow-[0_0_0_3px_rgba(37,99,235,0.1)]";
-    if (open)
-      return "border-[var(--color-text-hover)] shadow-[0_0_0_3px_rgba(37,99,235,0.12)]";
-    return "border-[var(--color-active-border)] hover:border-[var(--color-text-hover)]/50";
-  };
+  const borderClass = isError
+    ? "border-red-400"
+    : isValidTouched || open
+      ? "border-[var(--color-text-hover)]"
+      : "border-[var(--color-active-border)] hover:border-[var(--color-text-hover)]/50";
 
   const handleSelect = (optValue: string) => {
     onChange(optValue);
@@ -145,49 +165,36 @@ const SelectInput = ({
 
   return (
     <div ref={containerRef} className={`w-full ${className}`}>
-      {/* ── Label ── */}
+      {/* Label */}
       {label && (
-        <label className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-gray)] bangla">
+        <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-gray)] bangla">
           {label}
-          {required && (
-            <motion.span
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: "spring", stiffness: 500 }}
-              className="text-red-500"
-            >
-              *
-            </motion.span>
-          )}
+          {required && <span className="ml-1 text-red-500">*</span>}
         </label>
       )}
 
-      {/* ── Trigger Button ── */}
+      {/* Trigger */}
       <motion.button
         ref={triggerRef}
         type="button"
         disabled={disabled}
-        onClick={() => setOpen((v) => !v)}
-        whileTap={{ scale: disabled ? 1 : 0.995 }}
-        className={`
-          flex w-full cursor-pointer items-center justify-between gap-2
-          rounded-xl border-2 bg-[var(--color-bg)] px-4 py-3.5
-          text-sm text-[var(--color-text)] transition-all duration-300
-          focus:outline-none disabled:cursor-not-allowed disabled:opacity-50
-          bangla
-          ${getBorderClass()}
-        `}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        onClick={() => setOpen((prev) => !prev)}
+        whileTap={{ scale: disabled ? 1 : 0.99 }}
+        className={[
+          "flex w-full items-center justify-between gap-3 rounded-2xl border bg-[var(--color-bg)] px-4 py-3 text-sm transition-all duration-200 bangla",
+          "focus:outline-none disabled:cursor-not-allowed disabled:opacity-60",
+          borderClass,
+        ].join(" ")}
       >
-        <span className="flex items-center gap-2.5 truncate">
+        <span className="flex min-w-0 items-center gap-2 truncate text-left">
           {selected?.icon && (
-            <motion.span
-              initial={{ scale: 0.8 }}
-              animate={{ scale: 1 }}
-              className="shrink-0 text-base text-[var(--color-text-hover)]"
-            >
+            <span className="shrink-0 text-[var(--color-text-hover)]">
               {selected.icon}
-            </motion.span>
+            </span>
           )}
+
           <span
             className={
               selected ? "text-[var(--color-text)]" : "text-[var(--color-gray)]"
@@ -199,31 +206,31 @@ const SelectInput = ({
 
         <motion.span
           animate={{ rotate: open ? 180 : 0 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
+          transition={{ duration: 0.2 }}
           className="shrink-0 text-[var(--color-gray)]"
         >
-          <ChevronDown className="h-4 w-4" />
+          <ChevronDown size={16} />
         </motion.span>
       </motion.button>
 
-      {/* ── Dropdown ── */}
+      {/* Dropdown */}
       <DropdownPortal triggerRef={triggerRef} isOpen={open}>
         <AnimatePresence>
           {open && (
             <motion.div
-              id="select-dropdown-portal"
-              initial={{ opacity: 0, y: -8, scale: 0.96 }}
+              ref={dropdownRef}
+              initial={{ opacity: 0, y: -6, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.96 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className="overflow-hidden rounded-xl border-2 border-[var(--color-active-border)] bg-[var(--color-bg)] shadow-2xl ring-1 ring-black/5"
+              exit={{ opacity: 0, y: -6, scale: 0.98 }}
+              transition={{ duration: 0.16, ease: "easeOut" }}
+              className="overflow-hidden rounded-2xl border border-[var(--color-active-border)] bg-[var(--color-bg)] p-1.5 shadow-xl"
             >
               {options.length === 0 ? (
-                <p className="px-4 py-4 text-center text-sm text-[var(--color-gray)] bangla">
+                <p className="px-3 py-4 text-center text-sm text-[var(--color-gray)] bangla">
                   কোনো বিকল্প নেই
                 </p>
               ) : (
-                <div className="max-h-[240px] overflow-y-auto py-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[var(--color-active-border)]">
+                <div className="max-h-[240px] overflow-y-auto">
                   {options.map((opt, index) => {
                     const isSelected = opt.value === value;
 
@@ -231,53 +238,32 @@ const SelectInput = ({
                       <motion.button
                         key={opt.value}
                         type="button"
-                        initial={{ opacity: 0, x: -10 }}
+                        initial={{ opacity: 0, y: 4 }}
                         animate={{
                           opacity: 1,
-                          x: 0,
+                          y: 0,
                           transition: { delay: index * 0.015 },
                         }}
+                        whileHover={{ x: 2 }}
                         onClick={() => handleSelect(opt.value)}
-                        whileHover={{ x: 4 }}
-                        className={`
-                          relative flex w-full cursor-pointer items-center gap-3
-                          px-4 py-3 text-left text-sm transition-colors
-                          hover:bg-[var(--color-active-bg)] bangla
-                          ${
-                            isSelected
-                              ? "bg-[var(--color-active-bg)] font-semibold text-[var(--color-text-hover)]"
-                              : "text-[var(--color-text)]"
-                          }
-                        `}
+                        className={[
+                          "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors duration-150 bangla",
+                          isSelected
+                            ? "bg-[var(--color-brand-soft)] text-[var(--color-brand)]"
+                            : "text-[var(--color-text)] hover:bg-[var(--color-active-bg)]",
+                        ].join(" ")}
                       >
-                        {/* Selected accent bar */}
-                        {isSelected && (
-                          <motion.div
-                            layoutId="selectedBar"
-                            className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-[var(--color-text-hover)]"
-                          />
-                        )}
-
                         {opt.icon && (
-                          <span
-                            className={`shrink-0 text-base ${
-                              isSelected ? "text-[var(--color-text-hover)]" : ""
-                            }`}
-                          >
-                            {opt.icon}
-                          </span>
+                          <span className="shrink-0">{opt.icon}</span>
                         )}
 
                         <span className="flex-1 truncate">{opt.label}</span>
 
                         {isSelected && (
-                          <motion.span
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            transition={{ type: "spring", stiffness: 500 }}
-                          >
-                            <Check className="h-4 w-4 text-[var(--color-text-hover)]" />
-                          </motion.span>
+                          <Check
+                            size={16}
+                            className="shrink-0 text-[var(--color-brand)]"
+                          />
                         )}
                       </motion.button>
                     );
@@ -289,14 +275,13 @@ const SelectInput = ({
         </AnimatePresence>
       </DropdownPortal>
 
-      {/* ── Error Message ── */}
+      {/* Error */}
       <AnimatePresence>
         {error && (
           <motion.p
-            initial={{ opacity: 0, height: 0, y: -5 }}
-            animate={{ opacity: 1, height: "auto", y: 0 }}
-            exit={{ opacity: 0, height: 0, y: -5 }}
-            transition={{ duration: 0.2 }}
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
             className="mt-1.5 text-xs text-red-500 bangla"
           >
             {error}

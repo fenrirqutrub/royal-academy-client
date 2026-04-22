@@ -1,4 +1,3 @@
-// src/components/WeeklyExam.tsx
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
@@ -15,14 +14,15 @@ import { DeleteModal, EditModal } from "./WeeklyExamUpdateModals";
 import { useGuestPreview } from "../../hooks/useGuestPreview";
 import LoginPromptOverlay from "../Admin/Auth/LoginPromptOverlay";
 import SelectInput from "../../components/common/SelectInput";
+import AnimatedFilterPills from "../../components/common/AnimatedFilterPills";
 import { BN_DAYS_FULL, BN_MONTHS, toBn } from "../../utility/Formatters";
 import { MANAGER_ROLES, STAFF_ROLES } from "../../utility/Constants";
-import { LayoutGrid } from "lucide-react";
-import { LayoutGroup } from "framer-motion";
 import type { WeeklyExamData } from "../../types/types";
 import { useNavigate } from "react-router";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
 interface NormalizedImage {
   url: string;
   publicId: string;
@@ -30,7 +30,9 @@ interface NormalizedImage {
 
 type RawImage = string | { imageUrl?: string; url?: string; publicId?: string };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
 const formatCreatedAt = (iso: string): string => {
   const d = new Date(iso);
   return `${BN_DAYS_FULL[d.getDay()]}, ${toBn(d.getDate())} ${BN_MONTHS[d.getMonth()]} ${toBn(d.getFullYear())}`;
@@ -39,6 +41,7 @@ const formatCreatedAt = (iso: string): string => {
 const normalizeImages = (images: RawImage[]): NormalizedImage[] =>
   images.map((img) => {
     if (typeof img === "string") return { url: img, publicId: "" };
+
     return {
       url: img.imageUrl ?? img.url ?? "",
       publicId: img.publicId ?? "",
@@ -52,15 +55,17 @@ const getLastSaturdayMidnight = (): Date => {
   const dhaka = new Date(
     new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka" }),
   );
+
   const day = dhaka.getDay();
   const daysBack = day === 6 ? 0 : day + 1;
+
   const sat = new Date(dhaka);
   sat.setDate(sat.getDate() - daysBack);
   sat.setHours(0, 0, 0, 0);
+
   return sat;
 };
 
-// ─── CLASS ORDER ──────────────────────────────────────────────────────────────
 const CLASS_ORDER: Record<string, number> = {
   "৬ষ্ঠ শ্রেণি": 1,
   "৭ম শ্রেণি": 2,
@@ -69,24 +74,34 @@ const CLASS_ORDER: Record<string, number> = {
   "১০ম শ্রেণি": 5,
 };
 
-// ─── Animation Variants ───────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Animations
+// ─────────────────────────────────────────────────────────────────────────────
 const groupTitleVariants: Variants = {
-  hidden: { opacity: 0, x: -20 },
+  hidden: { opacity: 0, y: 8 },
   visible: (i: number) => ({
     opacity: 1,
-    x: 0,
-    transition: { delay: i * 0.07, duration: 0.45, ease: [0.22, 1, 0.36, 1] },
+    y: 0,
+    transition: {
+      delay: i * 0.05,
+      duration: 0.28,
+      ease: [0.22, 1, 0.36, 1],
+    },
   }),
 };
 
 const contentVariants: Variants = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, y: 10 },
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.38, ease: "easeOut" },
+    transition: { duration: 0.28, ease: "easeOut" },
   },
-  exit: { opacity: 0, y: -10, transition: { duration: 0.2 } },
+  exit: {
+    opacity: 0,
+    y: -8,
+    transition: { duration: 0.18 },
+  },
 };
 
 const filterBarVariants: Variants = {
@@ -94,50 +109,33 @@ const filterBarVariants: Variants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1], delay: 0.15 },
+    transition: {
+      duration: 0.35,
+      ease: [0.22, 1, 0.36, 1],
+    },
   },
 };
 
 const badgePulse: Variants = {
-  hidden: { opacity: 0, scale: 0.85 },
+  hidden: { opacity: 0, scale: 0.96 },
   visible: {
     opacity: 1,
     scale: 1,
-    transition: { type: "spring", stiffness: 400, damping: 20 },
+    transition: { duration: 0.2, ease: "easeOut" },
   },
-  exit: { opacity: 0, scale: 0.85, transition: { duration: 0.15 } },
-};
-
-// pill animation variants (same as ClassFilterBtns)
-const pillContainerVariants: Variants = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.055, delayChildren: 0.06 } },
-};
-
-const pillItemVariants: Variants = {
-  hidden: { opacity: 0, y: 8, scale: 0.88 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] },
+  exit: {
+    opacity: 0,
+    scale: 0.96,
+    transition: { duration: 0.15 },
   },
 };
 
-const dotVariants: Variants = {
-  inactive: { scale: 1, opacity: 0.7 },
-  active: {
-    scale: 1.1,
-    opacity: 0.95,
-    transition: { type: "spring", stiffness: 500, damping: 24 },
-  },
-  hover: { scale: 1.18, opacity: 1 },
-  tap: { scale: 0.9 },
-};
-
-// ─── ActiveFilterBadge ────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Small UI Components
+// ─────────────────────────────────────────────────────────────────────────────
 const ActiveFilterBadge = ({ count }: { count: number }) => {
   if (count <= 0) return null;
+
   return (
     <motion.span
       initial={{ scale: 0 }}
@@ -151,116 +149,6 @@ const ActiveFilterBadge = ({ count }: { count: number }) => {
   );
 };
 
-// ─── Inline ClassFilterBtns for WeeklyExam ────────────────────────────────────
-const ExamClassFilterBtns = ({
-  activeId,
-  onChange,
-  classes,
-  disabled = false,
-}: {
-  activeId: string;
-  onChange: (id: string) => void;
-  classes: string[];
-  disabled?: boolean;
-}) => {
-  if (classes.length === 0) return null;
-
-  const getButtonClass = ({
-    isActive,
-    isAll = false,
-  }: {
-    isActive: boolean;
-    isAll?: boolean;
-  }) =>
-    [
-      "relative flex items-center gap-1.5 overflow-hidden rounded-full px-3 py-1.5 text-xs font-bold outline-none transition-colors duration-150 sm:px-3.5 sm:text-sm cursor-pointer focus-visible:ring-2",
-      isActive
-        ? isAll
-          ? "border-[1.5px] border-[var(--color-text)] bg-[var(--color-text)] text-[var(--color-bg)]"
-          : "border-[1.5px] border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]"
-        : "border-[1.5px] border-[var(--color-active-border)] bg-[var(--color-active-bg)] text-[var(--color-gray)]",
-    ].join(" ");
-
-  const isAllActive = activeId === "all";
-
-  return (
-    <LayoutGroup id="weekly-exam-class-filter">
-      <motion.div
-        variants={pillContainerVariants}
-        initial="hidden"
-        animate="visible"
-        className="flex flex-wrap items-center justify-center gap-1.5 bangla sm:gap-2"
-      >
-        {/* All button */}
-        <motion.button
-          variants={pillItemVariants}
-          whileHover={!disabled ? { x: 1.5 } : undefined}
-          whileTap={!disabled ? { scale: 0.96 } : undefined}
-          onClick={() => !disabled && onChange("all")}
-          disabled={disabled}
-          aria-pressed={isAllActive}
-          className={getButtonClass({ isActive: isAllActive, isAll: true })}
-        >
-          {isAllActive && (
-            <motion.span
-              layoutId="we-cfb-pill"
-              className="absolute inset-0 rounded-full bg-[var(--color-text)]"
-              transition={{ type: "spring", stiffness: 420, damping: 36 }}
-            />
-          )}
-          <span className="relative z-10 flex items-center gap-1">
-            <LayoutGrid
-              size={12}
-              strokeWidth={2.5}
-              className="shrink-0 sm:size-3.5"
-            />
-            সকল
-          </span>
-        </motion.button>
-
-        {/* Class buttons */}
-        {classes.map((cls) => {
-          const isActive = activeId === cls;
-          return (
-            <motion.button
-              key={cls}
-              variants={pillItemVariants}
-              animate={isActive ? "active" : "inactive"}
-              whileHover={!disabled ? "hover" : undefined}
-              whileTap={!disabled ? "tap" : undefined}
-              onClick={() => !disabled && onChange(cls)}
-              disabled={disabled}
-              aria-pressed={isActive}
-              className={getButtonClass({ isActive })}
-            >
-              {isActive && (
-                <motion.span
-                  layoutId="we-cfb-pill"
-                  className="absolute inset-0 rounded-full bg-[var(--color-brand-soft)]"
-                  transition={{ type: "spring", stiffness: 420, damping: 36 }}
-                />
-              )}
-              <span className="relative z-10 flex items-center gap-1">
-                <motion.span
-                  variants={dotVariants}
-                  className={[
-                    "block h-1.5 w-1.5 shrink-0 rounded-full sm:h-2 sm:w-2",
-                    isActive
-                      ? "bg-[var(--color-brand)]"
-                      : "bg-[var(--color-gray)]",
-                  ].join(" ")}
-                />
-                {cls}
-              </span>
-            </motion.button>
-          );
-        })}
-      </motion.div>
-    </LayoutGroup>
-  );
-};
-
-// ─── Class Group Title ────────────────────────────────────────────────────────
 const ClassGroupTitle = ({
   className,
   index,
@@ -275,45 +163,26 @@ const ClassGroupTitle = ({
     variants={groupTitleVariants}
     initial="hidden"
     animate="visible"
-    className="relative mb-5 mt-8 overflow-hidden rounded-xl bangla sm:mt-10"
+    className="mb-4 mt-8 flex items-center justify-between rounded-2xl border border-[var(--color-active-border)] bg-[var(--color-bg)] px-4 py-3 bangla sm:mt-10"
   >
-    <div className="flex flex-1 flex-col items-center justify-center gap-2 border-y border-[var(--color-active-border)] bg-[var(--color-active-bg)] px-4 py-3.5 sm:flex-row sm:gap-x-10 sm:px-5 sm:py-4">
-      <motion.div
-        initial={{ scaleX: 0 }}
-        animate={{ scaleX: 1 }}
-        transition={{
-          delay: index * 0.07 + 0.2,
-          duration: 0.6,
-          ease: "easeOut",
-        }}
-        className="absolute left-0 top-0 h-0.5 w-full origin-left bg-gradient-to-r from-[var(--color-text-hover)] to-transparent"
-      />
-      <h2 className="text-lg font-extrabold leading-tight text-[var(--color-text)] sm:text-xl md:text-2xl">
-        {className}
-      </h2>
-      <motion.span
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{
-          delay: index * 0.07 + 0.3,
-          type: "spring",
-          stiffness: 500,
-        }}
-        className="rounded-full border border-[var(--color-active-border)] bg-[var(--color-active-bg)] px-3 py-0.5 text-xs font-black text-[var(--color-text-hover)] sm:text-sm"
-      >
-        {toBn(count)}টি পরীক্ষার ধারণা
-      </motion.span>
-    </div>
+    <h2 className="text-lg font-bold text-[var(--color-text)] sm:text-xl">
+      {className}
+    </h2>
+
+    <span className="rounded-full bg-[var(--color-active-bg)] px-3 py-1 text-xs font-semibold text-[var(--color-text-hover)] sm:text-sm">
+      {toBn(count)}টি
+    </span>
   </motion.div>
 );
 
-// ═════════════════════════════════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────────────────────
 // Main Component
-// ═════════════════════════════════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────────────────────
 const WeeklyExam = () => {
   const { user } = useAuth();
   const qc = useQueryClient();
   const { isGuest } = useGuestPreview();
+  const navigate = useNavigate();
 
   const [selectedExamNumber, setSelectedExamNumber] = useState<string | null>(
     null,
@@ -326,15 +195,16 @@ const WeeklyExam = () => {
 
   const userRole = user?.role ?? "student";
   const userSlug = user?.slug ?? "";
+
   const isManager = MANAGER_ROLES.includes(userRole);
   const isStaff = STAFF_ROLES.includes(userRole);
-  const navigate = useNavigate();
 
   const handleAddExam = () => {
-    navigate("/dashboard/add-weekly-exam"); // ← তোমার actual route দাও
+    const exam = activeExamNumber || nextExpectedExamNumber || "1";
+    navigate(`/dashboard/add-weekly-exam?exam=${exam}`);
   };
 
-  // default teacher filter: staff sees their own, others see "all"
+  // staff হলে default teacher filter নিজের slug হবে
   const defaultTeacherFilter = useMemo(
     () => (STAFF_ROLES.includes(userRole) && userSlug ? userSlug : "all"),
     [userRole, userSlug],
@@ -342,32 +212,39 @@ const WeeklyExam = () => {
 
   const prevDefaultRef = useRef("all");
 
-  // sync teacher filter when auth loads (same pattern as DailyLesson)
   useEffect(() => {
     const prevDefault = prevDefaultRef.current;
+
     setSelectedTeacher((prev) =>
       prev === prevDefault ? defaultTeacherFilter : prev,
     );
+
     prevDefaultRef.current = defaultTeacherFilter;
   }, [defaultTeacherFilter]);
 
-  // ─── Fetch exams ─────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────────
+  // Fetch
+  // ───────────────────────────────────────────────────────────────────────────
   const { data, isLoading, isError } = useQuery<WeeklyExamData[]>({
     queryKey: ["weekly-exams"],
     queryFn: async () => {
       const res = await axiosPublic.get("/api/weekly-exams");
       const payload = res.data;
+
       if (Array.isArray(payload)) return payload;
       if (Array.isArray(payload?.data)) return payload.data;
+
       return [];
     },
   });
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "instant" });
+    window.scrollTo({ top: 0, behavior: "auto" });
   }, []);
 
-  // ─── Exam numbers ─────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────────
+  // Exam numbers
+  // ───────────────────────────────────────────────────────────────────────────
   const examNumbers = useMemo(() => {
     if (!data) return [];
     const unique = new Set(data.map((e) => e.ExamNumber));
@@ -379,22 +256,30 @@ const WeeklyExam = () => {
     return String(Number(examNumbers[examNumbers.length - 1]) + 1);
   }, [examNumbers]);
 
-  // ─── Core Logic ───────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────────
+  // Next exam logic
+  // ───────────────────────────────────────────────────────────────────────────
   const latestExamCreatedAt = useMemo(() => {
     if (!data || examNumbers.length === 0) return null;
+
     const latestNumber = examNumbers[examNumbers.length - 1];
+
     const examsWithLatestNumber = data.filter(
       (e) => e.ExamNumber === latestNumber,
     );
+
     if (examsWithLatestNumber.length === 0) return null;
+
     const dates = examsWithLatestNumber.map((e) =>
       new Date(e.createdAt).getTime(),
     );
+
     return new Date(Math.max(...dates));
   }, [data, examNumbers]);
 
   const shouldShowNextExam = useMemo(() => {
     if (!latestExamCreatedAt) return false;
+
     const lastSat = getLastSaturdayMidnight();
     return latestExamCreatedAt.getTime() < lastSat.getTime();
   }, [latestExamCreatedAt]);
@@ -405,16 +290,19 @@ const WeeklyExam = () => {
   }, [examNumbers, shouldShowNextExam, nextExpectedExamNumber]);
 
   const activeExamNumber = useMemo(() => {
-    if (selectedExamNumber && displayExamNumbers.includes(selectedExamNumber))
+    if (selectedExamNumber && displayExamNumbers.includes(selectedExamNumber)) {
       return selectedExamNumber;
+    }
+
     if (shouldShowNextExam) return nextExpectedExamNumber;
+
     return examNumbers[examNumbers.length - 1] ?? null;
   }, [
-    examNumbers,
-    displayExamNumbers,
     selectedExamNumber,
+    displayExamNumbers,
     shouldShowNextExam,
     nextExpectedExamNumber,
+    examNumbers,
   ]);
 
   const isAwaitingNextExam = useMemo(
@@ -425,21 +313,28 @@ const WeeklyExam = () => {
     [shouldShowNextExam, activeExamNumber, nextExpectedExamNumber, examNumbers],
   );
 
-  // ─── Data filtered by active exam number only (for teacher options) ───────
+  // ───────────────────────────────────────────────────────────────────────────
+  // active exam-এর data
+  // ───────────────────────────────────────────────────────────────────────────
   const examNumberFilteredData = useMemo(() => {
     if (!data || !activeExamNumber) return [];
     return data.filter((e) => e.ExamNumber === activeExamNumber);
   }, [data, activeExamNumber]);
 
-  // teacherOptions এ teacherName → teacher দিয়ে replace করো
+  // teacher options
   const teacherOptions = useMemo(() => {
     const map = new Map<string, string>();
+
     examNumberFilteredData.forEach((e) => {
-      if (e.teacherSlug && e.teacher) map.set(e.teacherSlug, e.teacher); // ← e.teacherName → e.teacher
+      if (e.teacherSlug && e.teacher) {
+        map.set(e.teacherSlug, e.teacher);
+      }
     });
+
     if (userSlug && !map.has(userSlug)) {
       map.set(userSlug, user?.name || "আমার পরীক্ষা");
     }
+
     return [
       { value: "all", label: "সকল শিক্ষক" },
       ...Array.from(map.entries()).map(([slug, name]) => ({
@@ -449,10 +344,20 @@ const WeeklyExam = () => {
     ];
   }, [examNumberFilteredData, userSlug, user?.name]);
 
-  // ─── Available classes (after teacher filter) ────────────────────────────
+  // exam number change করলে invalid teacher থাকলে reset
+  useEffect(() => {
+    const exists = teacherOptions.some((opt) => opt.value === selectedTeacher);
+
+    if (!exists) {
+      setSelectedTeacher(defaultTeacherFilter);
+    }
+  }, [teacherOptions, selectedTeacher, defaultTeacherFilter]);
+
+  // selected teacher অনুযায়ী available class
   const availableClasses = useMemo(() => {
     const seen = new Set<string>();
     const result: string[] = [];
+
     examNumberFilteredData
       .filter(
         (e) => selectedTeacher === "all" || e.teacherSlug === selectedTeacher,
@@ -463,24 +368,34 @@ const WeeklyExam = () => {
           result.push(e.class);
         }
       });
+
     return result.sort(
       (a, b) => (CLASS_ORDER[a] ?? 99) - (CLASS_ORDER[b] ?? 99),
     );
   }, [examNumberFilteredData, selectedTeacher]);
 
-  // ─── Grouped data (with teacher + class filter) ───────────────────────────
+  // teacher + class apply করে grouped data
   const groupedByClass = useMemo(() => {
     let filtered = examNumberFilteredData;
-    if (selectedTeacher !== "all")
+
+    if (selectedTeacher !== "all") {
       filtered = filtered.filter((e) => e.teacherSlug === selectedTeacher);
-    if (selectedClass !== "all")
+    }
+
+    if (selectedClass !== "all") {
       filtered = filtered.filter((e) => e.class === selectedClass);
+    }
 
     const map = new Map<string, WeeklyExamData[]>();
+
     filtered.forEach((exam) => {
-      if (!map.has(exam.class)) map.set(exam.class, []);
+      if (!map.has(exam.class)) {
+        map.set(exam.class, []);
+      }
+
       map.get(exam.class)!.push(exam);
     });
+
     map.forEach((exams) =>
       exams.sort(
         (a, b) =>
@@ -501,26 +416,29 @@ const WeeklyExam = () => {
   );
 
   const activeFilterCount = useMemo(() => {
-    let c = 0;
-    if (selectedClass !== "all") c++;
-    if (selectedTeacher !== defaultTeacherFilter) c++;
-    return c;
+    let count = 0;
+
+    if (selectedClass !== "all") count++;
+    if (selectedTeacher !== defaultTeacherFilter) count++;
+
+    return count;
   }, [selectedClass, selectedTeacher, defaultTeacherFilter]);
 
-  // ─── Reset ────────────────────────────────────────────────────────────────
   const handleReset = () => {
     setSelectedClass("all");
     setSelectedTeacher(defaultTeacherFilter);
   };
 
-  // reset class if no longer available after teacher change
+  // teacher change এর পরে current class available না থাকলে class reset
   useEffect(() => {
     if (selectedClass !== "all" && !availableClasses.includes(selectedClass)) {
       setSelectedClass("all");
     }
   }, [availableClasses, selectedClass]);
 
-  // ─── Permissions ──────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────────
+  // Permissions
+  // ───────────────────────────────────────────────────────────────────────────
   const canEditExam = (exam: WeeklyExamData): boolean => {
     if (isManager) return true;
     if (userRole === "teacher" && exam.teacherSlug === userSlug) return true;
@@ -533,7 +451,9 @@ const WeeklyExam = () => {
     return false;
   };
 
-  // ─── Delete mutation ──────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────────
+  // Delete mutation
+  // ───────────────────────────────────────────────────────────────────────────
   const deleteMutation = useMutation({
     mutationFn: (id: string) => axiosPublic.delete(`/api/weekly-exams/${id}`),
     onSuccess: () => {
@@ -541,13 +461,16 @@ const WeeklyExam = () => {
       qc.invalidateQueries({ queryKey: ["weekly-exams"] });
       setDeleteTarget(null);
     },
-    onError: (err: Error & { response?: { data?: { message?: string } } }) =>
+    onError: (err: Error & { response?: { data?: { message?: string } } }) => {
       toast.error(
         err?.response?.data?.message || err?.message || "মুছতে ব্যর্থ হয়েছে",
-      ),
+      );
+    },
   });
 
-  // ─── Card renderer ────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────────
+  // Card renderer
+  // ───────────────────────────────────────────────────────────────────────────
   const renderCard = (exam: WeeklyExamData, i: number) => (
     <WeeklyExamCard
       key={exam._id}
@@ -565,82 +488,91 @@ const WeeklyExam = () => {
     />
   );
 
-  // ─── Guest content ────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────────
+  // Guest preview
+  // ───────────────────────────────────────────────────────────────────────────
   const buildGuestContent = () => {
-    const class6 = groupedByClass.find(({ className }) =>
-      className.includes("৬ষ্ঠ"),
-    );
-    if (!class6) return null;
-    const visibleExams = class6.exams.slice(0, 2);
+    const previewGroup =
+      groupedByClass.find(({ className }) => className.includes("৬ষ্ঠ")) ??
+      groupedByClass[0];
+
+    if (!previewGroup) return null;
+
+    const visibleExams = previewGroup.exams.slice(0, 2);
+
     return (
       <>
         <ClassGroupTitle
-          className={class6.className}
+          className={previewGroup.className}
           index={0}
-          count={class6.exams.length}
+          count={previewGroup.exams.length}
         />
-        <div
-          className="relative grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4 mb-8 sm:mb-10 cursor-pointer"
-          onClick={() => setShowLoginPrompt(true)}
-        >
+
+        <div className="relative mb-8 grid cursor-pointer grid-cols-1 gap-3 sm:mb-10 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 2xl:grid-cols-4">
+          <div
+            className="absolute inset-0 z-10"
+            onClick={() => setShowLoginPrompt(true)}
+          />
+
           {visibleExams.map((exam, i) => renderCard(exam, i))}
-          <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[var(--color-bg)] to-transparent pointer-events-none" />
+
+          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[var(--color-bg)] to-transparent" />
         </div>
       </>
     );
   };
 
-  // ─── Guards ───────────────────────────────────────────────────────────────
-  if (isLoading) return <Skeleton variant="daily-lesson" />;
+  // ───────────────────────────────────────────────────────────────────────────
+  // Loading / Error
+  // ───────────────────────────────────────────────────────────────────────────
+  if (isLoading) {
+    return <Skeleton variant="daily-lesson" />;
+  }
+
   if (isError) {
     return (
-      <div className="text-center py-20 text-rose-400 text-sm bangla">
+      <div className="py-20 text-center text-sm text-rose-400 bangla">
         ডেটা লোড করতে সমস্যা হয়েছে। পুনরায় চেষ্টা করুন।
       </div>
     );
   }
 
-  // ─── JSX ──────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────────
+  // JSX
+  // ───────────────────────────────────────────────────────────────────────────
   return (
     <div className="relative mx-auto max-w-7xl">
       {/* Header */}
       <header className="mb-8 px-3 text-center bangla sm:mb-10">
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="relative inline-block"
+          transition={{ duration: 0.35 }}
         >
-          <h1 className="text-2xl font-bold text-[var(--color-text)] sm:text-3xl md:text-4xl lg:text-5xl">
+          <div className="mb-3 inline-flex rounded-full border border-[var(--color-active-border)] bg-[var(--color-active-bg)] px-3 py-1 text-xs font-semibold text-[var(--color-text-hover)]">
+            সাপ্তাহিক আপডেট
+          </div>
+
+          <h1 className="text-2xl font-extrabold text-[var(--color-text)] sm:text-3xl md:text-4xl">
             সাপ্তাহিক পরীক্ষার ধারণা
           </h1>
-          <motion.div
-            initial={{ scaleX: 0 }}
-            animate={{ scaleX: 1 }}
-            transition={{ delay: 0.3, duration: 0.6, ease: "easeOut" }}
-            className="mx-auto mt-2 h-0.5 w-16 origin-center rounded-full bg-gradient-to-r from-transparent via-[var(--color-text-hover)] to-transparent sm:w-20"
-          />
+
+          <p className="mt-3 text-sm text-[var(--color-gray)] sm:text-base">
+            প্রতিটি পরীক্ষার বিষয়ভিত্তিক ধারণা ও নির্দেশনা
+          </p>
         </motion.div>
-        <motion.p
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.12, duration: 0.5 }}
-          className="mt-3 text-sm font-medium text-[var(--color-gray)] sm:text-base md:text-lg"
-        >
-          প্রতিটি পরীক্ষার বিষয়ভিত্তিক ধারণা ও নির্দেশনা
-        </motion.p>
       </header>
 
-      {/* ── Filter Bar ── */}
-      <motion.div
+      {/* Filter Bar */}
+      <motion.section
         variants={filterBarVariants}
         initial="hidden"
         animate="visible"
-        className="mb-6 rounded-2xl border border-[var(--color-active-border)] bg-[var(--color-active-bg)] p-3 shadow-sm sm:mb-8 sm:p-4 md:p-5"
+        className="mb-6 rounded-3xl border border-[var(--color-active-border)] bg-[var(--color-bg)] p-4 shadow-sm sm:mb-8 sm:p-5"
       >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
-          {/* Teacher filter */}
-          <div className="relative min-w-0 flex-1 sm:max-w-[260px]">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,260px)_1fr_auto] lg:items-end">
+          {/* Teacher Select */}
+          <div className="relative min-w-0">
             <SelectInput
               label="শিক্ষক"
               value={selectedTeacher}
@@ -649,6 +581,7 @@ const WeeklyExam = () => {
               options={teacherOptions}
               disabled={teacherOptions.length <= 1}
             />
+
             {isGuest && (
               <div
                 className="absolute inset-0 z-10 cursor-pointer"
@@ -656,37 +589,32 @@ const WeeklyExam = () => {
               />
             )}
           </div>
-          {/* Add exam (staff) */}
+
+          {/* Add exam button */}
           <AnimatePresence>
             {!isGuest && isStaff && (
               <motion.div
-                initial={{ opacity: 0, y: 8, scale: 0.94 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 4, scale: 0.94 }}
-                transition={{ delay: 0.25, duration: 0.35, ease: "easeOut" }}
-                className="flex-1 justify-center items-center w-full"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ duration: 0.25 }}
+                className="flex"
               >
                 <motion.button
-                  whileHover={{ scale: 1.04, y: -1 }}
-                  whileTap={{ scale: 0.96 }}
-                  className="group flex items-center gap-2.5 rounded bg-[var(--color-text)] px-5 py-3 text-sm font-bold text-[var(--color-bg)] shadow-sm outline-none transition-all duration-200 sm:px-6 sm:text-base bangla"
+                  whileHover={{ y: -1 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={handleAddExam}
+                  className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-text)] px-5 text-sm font-semibold text-[var(--color-bg)] transition-colors hover:bg-[var(--color-text-hover)] bangla"
                 >
-                  <motion.span
-                    className="flex items-center"
-                    whileHover={{ rotate: 12 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 18 }}
-                  >
-                    <BookPlus size={17} strokeWidth={2.2} />
-                  </motion.span>
+                  <BookPlus size={16} />
                   ধারণা জমা দিন
                 </motion.button>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Badge + Reset */}
-          <div className="flex items-end gap-2.5 sm:ml-auto">
+          {/* Stats + Reset */}
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
             <AnimatePresence mode="wait">
               {totalExamsInNumber > 0 && (
                 <motion.div
@@ -695,26 +623,24 @@ const WeeklyExam = () => {
                   initial="hidden"
                   animate="visible"
                   exit="exit"
-                  className="whitespace-nowrap rounded-full border border-[var(--color-active-border)] bg-[var(--color-active-bg)] px-3.5 py-2 text-xs text-[var(--color-gray)] bangla sm:text-sm"
+                  className="rounded-xl border border-[var(--color-active-border)] bg-[var(--color-active-bg)] px-3.5 py-2 text-sm text-[var(--color-gray)] bangla"
                 >
                   {selectedClass !== "all" || selectedTeacher !== "all" ? (
                     <>
-                      <span className="font-bold text-[var(--color-text)]">
+                      দেখানো{" "}
+                      <span className="font-semibold text-[var(--color-text)]">
                         {toBn(filteredCount)}
                       </span>
-                      টি ধারণা{" "}
-                      <span className="hidden sm:inline">
-                        (মোট{" "}
-                        <span className="font-bold text-[var(--color-text)]">
-                          {toBn(totalExamsInNumber)}
-                        </span>
-                        টি)
+                      {" / "}
+                      মোট{" "}
+                      <span className="font-semibold text-[var(--color-text)]">
+                        {toBn(totalExamsInNumber)}
                       </span>
                     </>
                   ) : (
                     <>
                       মোট{" "}
-                      <span className="font-bold text-[var(--color-text)]">
+                      <span className="font-semibold text-[var(--color-text)]">
                         {toBn(totalExamsInNumber)}
                       </span>
                       টি ধারণা
@@ -727,20 +653,21 @@ const WeeklyExam = () => {
             <AnimatePresence>
               {activeFilterCount > 0 && (
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
+                  initial={{ opacity: 0, scale: 0.96 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
                   className="relative"
                 >
                   <motion.button
-                    whileHover={{ scale: 1.08, rotate: -15 }}
-                    whileTap={{ scale: 0.92 }}
+                    whileHover={{ y: -1 }}
+                    whileTap={{ scale: 0.96 }}
                     onClick={handleReset}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--color-active-border)] bg-[var(--color-active-bg)] text-[var(--color-gray)] shadow-sm transition-colors hover:border-[var(--color-text-hover)] hover:text-[var(--color-text-hover)] sm:h-10 sm:w-10"
+                    className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-active-border)] bg-[var(--color-bg)] text-[var(--color-gray)] transition-colors hover:bg-[var(--color-active-bg)] hover:text-[var(--color-text-hover)]"
                     title="ফিল্টার রিসেট করুন"
                   >
-                    <RotateCcw size={15} />
+                    <RotateCcw size={16} />
                   </motion.button>
+
                   <ActiveFilterBadge count={activeFilterCount} />
                 </motion.div>
               )}
@@ -748,26 +675,21 @@ const WeeklyExam = () => {
           </div>
         </div>
 
-        {/* Class filter pills */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="mt-3 border-t border-[var(--color-active-border)] pt-3 sm:mt-4 sm:pt-4"
-        >
-          <div className="mb-1.5 flex items-center gap-1.5">
-            <Filter size={11} className="text-[var(--color-gray)] opacity-50" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-gray)] bangla sm:text-xs">
-              শ্রেণি
-            </span>
+        {/* Class Filter */}
+        <div className="mt-4 border-t border-[var(--color-active-border)] pt-4">
+          <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-gray)] bangla">
+            <Filter size={13} />
+            শ্রেণি
           </div>
+
           <div className="relative">
-            <ExamClassFilterBtns
+            <AnimatedFilterPills
+              items={availableClasses}
               activeId={selectedClass}
               onChange={setSelectedClass}
-              classes={availableClasses}
-              disabled={false}
+              layoutId="weekly-exam-class-pill"
             />
+
             {isGuest && (
               <div
                 className="absolute inset-0 z-10 cursor-pointer"
@@ -775,25 +697,28 @@ const WeeklyExam = () => {
               />
             )}
           </div>
-        </motion.div>
-      </motion.div>
-
-      {/* Marquee */}
-      <div className="flex items-stretch rounded overflow-hidden bangla mb-6 sm:mb-8 mx-2 sm:mx-0">
-        <div className="shrink-0 flex items-center justify-center px-3 sm:px-5 bg-[var(--color-text)]">
-          <span className="text-[var(--color-bg)] font-black text-md md:text-lg tracking-wide">
-            বিজ্ঞপ্তি
-          </span>
         </div>
-        <div className="flex-1 bg-[var(--color-active-bg)] overflow-hidden py-1 flex items-center">
-          <Marquee speed={40} gradient={false} pauseOnHover>
-            <span className="flex items-center text-[var(--color-text)] text-md md:text-lg font-medium px-4 sm:px-6">
-              লিখিত ৭০, বহুনির্বাচনী ৩০; পূর্ণমান ১০০; সময় ৩ ঘণ্টা; পরীক্ষার ফি
-              ও অন্যন্য খরচ বাবদ ৩০ টাকা ধার্য করা হয়েছে। নির্ধারিত সময়ের
-              মধ্যে উপস্থিত হওয়ার জন্য আদেশ করা হলো{" "}
-              <TfiLayoutLineSolid className="w-12 sm:w-20 h-6 sm:h-10" />
+      </motion.section>
+
+      {/* Marquee Notice */}
+      <div className="mx-2 mb-6 overflow-hidden rounded-2xl border border-[var(--color-active-border)] bg-[var(--color-bg)] bangla sm:mx-0 sm:mb-8">
+        <div className="flex items-stretch">
+          <div className="flex shrink-0 items-center justify-center bg-[var(--color-text)] px-4 sm:px-5">
+            <span className="text-sm font-black tracking-wide text-[var(--color-bg)] sm:text-base">
+              বিজ্ঞপ্তি
             </span>
-          </Marquee>
+          </div>
+
+          <div className="flex-1 overflow-hidden bg-[var(--color-active-bg)] py-1">
+            <Marquee speed={40} gradient={false} pauseOnHover>
+              <span className="flex items-center px-4 text-sm font-medium text-[var(--color-text)] sm:px-6 sm:text-base">
+                লিখিত ৭০, বহুনির্বাচনী ৩০; পূর্ণমান ১০০; সময় ৩ ঘণ্টা; পরীক্ষার
+                ফি ও অন্যন্য খরচ বাবদ ৩০ টাকা ধার্য করা হয়েছে। নির্ধারিত সময়ের
+                মধ্যে উপস্থিত হওয়ার জন্য আদেশ করা হলো{" "}
+                <TfiLayoutLineSolid className="h-6 w-12 sm:h-8 sm:w-16" />
+              </span>
+            </Marquee>
+          </div>
         </div>
       </div>
 
@@ -801,13 +726,13 @@ const WeeklyExam = () => {
       <AnimatePresence>
         {!isGuest && isStaff && (
           <motion.div
-            initial={{ opacity: 0, y: -10, height: 0 }}
+            initial={{ opacity: 0, y: -8, height: 0 }}
             animate={{ opacity: 1, y: 0, height: "auto" }}
-            exit={{ opacity: 0, y: -10, height: 0 }}
-            transition={{ delay: 0.2, duration: 0.3 }}
-            className="mx-2 mb-5 overflow-hidden rounded-xl border border-[var(--color-active-border)] bg-[var(--color-active-bg)] px-4 py-3 sm:mx-0 sm:mb-6"
+            exit={{ opacity: 0, y: -8, height: 0 }}
+            transition={{ duration: 0.25 }}
+            className="mx-2 mb-5 overflow-hidden rounded-2xl border border-[var(--color-active-border)] bg-[var(--color-active-bg)] px-4 py-3 sm:mx-0 sm:mb-6"
           >
-            <p className="text-xs sm:text-sm text-[var(--color-text-hover)] text-center sm:text-left bangla">
+            <p className="text-center text-xs text-[var(--color-text-hover)] bangla sm:text-left sm:text-sm">
               {isManager
                 ? "🔑 আপনি সকল পরীক্ষা সম্পাদনা ও মুছে ফেলতে পারবেন"
                 : "✏️ আপনি শুধু নিজের যোগ করা পরীক্ষা সম্পাদনা ও মুছে ফেলতে পারবেন"}
@@ -837,7 +762,8 @@ const WeeklyExam = () => {
                     index={groupIndex}
                     count={exams.length}
                   />
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4 mb-8 sm:mb-10">
+
+                  <div className="mb-8 grid grid-cols-1 gap-3 sm:mb-10 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 2xl:grid-cols-4">
                     {exams.map((exam, i) => renderCard(exam, i))}
                   </div>
                 </div>
@@ -845,26 +771,19 @@ const WeeklyExam = () => {
             )
           ) : (
             <motion.div
-              initial={{ opacity: 0, y: 24 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              className="py-14 text-center sm:py-20"
+              transition={{ duration: 0.3 }}
+              className="rounded-3xl border border-dashed border-[var(--color-active-border)] bg-[var(--color-active-bg)] py-16 text-center sm:py-20"
             >
-              <motion.div
-                animate={{ y: [0, -6, 0] }}
-                transition={{
-                  repeat: Infinity,
-                  duration: 2.5,
-                  ease: "easeInOut",
-                }}
-                className="mb-5 text-5xl sm:text-6xl"
-              >
+              <div className="mb-4">
                 {isAwaitingNextExam ? (
-                  <Fan className="mx-auto w-10 h-10 md:w-14 md:h-14 animate-spin text-[var(--color-gray)]" />
+                  <Fan className="mx-auto h-10 w-10 animate-spin text-[var(--color-gray)]" />
                 ) : (
-                  "📭"
+                  <span className="text-4xl">📭</span>
                 )}
-              </motion.div>
+              </div>
+
               <p className="mb-5 text-sm text-[var(--color-gray)] bangla sm:text-base">
                 {isAwaitingNextExam
                   ? `পরীক্ষা নং ${toBn(activeExamNumber ?? "")} — এখনো কেউ ধারণা দেয়নি`
@@ -874,16 +793,15 @@ const WeeklyExam = () => {
                       ? "এই শ্রেণির কোনো পরীক্ষা পাওয়া যায়নি"
                       : "এই পরীক্ষার কোনো তথ্য পাওয়া যায়নি।"}
               </p>
-              <div className="flex flex-wrap justify-center gap-2.5">
-                {(selectedClass !== "all" || selectedTeacher !== "all") && (
-                  <button
-                    onClick={handleReset}
-                    className="px-4 py-2 rounded-lg text-sm bangla font-medium bg-[var(--color-active-bg)] border border-[var(--color-active-border)] text-[var(--color-text)] hover:bg-[var(--color-active-border)] transition-colors"
-                  >
-                    সকল ফিল্টার সরান
-                  </button>
-                )}
-              </div>
+
+              {(selectedClass !== "all" || selectedTeacher !== "all") && (
+                <button
+                  onClick={handleReset}
+                  className="rounded-xl border border-[var(--color-active-border)] bg-[var(--color-bg)] px-4 py-2 text-sm font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-active-bg)] bangla"
+                >
+                  সকল ফিল্টার সরান
+                </button>
+              )}
             </motion.div>
           )}
         </motion.div>
@@ -897,6 +815,7 @@ const WeeklyExam = () => {
             selected={activeExamNumber}
             onSelect={isGuest ? () => {} : setSelectedExamNumber}
           />
+
           {isGuest && (
             <div
               className="absolute inset-0 z-10 cursor-pointer"
@@ -918,6 +837,7 @@ const WeeklyExam = () => {
             }
           />
         )}
+
         {deleteTarget && (
           <DeleteModal
             key="delete"

@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/rules-of-hooks */
 // AddWeeklyExam.tsx
 import { useForm, type SubmitHandler, Controller } from "react-hook-form";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import {
   Loader2,
@@ -31,11 +31,10 @@ import { uploadMultipleToCloudinary } from "../../../hooks/useCloudinaryUpload";
 import type {
   SelectOption,
   TeacherItem,
+  WeeklyExamData,
   WeeklyExamFormData,
 } from "../../../types/types";
 import { toBn, toEn } from "../../../utility/Formatters";
-
-// ─── Types ────────────────────────────────────────────────
 
 // ─── Validation helpers ────────────────────────────────────
 const validatePositiveNumber = (
@@ -83,6 +82,22 @@ const MARK_OPTIONS: SelectOption[] = [5, 10, 15, 20, 25, 30, 35, 40].map(
     label: toBn(n),
   }),
 );
+
+// ─── Helpers ──────────────────────────────────────────────
+const sortExamNumbers = (nums: string[]): string[] =>
+  [...nums].sort((a, b) => Number(a) - Number(b));
+
+const getLastSaturdayMidnight = (): Date => {
+  const dhaka = new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka" }),
+  );
+  const day = dhaka.getDay();
+  const daysBack = day === 6 ? 0 : day + 1;
+  const sat = new Date(dhaka);
+  sat.setDate(sat.getDate() - daysBack);
+  sat.setHours(0, 0, 0, 0);
+  return sat;
+};
 
 // ─── Animation Variants ───────────────────────────────────
 const fadeUp: Variants = {
@@ -277,12 +292,62 @@ const AddWeeklyExam = () => {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin" || user?.role === "owner";
 
-  const [submitted, setSubmitted] = useState(false);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const hasUserEditedExamNumber = useRef(false);
   const qc = useQueryClient();
+
+  // ── Fetch all exams for suggested exam number ──────────
+  const { data: allExams = [] } = useQuery<WeeklyExamData[]>({
+    queryKey: ["weekly-exams"],
+    queryFn: async () => {
+      const res = await axiosPublic.get("/api/weekly-exams");
+      const payload = res.data;
+      if (Array.isArray(payload)) return payload;
+      if (Array.isArray(payload?.data)) return payload.data;
+      return [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // ── Suggested exam number logic ────────────────────────
+  const examNumbers = useMemo(() => {
+    const unique = new Set(allExams.map((e) => String(e.ExamNumber)));
+    return sortExamNumbers(Array.from(unique));
+  }, [allExams]);
+
+  const nextExpectedExamNumber = useMemo(() => {
+    if (examNumbers.length === 0) return "1";
+    return String(Number(examNumbers[examNumbers.length - 1]) + 1);
+  }, [examNumbers]);
+
+  const latestExamCreatedAt = useMemo(() => {
+    if (!allExams.length || !examNumbers.length) return null;
+    const latestNumber = examNumbers[examNumbers.length - 1];
+    const examsWithLatestNumber = allExams.filter(
+      (e) => String(e.ExamNumber) === latestNumber,
+    );
+    if (examsWithLatestNumber.length === 0) return null;
+    const dates = examsWithLatestNumber
+      .map((e) => new Date(e.createdAt).getTime())
+      .filter((t) => !Number.isNaN(t));
+    if (dates.length === 0) return null;
+    return new Date(Math.max(...dates));
+  }, [allExams, examNumbers]);
+
+  const shouldShowNextExam = useMemo(() => {
+    if (!latestExamCreatedAt) return false;
+    return latestExamCreatedAt.getTime() < getLastSaturdayMidnight().getTime();
+  }, [latestExamCreatedAt]);
+
+  const suggestedExamNumber = useMemo(() => {
+    if (examNumbers.length === 0) return "1";
+    return shouldShowNextExam
+      ? nextExpectedExamNumber
+      : examNumbers[examNumbers.length - 1];
+  }, [examNumbers, shouldShowNextExam, nextExpectedExamNumber]);
 
   // ── Fetch teachers ─────────────────────────────────────
   const {
@@ -350,6 +415,17 @@ const AddWeeklyExam = () => {
   const teacherValue = watch("teacher");
   const numberType = watch("numberType");
 
+  // ── Auto set suggested exam number ────────────────────
+  useEffect(() => {
+    if (hasUserEditedExamNumber.current) return;
+    setValue("ExamNumber", toBn(suggestedExamNumber), {
+      shouldTouch: false,
+      shouldValidate: false,
+      shouldDirty: false,
+    });
+  }, [suggestedExamNumber, setValue]);
+
+  // ── Auto set teacher ───────────────────────────────────
   useEffect(() => {
     if (!user?.name) return;
     if (isAdmin && teacherList.length === 0) return;
@@ -415,12 +491,21 @@ const AddWeeklyExam = () => {
     onSuccess: () => {
       toast.success("পরীক্ষা সফলভাবে যোগ হয়েছে!");
       qc.invalidateQueries({ queryKey: ["weekly-exams"] });
-      reset();
+      hasUserEditedExamNumber.current = false;
+      reset({
+        subject: "",
+        teacher: user?.name ?? "",
+        class: "",
+        mark: 0,
+        ExamNumber: toBn(suggestedExamNumber),
+        numberType: "chapterNumber",
+        numberValue: "",
+        topics: "",
+        question: "",
+      });
       setImageFiles([]);
       setPreviews([]);
       setUploadProgress(0);
-      setSubmitted(true);
-      setTimeout(() => setSubmitted(false), 2500);
     },
     onError: (err: Error & { response?: { data?: { message?: string } } }) => {
       toast.error(
@@ -438,7 +523,18 @@ const AddWeeklyExam = () => {
   };
 
   const handleReset = () => {
-    reset();
+    hasUserEditedExamNumber.current = false;
+    reset({
+      subject: "",
+      teacher: "",
+      class: "",
+      mark: 0,
+      ExamNumber: "",
+      numberType: "chapterNumber",
+      numberValue: "",
+      topics: "",
+      question: "",
+    });
     setImageFiles([]);
     setPreviews([]);
     setUploadProgress(0);
@@ -636,7 +732,10 @@ const AddWeeklyExam = () => {
                     render={({ field, fieldState }) => (
                       <BanglaNumberInput
                         value={field.value}
-                        onChange={field.onChange}
+                        onChange={(v) => {
+                          hasUserEditedExamNumber.current = true;
+                          field.onChange(v);
+                        }}
                         onBlur={field.onBlur}
                         isError={!!fieldState.error}
                         isValidTouched={
@@ -647,6 +746,10 @@ const AddWeeklyExam = () => {
                     )}
                   />
                   <ErrorMsg msg={errors.ExamNumber?.message} />
+                  <p className="mt-1.5 text-xs text-[var(--color-gray)] bangla">
+                    ডিফল্ট: পরীক্ষা {toBn(suggestedExamNumber)} — চাইলে পরিবর্তন
+                    করতে পারবেন
+                  </p>
                 </AnimatedCard>
 
                 <AnimatedCard index={4}>
