@@ -187,8 +187,6 @@ export const CLASSES = [
   "৮ম শ্রেণি",
   "৯ম শ্রেণি",
   "১০ম শ্রেণি",
-  "একাদশ শ্রেণি",
-  "দ্বাদশ শ্রেণি",
 ] as const;
 
 export const SUBJECT_REQUIRED_CLASSES = [

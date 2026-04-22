@@ -1,28 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
-import { BookPlus, RotateCcw, CalendarDays, Filter } from "lucide-react";
 import toast from "react-hot-toast";
-
 import axiosPublic from "../../hooks/axiosPublic";
-
-import DatePicker from "../../components/common/Datepicker";
-import SelectInput from "../../components/common/SelectInput";
 import Skeleton from "../../components/common/Skeleton";
 import EmptyState from "../../components/common/Emptystate";
 import Button from "../../components/common/Button";
-import ClassFilterBtns from "../../components/common/ClassFilterBtns";
-
 import { useAuth } from "../../context/AuthContext";
 import { useGuestPreview } from "../../hooks/useGuestPreview";
 import LoginPromptOverlay from "../Admin/Auth/LoginPromptOverlay";
-
-import {
-  formatBnDate,
-  getTodayBnDate,
-  isSameCalendarDay,
-  toBn,
-} from "../../utility/Formatters";
+import { formatBnDate, toBn } from "../../utility/Formatters";
 import {
   CLASS_ORDER,
   PRIVILEGED_ROLES,
@@ -37,12 +24,55 @@ import {
 } from "./DailyLessonUpdateModals";
 import DailyLessonCard from "./DailyLessonCard";
 import { useNavigate } from "react-router";
+import DailyLessonHeader from "./DailyLessonHeader";
 
 const GUEST_PREVIEW_CLASS = "৬ষ্ঠ শ্রেণি";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const getTeacherDefault = (role?: UserRole, slug?: string) =>
   STAFF_DASHBOARD_ROLES.includes(role as UserRole) && slug ? slug : "all";
+
+const toLocalDate = (value: string | Date) => {
+  if (value instanceof Date) {
+    return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  }
+
+  if (typeof value === "string") {
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      const [, y, m, d] = match;
+      return new Date(Number(y), Number(m) - 1, Number(d));
+    }
+  }
+
+  const d = new Date(value);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+};
+
+const isSameLocalDay = (a: string | Date, b: string | Date) => {
+  const d1 = toLocalDate(a);
+  const d2 = toLocalDate(b);
+
+  return (
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate()
+  );
+};
+
+const buildDateKey = (date: Date) =>
+  `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+
+const getLessonSubject = (subject: unknown) => {
+  if (typeof subject === "string") return subject.trim();
+
+  if (subject && typeof subject === "object" && "name" in subject) {
+    const name = (subject as { name?: string }).name;
+    return typeof name === "string" ? name.trim() : "";
+  }
+
+  return "";
+};
 
 // ─── Animation Variants ───────────────────────────────────────────────────────
 const staggerContainer: Variants = {
@@ -81,25 +111,6 @@ const contentVariants: Variants = {
   exit: { opacity: 0, y: -10, transition: { duration: 0.2 } },
 };
 
-const filterBarVariants: Variants = {
-  hidden: { opacity: 0, y: 12 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1], delay: 0.15 },
-  },
-};
-
-const badgePulse: Variants = {
-  hidden: { opacity: 0, scale: 0.85 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    transition: { type: "spring", stiffness: 400, damping: 20 },
-  },
-  exit: { opacity: 0, scale: 0.85, transition: { duration: 0.15 } },
-};
-
 // ─── ClassGroupTitle ──────────────────────────────────────────────────────────
 const ClassGroupTitle = ({
   className,
@@ -115,20 +126,9 @@ const ClassGroupTitle = ({
     variants={groupTitleVariants}
     initial="hidden"
     animate="visible"
-    className="relative mb-5 mt-8 overflow-hidden rounded-xl bangla sm:mt-10"
+    className="relative mb-5 mt-8 overflow-hidden rounded bangla sm:mt-10"
   >
-    <div className="flex flex-1 flex-col items-center justify-center gap-2 border-y border-[var(--color-active-border)] bg-[var(--color-active-bg)] px-4 py-3.5 sm:flex-row sm:gap-x-10 sm:px-5 sm:py-4">
-      <motion.div
-        initial={{ scaleX: 0 }}
-        animate={{ scaleX: 1 }}
-        transition={{
-          delay: index * 0.07 + 0.2,
-          duration: 0.6,
-          ease: "easeOut",
-        }}
-        className="absolute left-0 top-0 h-0.5 w-full origin-left bg-gradient-to-r from-[var(--color-text-hover)] to-transparent"
-      />
-
+    <div className="flex flex-1 flex-col items-center justify-center gap-2 bg-[var(--color-active-bg)] px-4 py-3.5 sm:flex-row sm:gap-x-10 sm:px-5 sm:py-4">
       <h2 className="text-lg font-extrabold leading-tight text-[var(--color-text)] sm:text-xl md:text-2xl">
         {className}
       </h2>
@@ -141,7 +141,7 @@ const ClassGroupTitle = ({
           type: "spring",
           stiffness: 500,
         }}
-        className="rounded-full border border-[var(--color-active-border)] bg-[var(--color-active-bg)] px-3 py-0.5 text-xs font-black text-[var(--color-text-hover)] sm:text-sm"
+        className="text-xs font-black text-[var(--color-text)] sm:text-sm"
       >
         {toBn(count)}টি পাঠ
       </motion.span>
@@ -149,56 +149,37 @@ const ClassGroupTitle = ({
   </motion.div>
 );
 
-// ─── ActiveFilterBadge ────────────────────────────────────────────────────────
-const ActiveFilterBadge = ({ count }: { count: number }) => {
-  if (count <= 0) return null;
-  return (
-    <motion.span
-      initial={{ scale: 0 }}
-      animate={{ scale: 1 }}
-      exit={{ scale: 0 }}
-      transition={{ type: "spring", stiffness: 500, damping: 25 }}
-      className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--color-text-hover)] text-[10px] font-bold text-[var(--color-bg)] shadow-lg"
-    >
-      {toBn(count)}
-    </motion.span>
-  );
-};
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 const DailyLesson = () => {
   const { user } = useAuth();
   const qc = useQueryClient();
   const { isGuest } = useGuestPreview();
+  const navigate = useNavigate();
 
   const userRole = (user?.role ?? "student") as UserRole;
   const userSlug = user?.slug ?? "";
   const isManager = PRIVILEGED_ROLES.includes(userRole);
   const isStaff = STAFF_DASHBOARD_ROLES.includes(userRole);
-  const navigate = useNavigate();
 
   const defaultTeacherFilter = useMemo(
     () => getTeacherDefault(userRole, userSlug),
     [userRole, userSlug],
   );
 
+  // ─── State ────────────────────────────────────────────────────────────────
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [datePickerValue, setDatePickerValue] =
-    useState<string>(getTodayBnDate());
-
   const [selectedClass, setSelectedClass] = useState<string>("all");
   const [selectedTeacher, setSelectedTeacher] = useState<string>("all");
+  const [selectedSubject, setSelectedSubject] = useState<string>("all");
   const prevDefaultRef = useRef("all");
 
   const [editTarget, setEditTarget] = useState<DailyLessonData | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DailyLessonData | null>(
     null,
   );
-
-  // ── Guest login prompt state ──
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
-  // ── Sync teacher filter when auth loads ──
+  // ─── Sync teacher default when role loads ─────────────────────────────────
   useEffect(() => {
     const prevDefault = prevDefaultRef.current;
     setSelectedTeacher((prev) =>
@@ -226,32 +207,80 @@ const DailyLesson = () => {
     refetchOnWindowFocus: true,
   });
 
-  // ─── Derived ──────────────────────────────────────────────────────────────
-  const activeDates = useMemo(() => {
-    if (!data) return new Set<string>();
-    const set = new Set<string>();
-    data.forEach((l) => {
-      const d = new Date(l.date);
-      set.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
-    });
-    return set;
-  }, [data]);
+  // ─── Calendar active dates (current teacher/class/subject অনুযায়ী) ───────
+  const calendarBaseData = useMemo(() => {
+    let result = data ?? [];
 
-  const dateFilteredData = useMemo(
-    () => (data ?? []).filter((l) => isSameCalendarDay(l.date, selectedDate)),
-    [data, selectedDate],
-  );
+    if (selectedClass !== "all") {
+      result = result.filter((l) => l.class === selectedClass);
+    }
+
+    if (selectedTeacher !== "all") {
+      result = result.filter(
+        (l) => resolveTeacherSlug(l.teacher, l.teacherSlug) === selectedTeacher,
+      );
+    }
+
+    if (selectedSubject !== "all") {
+      result = result.filter(
+        (l) =>
+          getLessonSubject(
+            (l as DailyLessonData & { subject?: unknown }).subject,
+          ) === selectedSubject,
+      );
+    }
+
+    return result;
+  }, [data, selectedClass, selectedTeacher, selectedSubject]);
+
+  const activeDates = useMemo(() => {
+    const set = new Set<string>();
+
+    calendarBaseData.forEach((lesson) => {
+      const d = toLocalDate(lesson.date);
+      set.add(buildDateKey(d));
+    });
+
+    return set;
+  }, [calendarBaseData]);
+
+  // ─── Derived Data ─────────────────────────────────────────────────────────
+  const dateFilteredData = useMemo(() => {
+    return (data ?? []).filter((lesson) =>
+      isSameLocalDay(lesson.date, selectedDate),
+    );
+  }, [data, selectedDate]);
+
+  const teacherBaseData = useMemo(() => {
+    let result = dateFilteredData;
+
+    if (selectedClass !== "all") {
+      result = result.filter((l) => l.class === selectedClass);
+    }
+
+    if (selectedSubject !== "all") {
+      result = result.filter(
+        (l) =>
+          getLessonSubject(
+            (l as DailyLessonData & { subject?: unknown }).subject,
+          ) === selectedSubject,
+      );
+    }
+
+    return result;
+  }, [dateFilteredData, selectedClass, selectedSubject]);
 
   const teacherOptions = useMemo(() => {
     const map = new Map<string, string>();
 
-    dateFilteredData.forEach((l) => {
+    teacherBaseData.forEach((l) => {
       const name =
         typeof l.teacher === "object" && l.teacher?.name
           ? l.teacher.name
           : typeof l.teacher === "string"
             ? l.teacher
             : "";
+
       const slug = resolveTeacherSlug(l.teacher, l.teacherSlug);
       if (name && slug) map.set(slug, name);
     });
@@ -267,55 +296,197 @@ const DailyLesson = () => {
         label: name,
       })),
     ];
-  }, [dateFilteredData, userSlug, user?.name]);
+  }, [teacherBaseData, userSlug, user?.name]);
 
-  const filteredData = useMemo(() => {
+  const subjectBaseData = useMemo(() => {
     let result = dateFilteredData;
-    if (selectedClass !== "all")
+
+    if (selectedClass !== "all") {
       result = result.filter((l) => l.class === selectedClass);
-    if (selectedTeacher !== "all")
+    }
+
+    if (selectedTeacher !== "all") {
       result = result.filter(
         (l) => resolveTeacherSlug(l.teacher, l.teacherSlug) === selectedTeacher,
       );
+    }
+
     return result;
   }, [dateFilteredData, selectedClass, selectedTeacher]);
 
+  const subjectOptions = useMemo(() => {
+    const subjects = new Map<string, string>();
+
+    subjectBaseData.forEach((lesson) => {
+      const subject = getLessonSubject(
+        (lesson as DailyLessonData & { subject?: unknown }).subject,
+      );
+
+      if (subject) subjects.set(subject, subject);
+    });
+
+    if (subjects.size === 0) return [];
+
+    return [
+      { value: "all", label: "সকল বিষয়" },
+      ...Array.from(subjects.entries()).map(([value, label]) => ({
+        value,
+        label,
+      })),
+    ];
+  }, [subjectBaseData]);
+
+  useEffect(() => {
+    if (selectedSubject === "all") return;
+
+    const exists = subjectOptions.some(
+      (item) => item.value === selectedSubject,
+    );
+    if (!exists) {
+      setSelectedSubject("all");
+    }
+  }, [subjectOptions, selectedSubject]);
+
+  useEffect(() => {
+    if (selectedTeacher === "all") return;
+
+    const exists = teacherOptions.some(
+      (item) => item.value === selectedTeacher,
+    );
+    if (!exists) {
+      setSelectedTeacher(defaultTeacherFilter);
+    }
+  }, [teacherOptions, selectedTeacher, defaultTeacherFilter]);
+
+  const filteredData = useMemo(() => {
+    let result = dateFilteredData;
+
+    if (selectedClass !== "all") {
+      result = result.filter((l) => l.class === selectedClass);
+    }
+
+    if (selectedTeacher !== "all") {
+      result = result.filter(
+        (l) => resolveTeacherSlug(l.teacher, l.teacherSlug) === selectedTeacher,
+      );
+    }
+
+    if (selectedSubject !== "all") {
+      result = result.filter(
+        (l) =>
+          getLessonSubject(
+            (l as DailyLessonData & { subject?: unknown }).subject,
+          ) === selectedSubject,
+      );
+    }
+
+    return result;
+  }, [dateFilteredData, selectedClass, selectedTeacher, selectedSubject]);
+
   const groupedByClass = useMemo(() => {
     const map = new Map<string, DailyLessonData[]>();
+
     filteredData.forEach((l) => {
       if (!map.has(l.class)) map.set(l.class, []);
       map.get(l.class)!.push(l);
     });
+
     map.forEach((arr) =>
       arr.sort(
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       ),
     );
+
     return Array.from(map.entries())
       .sort(([a], [b]) => (CLASS_ORDER[a] ?? 99) - (CLASS_ORDER[b] ?? 99))
       .map(([className, lessons]) => ({ className, lessons }));
   }, [filteredData]);
 
-  const totalLessonsForDate = dateFilteredData.length;
+  const availableClasses = useMemo(() => {
+    const classKeys = Object.keys(CLASS_ORDER).filter(
+      (key) => typeof key === "string" && key.trim() !== "",
+    );
+
+    return [
+      { id: "all", label: "সকল শ্রেণি" },
+      ...classKeys.map((cls) => ({
+        id: String(cls),
+        label: String(cls),
+      })),
+    ];
+  }, []);
+
+  const isToday = useMemo(
+    () => isSameLocalDay(selectedDate, new Date()),
+    [selectedDate],
+  );
 
   const activeFilterCount = useMemo(() => {
     let c = 0;
+    if (!isToday) c++;
     if (selectedClass !== "all") c++;
     if (selectedTeacher !== defaultTeacherFilter) c++;
+    if (selectedSubject !== "all") c++;
     return c;
-  }, [selectedClass, selectedTeacher, defaultTeacherFilter]);
+  }, [
+    isToday,
+    selectedClass,
+    selectedTeacher,
+    selectedSubject,
+    defaultTeacherFilter,
+  ]);
 
   // ─── Permissions ──────────────────────────────────────────────────────────
   const getLessonPermissions = (lesson: DailyLessonData) => {
     if (isGuest) return { canEdit: false, canDelete: false };
     if (isManager) return { canEdit: true, canDelete: true };
+
     const slug = resolveTeacherSlug(lesson.teacher, lesson.teacherSlug);
     const isOwn = userRole === "teacher" && slug === userSlug;
+
     return { canEdit: isOwn, canDelete: isOwn };
   };
 
-  // ─── Delete mutation ──────────────────────────────────────────────────────
+  // ─── Handlers ─────────────────────────────────────────────────────────────
+  const handleReset = () => {
+    setSelectedDate(new Date());
+    setSelectedClass("all");
+    setSelectedTeacher(defaultTeacherFilter);
+    setSelectedSubject("all");
+  };
+
+  const handleAddLesson = () => {
+    navigate("/dashboard/add-daily-lesson");
+  };
+
+  const handleGuestAction = () => {
+    setShowLoginPrompt(true);
+  };
+
+  const handleDateChange = (date: Date) => {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return;
+
+    // DatePicker clear করলে epoch 0 পাঠায়
+    if (date.getTime() === 0) {
+      setSelectedDate(new Date());
+      return;
+    }
+
+    setSelectedDate(toLocalDate(date));
+  };
+
+  const getClassLabel = (classId: string) => {
+    if (classId.includes("৬ষ্ঠ")) return "ষষ্ঠ";
+    if (classId.includes("৭ম")) return "সপ্তম";
+    if (classId.includes("৮ম")) return "অষ্টম";
+    if (classId.includes("৯ম")) return "নবম";
+    if (classId.includes("১০ম")) return "দশম";
+    if (classId.includes("এসএসসি") || classId.includes("SSC")) return "এসএসসি";
+    return classId;
+  };
+
+  // ─── Delete Mutation ──────────────────────────────────────────────────────
   const deleteMutation = useMutation({
     mutationFn: (id: string) => axiosPublic.delete(`/api/daily-lesson/${id}`),
     onSuccess: () => {
@@ -329,29 +500,7 @@ const DailyLesson = () => {
       ),
   });
 
-  // ─── Resets ───────────────────────────────────────────────────────────────
-  const handleReset = () => {
-    setSelectedDate(new Date());
-    setDatePickerValue(getTodayBnDate());
-    setSelectedClass("all");
-    setSelectedTeacher(defaultTeacherFilter);
-  };
-
-  const handleAddLesson = () => {
-    navigate("/dashboard/add-daily-lesson");
-  };
-
-  const getClassLabel = (classId: string) => {
-    if (classId.includes("৬ষ্ঠ")) return "ষষ্ঠ";
-    if (classId.includes("৭ম")) return "সপ্তম";
-    if (classId.includes("৮ম")) return "অষ্টম";
-    if (classId.includes("৯ম")) return "নবম";
-    if (classId.includes("১০ম")) return "দশম";
-    if (classId.includes("এসএসসি") || classId.includes("SSC")) return "এসএসসি";
-    return classId;
-  };
-
-  // ─── Guest content ────────────────────────────────────────────────────────
+  // ─── Guest Content ────────────────────────────────────────────────────────
   const buildGuestContent = () => {
     const class6 = groupedByClass.find(
       ({ className }) => className === GUEST_PREVIEW_CLASS,
@@ -359,11 +508,9 @@ const DailyLesson = () => {
 
     if (!class6) {
       return (
-        <div>
-          <p className="py-8 text-center text-sm text-[var(--color-gray)] bangla">
-            আজকের ৬ষ্ঠ শ্রেণির কোনো পাঠ পাওয়া যায়নি।
-          </p>
-        </div>
+        <p className="py-8 text-center text-sm text-[var(--color-gray)] bangla">
+          আজকের ৬ষ্ঠ শ্রেণির কোনো পাঠ পাওয়া যায়নি।
+        </p>
       );
     }
 
@@ -395,262 +542,39 @@ const DailyLesson = () => {
     );
   };
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  // ─── Loading ──────────────────────────────────────────────────────────────
   if (isLoading) return <Skeleton variant="daily-lesson" />;
 
+  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="relative mx-auto max-w-7xl">
-      {/* ── Header ── */}
-      <header className="mb-8 px-3 text-center bangla sm:mb-10">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="relative inline-block"
-        >
-          <h1 className="text-2xl font-bold text-[var(--color-text)] sm:text-3xl md:text-4xl lg:text-5xl">
-            আজকের পড়া
-          </h1>
-          <motion.div
-            initial={{ scaleX: 0 }}
-            animate={{ scaleX: 1 }}
-            transition={{ delay: 0.3, duration: 0.6, ease: "easeOut" }}
-            className="mx-auto mt-2 h-0.5 w-16 origin-center rounded-full bg-gradient-to-r from-transparent via-[var(--color-text-hover)] to-transparent sm:w-20"
-          />
-        </motion.div>
+      {/* ── Header + Filters ── */}
+      <DailyLessonHeader
+        isGuest={isGuest}
+        isStaff={isStaff}
+        title="আজকের পড়া"
+        description="প্রতিদিনের পাঠ, নির্দেশনা ও বিষয়ভিত্তিক প্রস্তুতি"
+        selectedDate={selectedDate}
+        onDateChange={handleDateChange}
+        activeDates={activeDates}
+        selectedTeacher={selectedTeacher}
+        onTeacherChange={setSelectedTeacher}
+        teacherOptions={teacherOptions}
+        selectedSubject={selectedSubject}
+        onSubjectChange={setSelectedSubject}
+        subjectOptions={subjectOptions}
+        selectedClass={selectedClass}
+        onClassChange={setSelectedClass}
+        availableClasses={availableClasses}
+        totalLessons={dateFilteredData.length}
+        filteredCount={filteredData.length}
+        activeFilterCount={activeFilterCount}
+        onAddLesson={handleAddLesson}
+        onReset={handleReset}
+        onGuestAction={handleGuestAction}
+      />
 
-        <motion.p
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.12, duration: 0.5 }}
-          className="mt-3 text-sm font-medium text-[var(--color-gray)] sm:text-base md:text-lg"
-        >
-          প্রতিদিনের পাঠ্যক্রম ও নির্দেশনা
-        </motion.p>
-      </header>
-
-      {/* ── Filter Bar ── */}
-      <motion.div
-        variants={filterBarVariants}
-        initial="hidden"
-        animate="visible"
-        className="mb-6 rounded-2xl border border-[var(--color-active-border)] bg-[var(--color-active-bg)] p-3 shadow-sm sm:mb-8 sm:p-4 md:p-5"
-      >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
-          {/* ── Date picker ── */}
-          <div className="relative min-w-0 flex-1 sm:max-w-[260px]">
-            <label className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-gray)] bangla sm:text-xs">
-              <CalendarDays size={12} className="opacity-60" />
-              তারিখ
-            </label>
-            <DatePicker
-              value={datePickerValue}
-              onDateChange={(date) => {
-                if (
-                  !date ||
-                  Number.isNaN(date.getTime()) ||
-                  date.getTime() === 0
-                ) {
-                  handleReset();
-                  return;
-                }
-                setSelectedDate(date);
-                setSelectedClass("all");
-                setSelectedTeacher(defaultTeacherFilter);
-              }}
-              onChange={(val) => setDatePickerValue(val)}
-              placeholder="তারিখ বেছে নিন"
-              maxDate={new Date()}
-              activeDates={activeDates}
-            />
-
-            {/* Guest intercept */}
-            {isGuest && (
-              <div
-                className="absolute inset-0 z-10 cursor-pointer"
-                onClick={() => setShowLoginPrompt(true)}
-              />
-            )}
-          </div>
-
-          {/* ── Teacher filter ── */}
-          <div className="relative min-w-0 flex-1 sm:max-w-[260px]">
-            <SelectInput
-              label="শিক্ষক"
-              value={selectedTeacher}
-              onChange={setSelectedTeacher}
-              placeholder="শিক্ষক বাছুন"
-              options={teacherOptions}
-              disabled={teacherOptions.length <= 1}
-            />
-
-            {/* Guest intercept */}
-            {isGuest && (
-              <div
-                className="absolute inset-0 z-10 cursor-pointer"
-                onClick={() => setShowLoginPrompt(true)}
-              />
-            )}
-          </div>
-
-          {/* Add lesson (staff) */}
-          <AnimatePresence>
-            {!isGuest && isStaff && (
-              <motion.div
-                initial={{ opacity: 0, y: 8, scale: 0.94 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 4, scale: 0.94 }}
-                transition={{ delay: 0.25, duration: 0.35, ease: "easeOut" }}
-                className="flex-1 justify-center items-center w-full"
-              >
-                <motion.button
-                  whileHover={{ scale: 1.04, y: -1 }}
-                  whileTap={{ scale: 0.96 }}
-                  className="group flex items-center gap-2.5 rounded bg-[var(--color-text)] px-5 py-3 text-sm font-bold text-[var(--color-bg)] shadow-sm outline-none transition-all duration-200 sm:px-6 sm:text-base"
-                  onClick={handleAddLesson}
-                >
-                  <motion.span
-                    className="flex items-center"
-                    whileHover={{ rotate: 12 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 18 }}
-                  >
-                    <BookPlus size={17} strokeWidth={2.2} />
-                  </motion.span>
-                  পড়া জমা দিন
-                </motion.button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Badge + Reset */}
-          <div className="flex items-end gap-2.5 sm:ml-auto">
-            <AnimatePresence mode="wait">
-              {totalLessonsForDate > 0 && (
-                <motion.div
-                  key={`${selectedDate.toDateString()}-${selectedClass}-${selectedTeacher}`}
-                  variants={badgePulse}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  className="whitespace-nowrap rounded-full border border-[var(--color-active-border)] bg-[var(--color-active-bg)] px-3.5 py-2 text-xs text-[var(--color-gray)] bangla sm:text-sm"
-                >
-                  {isGuest ? (
-                    <>
-                      ৬ষ্ঠ শ্রেণির{" "}
-                      <span className="font-bold text-[var(--color-text)]">
-                        {toBn(
-                          groupedByClass.find(
-                            ({ className }) =>
-                              className === GUEST_PREVIEW_CLASS,
-                          )?.lessons.length ?? 0,
-                        )}
-                      </span>
-                      টি পাঠ
-                    </>
-                  ) : selectedClass !== "all" || selectedTeacher !== "all" ? (
-                    <>
-                      <span className="font-bold text-[var(--color-text)]">
-                        {toBn(filteredData.length)}
-                      </span>
-                      টি পাঠ{" "}
-                      <span className="hidden sm:inline">
-                        (মোট{" "}
-                        <span className="font-bold text-[var(--color-text)]">
-                          {toBn(totalLessonsForDate)}
-                        </span>
-                        টি)
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      মোট{" "}
-                      <span className="font-bold text-[var(--color-text)]">
-                        {toBn(totalLessonsForDate)}
-                      </span>
-                      টি পাঠ
-                    </>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <AnimatePresence>
-              {activeFilterCount > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  className="relative"
-                >
-                  <motion.button
-                    whileHover={{ scale: 1.08, rotate: -15 }}
-                    whileTap={{ scale: 0.92 }}
-                    onClick={handleReset}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--color-active-border)] bg-[var(--color-active-bg)] text-[var(--color-gray)] shadow-sm transition-colors hover:border-[var(--color-text-hover)] hover:text-[var(--color-text-hover)] sm:h-10 sm:w-10"
-                    title="ফিল্টার রিসেট করুন"
-                  >
-                    <RotateCcw size={15} />
-                  </motion.button>
-                  <ActiveFilterBadge count={activeFilterCount} />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        {/* ── Class filter pills ── */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="mt-3 border-t border-[var(--color-active-border)] pt-3 sm:mt-4 sm:pt-4"
-        >
-          <div className="mb-1.5 flex items-center gap-1.5">
-            <Filter size={11} className="text-[var(--color-gray)] opacity-50" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-gray)] bangla sm:text-xs">
-              শ্রেণি
-            </span>
-          </div>
-
-          <div className="relative">
-            <ClassFilterBtns
-              activeId={selectedClass}
-              onChange={setSelectedClass}
-              data={dateFilteredData}
-              disabled={false}
-            />
-
-            {/* Guest intercept */}
-            {isGuest && (
-              <div
-                className="absolute inset-0 z-10 cursor-pointer"
-                onClick={() => setShowLoginPrompt(true)}
-              />
-            )}
-          </div>
-        </motion.div>
-      </motion.div>
-
-      {/* ── Staff indicator ── */}
-      <AnimatePresence>
-        {!isGuest && isStaff && (
-          <motion.div
-            initial={{ opacity: 0, y: -10, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: "auto" }}
-            exit={{ opacity: 0, y: -10, height: 0 }}
-            transition={{ delay: 0.25, duration: 0.35 }}
-            className="mx-2 mb-5 overflow-hidden rounded-xl border border-[var(--color-active-border)] bg-[var(--color-active-bg)] px-4 py-3 sm:mx-0 sm:mb-6"
-          >
-            <p className="text-center text-xs text-[var(--color-text-hover)] bangla sm:text-left sm:text-sm">
-              {isManager
-                ? "🔑 আপনি সকল পাঠ সম্পাদনা ও মুছে ফেলতে পারবেন"
-                : "✏️ আপনি শুধু নিজের যোগ করা পাঠ সম্পাদনা ও মুছে ফেলতে পারবেন"}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── Content ── */}
+      {/* ── Main Content ── */}
       {isError ? (
         <motion.div
           initial={{ opacity: 0 }}
@@ -671,7 +595,7 @@ const DailyLesson = () => {
       ) : (
         <AnimatePresence mode="wait">
           <motion.div
-            key={`${selectedDate.toDateString()}-${selectedClass}-${selectedTeacher}`}
+            key={`${selectedDate.toDateString()}-${selectedClass}-${selectedTeacher}-${selectedSubject}`}
             variants={contentVariants}
             initial="hidden"
             animate="visible"
@@ -698,6 +622,7 @@ const DailyLesson = () => {
                         {lessons.map((lesson, i) => {
                           const { canEdit, canDelete } =
                             getLessonPermissions(lesson);
+
                           return (
                             <motion.div
                               key={lesson._id}
@@ -740,14 +665,14 @@ const DailyLesson = () => {
                 </motion.div>
               )
             ) : isGuest ? (
-              <div>
-                <EmptyState
-                  message="এই তারিখে কোনো পাঠ নেই"
-                  action={
-                    <Button onClick={handleReset}>আজকের পাঠ দেখুন</Button>
-                  }
-                />
-              </div>
+              <EmptyState
+                message="এই তারিখে কোনো পাঠ নেই"
+                action={
+                  <Button onClick={handleReset} className="bangla">
+                    আজকের পাঠ দেখুন
+                  </Button>
+                }
+              />
             ) : (
               <motion.div
                 initial={{ opacity: 0, y: 24 }}
@@ -766,29 +691,36 @@ const DailyLesson = () => {
                 >
                   📭
                 </motion.div>
+
                 <p className="mb-5 text-sm text-[var(--color-gray)] bangla sm:text-base">
-                  {selectedTeacher !== "all"
-                    ? "এই শিক্ষকের কোনো পাঠ পাওয়া যায়নি"
-                    : selectedClass !== "all"
-                      ? `${getClassLabel(selectedClass)} শ্রেণির কোনো পাঠ পাওয়া যায়নি`
-                      : "এই তারিখে কোনো পাঠ নেই"}
+                  {selectedSubject !== "all"
+                    ? `${selectedSubject} বিষয়ের কোনো পাঠ পাওয়া যায়নি`
+                    : selectedTeacher !== "all"
+                      ? "এই শিক্ষকের কোনো পাঠ পাওয়া যায়নি"
+                      : selectedClass !== "all"
+                        ? `${getClassLabel(selectedClass)} শ্রেণির কোনো পাঠ পাওয়া যায়নি`
+                        : "এই তারিখে কোনো পাঠ নেই"}
                 </p>
+
                 <div className="flex flex-wrap justify-center gap-2.5">
-                  {(selectedClass !== "all" || selectedTeacher !== "all") && (
+                  {(selectedClass !== "all" ||
+                    selectedTeacher !== defaultTeacherFilter ||
+                    selectedSubject !== "all" ||
+                    !isToday) && (
                     <Button
-                      onClick={() => {
-                        setSelectedClass("all");
-                        setSelectedTeacher("all");
-                      }}
+                      onClick={handleReset}
                       variant="secondary"
                       className="bangla"
                     >
                       সকল ফিল্টার সরান
                     </Button>
                   )}
-                  <Button onClick={handleReset} className="bangla">
-                    আজকের পাঠ দেখুন
-                  </Button>
+
+                  {!isToday && (
+                    <Button onClick={handleReset} className="bangla">
+                      আজকের পাঠ দেখুন
+                    </Button>
+                  )}
                 </div>
               </motion.div>
             )}
@@ -808,6 +740,7 @@ const DailyLesson = () => {
             }
           />
         )}
+
         {deleteTarget && !isGuest && (
           <DeleteModal
             key="delete"
