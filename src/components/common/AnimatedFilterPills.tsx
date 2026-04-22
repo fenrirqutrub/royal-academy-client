@@ -1,6 +1,4 @@
-import type { ReactNode } from "react";
 import { LayoutGroup, motion } from "framer-motion";
-import { LayoutGrid } from "lucide-react";
 
 interface AnimatedFilterPillsProps {
   items: string[];
@@ -18,30 +16,7 @@ interface PillButtonProps {
   onChange: (id: string) => void;
   disabled?: boolean;
   layoutId: string;
-  icon?: ReactNode;
 }
-
-const containerVariants = {
-  hidden: {},
-  visible: {
-    transition: {
-      staggerChildren: 0.05,
-      delayChildren: 0.02,
-    },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 6 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.24,
-      ease: [0.22, 1, 0.36, 1],
-    },
-  },
-};
 
 const getButtonClass = ({
   isActive,
@@ -51,13 +26,13 @@ const getButtonClass = ({
   disabled?: boolean;
 }) =>
   [
-    "relative inline-flex items-center gap-2 overflow-hidden rounded-xl border px-3.5 py-2 text-sm font-medium outline-none transition-all duration-200 bangla",
+    "relative shrink-0 overflow-hidden rounded border border-[var(--color-active-border)] px-3 py-1.5 text-xs font-medium transition-colors duration-200 bangla sm:px-3.5 sm:text-sm",
     disabled
       ? "cursor-not-allowed opacity-60"
-      : "cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--color-text-hover)]",
+      : "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-active-border)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]",
     isActive
-      ? "border-[var(--color-brand)] text-[var(--color-brand)]"
-      : "border-[var(--color-active-border)] bg-[var(--color-bg)] text-[var(--color-gray)] hover:bg-[var(--color-active-bg)] hover:text-[var(--color-text)]",
+      ? "border-[var(--color-text)] text-[var(--color-bg)]"
+      : "border-[var(--color-active-border)] bg-[var(--color-bg)] text-[var(--color-gray)] hover:bg-[var(--color-active-bg)] hover:text-[var(--color-text)] hover:border-[var(--color-active-border)]",
   ].join(" ");
 
 const PillButton = ({
@@ -67,15 +42,12 @@ const PillButton = ({
   onChange,
   disabled = false,
   layoutId,
-  icon,
 }: PillButtonProps) => {
   const isActive = activeId === id;
 
   return (
     <motion.button
       type="button"
-      variants={itemVariants}
-      whileHover={!disabled ? { y: -1 } : undefined}
       whileTap={!disabled ? { scale: 0.98 } : undefined}
       onClick={() => !disabled && onChange(id)}
       disabled={disabled}
@@ -84,16 +56,13 @@ const PillButton = ({
     >
       {isActive && (
         <motion.span
-          layoutId={layoutId}
-          className="absolute inset-0 rounded-xl bg-[var(--color-brand-soft)]"
-          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+          layoutId={`${layoutId}-active`}
+          className="absolute inset-0 rounded bg-[var(--color-text)]"
+          transition={{ type: "spring", stiffness: 420, damping: 32 }}
         />
       )}
 
-      <span className="relative z-10 flex items-center gap-2">
-        {icon}
-        <span>{label}</span>
-      </span>
+      <span className="relative z-10">{label}</span>
     </motion.button>
   );
 };
@@ -106,38 +75,34 @@ const AnimatedFilterPills = ({
   allLabel = "সকল",
   layoutId = "filter-pill",
 }: AnimatedFilterPillsProps) => {
-  if (items.length === 0) return null;
+  const uniqueItems = Array.from(new Set(items.filter(Boolean)));
 
   return (
-    <LayoutGroup id={layoutId}>
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="flex flex-wrap items-center gap-2"
-      >
-        <PillButton
-          id="all"
-          label={allLabel}
-          activeId={activeId}
-          onChange={onChange}
-          disabled={disabled}
-          layoutId={layoutId}
-          icon={<LayoutGrid size={14} strokeWidth={2.2} />}
-        />
-
-        {items.map((item) => (
+    <LayoutGroup id={`${layoutId}-group`}>
+      <div className="overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex min-w-max items-center gap-1.5">
           <PillButton
-            key={item}
-            id={item}
-            label={item}
+            id="all"
+            label={allLabel}
             activeId={activeId}
             onChange={onChange}
             disabled={disabled}
             layoutId={layoutId}
           />
-        ))}
-      </motion.div>
+
+          {uniqueItems.map((item) => (
+            <PillButton
+              key={item}
+              id={item}
+              label={item}
+              activeId={activeId}
+              onChange={onChange}
+              disabled={disabled}
+              layoutId={layoutId}
+            />
+          ))}
+        </div>
+      </div>
     </LayoutGroup>
   );
 };

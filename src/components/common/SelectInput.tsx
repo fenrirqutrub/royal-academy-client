@@ -183,7 +183,7 @@ const SelectInput = ({
         onClick={() => setOpen((prev) => !prev)}
         whileTap={{ scale: disabled ? 1 : 0.99 }}
         className={[
-          "flex w-full items-center justify-between gap-3 rounded-2xl border bg-[var(--color-bg)] px-4 py-3 text-sm transition-all duration-200 bangla",
+          "flex w-full items-center justify-between gap-3 rounded border bg-[var(--color-bg)] px-4 py-2 text-sm transition-all duration-200 bangla",
           "focus:outline-none disabled:cursor-not-allowed disabled:opacity-60",
           borderClass,
         ].join(" ")}
@@ -223,14 +223,14 @@ const SelectInput = ({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -6, scale: 0.98 }}
               transition={{ duration: 0.16, ease: "easeOut" }}
-              className="overflow-hidden rounded-2xl border border-[var(--color-active-border)] bg-[var(--color-bg)] p-1.5 shadow-xl"
+              className="overflow-hidden rounded border border-[var(--color-active-border)] bg-[var(--color-bg)] p-1.5 shadow-xl"
             >
               {options.length === 0 ? (
                 <p className="px-3 py-4 text-center text-sm text-[var(--color-gray)] bangla">
                   কোনো বিকল্প নেই
                 </p>
               ) : (
-                <div className="max-h-[240px] overflow-y-auto">
+                <div className="max-h-[240px] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                   {options.map((opt, index) => {
                     const isSelected = opt.value === value;
 
@@ -247,9 +247,9 @@ const SelectInput = ({
                         whileHover={{ x: 2 }}
                         onClick={() => handleSelect(opt.value)}
                         className={[
-                          "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors duration-150 bangla",
+                          "flex w-full items-center gap-3 rounded px-3 py-2.5 text-left text-sm transition-colors duration-150 bangla",
                           isSelected
-                            ? "bg-[var(--color-brand-soft)] text-[var(--color-brand)]"
+                            ? "bg-[var(--color-text)] text-[var(--color-bg)]"
                             : "text-[var(--color-text)] hover:bg-[var(--color-active-bg)]",
                         ].join(" ")}
                       >

@@ -198,6 +198,14 @@ export interface SelectOption {
   label: string;
 }
 
+export interface CompactSelectProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: SelectOption[];
+  disabled?: boolean;
+}
+
 export interface WeeklyExamHeaderFiltersProps {
   isGuest: boolean;
   isStaff: boolean;
