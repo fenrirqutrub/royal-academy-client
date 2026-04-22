@@ -296,22 +296,6 @@ const ExamModal = ({
               </p>
 
               <div className="flex flex-wrap items-center gap-2">
-                {/* Edit Button */}
-                {canEdit && (
-                  <motion.button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEdit();
-                    }}
-                    whileHover={{ scale: 1.04 }}
-                    whileTap={{ scale: 0.94 }}
-                    className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 shrink-0 border border-[var(--color-success-soft)] text-[var(--color-success)] hover:bg-[var(--color-success-soft)]"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                    সম্পাদনা
-                  </motion.button>
-                )}
-
                 {/* Delete Button */}
                 {canDelete && (
                   <motion.button
@@ -321,10 +305,26 @@ const ExamModal = ({
                     }}
                     whileHover={{ scale: 1.04 }}
                     whileTap={{ scale: 0.94 }}
-                    className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 shrink-0 border border-[var(--color-danger-soft)] text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]"
+                    className="flex items-center gap-1.5 px-3.5 py-2.5 rounded text-xs font-bold transition-all duration-200 shrink-0 bg-red-800 text-[var(--color-text)]"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                    মুছুন
+                    Delete
+                  </motion.button>
+                )}
+
+                {/* Edit Button */}
+                {canEdit && (
+                  <motion.button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEdit();
+                    }}
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.94 }}
+                    className="flex items-center gap-1.5 px-3.5 py-2.5 rounded text-xs font-bold transition-all duration-200 shrink-0 bg-green-800 text-[var(--color-text)]"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    Edit
                   </motion.button>
                 )}
 

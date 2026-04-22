@@ -235,3 +235,27 @@ export interface WeeklyExamHeaderFiltersProps {
   classLabel?: string;
   resetTitle?: string;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
+export interface NormalizedImage {
+  url: string;
+  publicId: string;
+}
+
+export type RawImage =
+  | string
+  | { imageUrl?: string; url?: string; publicId?: string };
+
+/* ─── Props ──────────────────────────────────────────────────────────────── */
+
+export interface WeeklyExamCardProps {
+  exam: Exam;
+  index: number;
+  activeExamNumber?: string | null;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
+}

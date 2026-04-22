@@ -19,19 +19,13 @@ import {
   MANAGER_ROLES,
   STAFF_ROLES,
 } from "../../utility/Constants";
-import type { WeeklyExamData } from "../../types/types";
+import type {
+  NormalizedImage,
+  RawImage,
+  WeeklyExamData,
+} from "../../types/types";
 import { useNavigate } from "react-router";
 import WeeklyExamHeaderFilters from "./WeeklyExamHeaderFilters";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────────────────────
-interface NormalizedImage {
-  url: string;
-  publicId: string;
-}
-
-type RawImage = string | { imageUrl?: string; url?: string; publicId?: string };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -113,14 +107,14 @@ const ClassGroupTitle = ({
     variants={groupTitleVariants}
     initial="hidden"
     animate="visible"
-    className="mb-4 mt-8 flex items-center justify-between rounded-2xl border border-[var(--color-active-border)] bg-[var(--color-bg)] px-4 py-3 bangla sm:mt-10"
+    className="mb-4 mt-8 flex gap-x-5 items-center justify-center rounded bg-[var(--color-active-bg)] px-4 py-3 bangla sm:mt-10"
   >
     <h2 className="text-lg font-bold text-[var(--color-text)] sm:text-xl">
       {className}
     </h2>
 
-    <span className="rounded-full bg-[var(--color-active-bg)] px-3 py-1 text-xs font-semibold text-[var(--color-text-hover)] sm:text-sm">
-      {toBn(count)}টি
+    <span className=" px-3 py-1 text-xs font-semibold text-[var(--color-text)] sm:text-sm">
+      {toBn(count)}টি ধারণা
     </span>
   </motion.div>
 );
@@ -154,7 +148,6 @@ const WeeklyExam = () => {
     navigate(`/dashboard/add-weekly-exam?exam=${exam}`);
   };
 
-  // staff হলে default teacher filter নিজের slug হবে
   const defaultTeacherFilter = useMemo(
     () => (STAFF_ROLES.includes(userRole) && userSlug ? userSlug : "all"),
     [userRole, userSlug],
@@ -192,9 +185,6 @@ const WeeklyExam = () => {
     window.scrollTo({ top: 0, behavior: "auto" });
   }, []);
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Exam numbers
-  // ───────────────────────────────────────────────────────────────────────────
   const examNumbers = useMemo(() => {
     if (!data) return [];
     const unique = new Set(data.map((e) => e.ExamNumber));
@@ -206,9 +196,6 @@ const WeeklyExam = () => {
     return String(Number(examNumbers[examNumbers.length - 1]) + 1);
   }, [examNumbers]);
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Next exam logic
-  // ───────────────────────────────────────────────────────────────────────────
   const latestExamCreatedAt = useMemo(() => {
     if (!data || examNumbers.length === 0) return null;
 
@@ -263,15 +250,11 @@ const WeeklyExam = () => {
     [shouldShowNextExam, activeExamNumber, nextExpectedExamNumber, examNumbers],
   );
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // active exam-এর data
-  // ───────────────────────────────────────────────────────────────────────────
   const examNumberFilteredData = useMemo(() => {
     if (!data || !activeExamNumber) return [];
     return data.filter((e) => e.ExamNumber === activeExamNumber);
   }, [data, activeExamNumber]);
 
-  // teacher options
   const teacherOptions = useMemo(() => {
     const map = new Map<string, string>();
 
@@ -294,7 +277,6 @@ const WeeklyExam = () => {
     ];
   }, [examNumberFilteredData, userSlug, user?.name]);
 
-  // exam number change করলে invalid teacher থাকলে reset
   useEffect(() => {
     const exists = teacherOptions.some((opt) => opt.value === selectedTeacher);
 
@@ -303,7 +285,6 @@ const WeeklyExam = () => {
     }
   }, [teacherOptions, selectedTeacher, defaultTeacherFilter]);
 
-  // selected teacher অনুযায়ী available class
   const availableClasses = useMemo(() => {
     const seen = new Set<string>();
     const result: string[] = [];
@@ -324,7 +305,6 @@ const WeeklyExam = () => {
     );
   }, [examNumberFilteredData, selectedTeacher]);
 
-  // teacher + class apply করে grouped data
   const groupedByClass = useMemo(() => {
     let filtered = examNumberFilteredData;
 
@@ -379,16 +359,12 @@ const WeeklyExam = () => {
     setSelectedTeacher(defaultTeacherFilter);
   };
 
-  // teacher change এর পরে current class available না থাকলে class reset
   useEffect(() => {
     if (selectedClass !== "all" && !availableClasses.includes(selectedClass)) {
       setSelectedClass("all");
     }
   }, [availableClasses, selectedClass]);
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Permissions
-  // ───────────────────────────────────────────────────────────────────────────
   const canEditExam = (exam: WeeklyExamData): boolean => {
     if (isManager) return true;
     if (userRole === "teacher" && exam.teacherSlug === userSlug) return true;
@@ -401,9 +377,6 @@ const WeeklyExam = () => {
     return false;
   };
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Delete mutation
-  // ───────────────────────────────────────────────────────────────────────────
   const deleteMutation = useMutation({
     mutationFn: (id: string) => axiosPublic.delete(`/api/weekly-exams/${id}`),
     onSuccess: () => {
@@ -418,9 +391,6 @@ const WeeklyExam = () => {
     },
   });
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Card renderer
-  // ───────────────────────────────────────────────────────────────────────────
   const renderCard = (exam: WeeklyExamData, i: number) => (
     <WeeklyExamCard
       key={exam._id}
@@ -438,9 +408,6 @@ const WeeklyExam = () => {
     />
   );
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Guest preview
-  // ───────────────────────────────────────────────────────────────────────────
   const buildGuestContent = () => {
     const previewGroup =
       groupedByClass.find(({ className }) => className.includes("৬ষ্ঠ")) ??
@@ -472,9 +439,6 @@ const WeeklyExam = () => {
     );
   };
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Loading / Error
-  // ───────────────────────────────────────────────────────────────────────────
   if (isLoading) {
     return <Skeleton variant="daily-lesson" />;
   }
@@ -487,9 +451,6 @@ const WeeklyExam = () => {
     );
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // JSX
-  // ───────────────────────────────────────────────────────────────────────────
   return (
     <div className="relative mx-auto max-w-7xl ">
       <WeeklyExamHeaderFilters

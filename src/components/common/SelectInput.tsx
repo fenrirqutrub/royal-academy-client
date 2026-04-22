@@ -10,10 +10,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Check } from "lucide-react";
 import type { DropdownPortalProps, SelectInputProps } from "../../types/types";
 
-/* ──────────────────────────────────────────────────────────────────────────
-   Dropdown Portal
-   trigger button-এর position ধরে dropdown body তে render হবে
-   ────────────────────────────────────────────────────────────────────────── */
 const DropdownPortal = ({
   children,
   triggerRef,

@@ -1,27 +1,12 @@
 // src/components/WeeklyExam/WeeklyExamCard.tsx
 import { useState } from "react";
-import { motion, AnimatePresence, type Variants } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay } from "swiper/modules";
-import {
-  Eye,
-  Copy,
-  Check,
-  Folder,
-  Calendar,
-  HelpCircle,
-  Fan,
-  X,
-  UserPlus,
-  Key,
-} from "lucide-react";
+import { Eye, Copy, Check, Folder, Calendar, HelpCircle } from "lucide-react";
 import "swiper/css";
-import { useNavigate } from "react-router";
-
 import ExamModal from "./ExamModal";
-
 import {
-  type Exam,
   type ExamImage,
   AnimatedSlide,
   SlideDots,
@@ -34,131 +19,8 @@ import Button from "../../components/common/Button";
 import { getCloudinaryOptimizedUrls } from "../../hooks/useCloudinaryUpload";
 import toast from "react-hot-toast";
 import { COLORS } from "../../styles/colors";
-
-/* ─── Animation Variants ─────────────────────────────────────────────────── */
-
-const modalVariants: Variants = {
-  hidden: { opacity: 0, scale: 0.9, y: 20 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    y: 0,
-    transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] },
-  },
-  exit: {
-    opacity: 0,
-    scale: 0.9,
-    y: 20,
-    transition: { duration: 0.2 },
-  },
-};
-
-const backdropVariants: Variants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 0.2 } },
-  exit: { opacity: 0, transition: { duration: 0.15 } },
-};
-
-/* ─── Login Prompt Modal ─────────────────────────────────────────────────── */
-
-const LoginPromptModal = ({ onClose }: { onClose: () => void }) => {
-  const navigate = useNavigate();
-
-  return (
-    <motion.div
-      variants={backdropVariants}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--color-overlay)] backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <motion.div
-        variants={modalVariants}
-        initial="hidden"
-        animate="visible"
-        exit="exit"
-        onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-sm sm:max-w-md overflow-hidden rounded-2xl border border-[var(--color-active-border)] bg-[var(--color-bg)] shadow-2xl"
-      >
-        <div className="h-1.5 bg-gradient-to-r from-[var(--color-brand)] via-violet-500 to-fuchsia-500" />
-
-        <div className="absolute top-4 right-4">
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={onClose}
-            className="size-8 rounded-full bg-[var(--color-danger)] text-white hover:bg-[var(--color-danger-hover)]"
-            aria-label="বন্ধ করুন"
-          >
-            <X className="w-4 h-4" />
-          </Button>
-        </div>
-
-        <div className="px-6 py-8 text-center bangla sm:px-8 sm:py-10">
-          <div className="relative mx-auto mb-6 h-20 w-20">
-            <div className="absolute inset-0 rounded-full bg-[var(--color-brand-soft)] blur-xl" />
-            <div className="relative flex h-full w-full items-center justify-center rounded-full border-2 border-[var(--color-active-border)] bg-[var(--color-active-bg)]">
-              <Key className="w-9 h-9 text-[var(--color-text)]" />
-            </div>
-          </div>
-
-          <h2 className="mb-3 text-2xl font-bold text-[var(--color-text)] sm:text-3xl">
-            লগইন প্রয়োজন
-          </h2>
-
-          <p className="mx-auto mb-8 max-w-xs text-sm leading-relaxed text-[var(--color-gray)] sm:text-base">
-            বিস্তারিত দেখতে এবং সকল ফিচার ব্যবহার করতে লগইন করুন
-          </p>
-
-          <div className="flex flex-col gap-3">
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <Button
-                variant="default"
-                size="lg"
-                onClick={() => {
-                  onClose();
-                  navigate("/login");
-                }}
-                className="w-full"
-              >
-                <Key className="w-5 h-5" />
-                <span>লগইন করুন</span>
-              </Button>
-            </motion.div>
-
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <Button
-                variant="secondary"
-                size="lg"
-                onClick={() => {
-                  onClose();
-                  navigate("/signup");
-                }}
-                className="w-full"
-              >
-                <UserPlus className="w-5 h-5" />
-                <span>নতুন অ্যাকাউন্ট খুলুন</span>
-              </Button>
-            </motion.div>
-          </div>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-};
-
-/* ─── Props ──────────────────────────────────────────────────────────────── */
-
-interface WeeklyExamCardProps {
-  exam: Exam;
-  index: number;
-  activeExamNumber?: string | null;
-  canEdit?: boolean;
-  canDelete?: boolean;
-  onEdit?: () => void;
-  onDelete?: () => void;
-}
+import type { WeeklyExamCardProps } from "../../types/types";
+import LoginPromptOverlay from "../Admin/Auth/LoginPromptOverlay";
 
 const WeeklyExamCard = ({
   exam,
@@ -359,15 +221,6 @@ const WeeklyExamCard = ({
                   <Calendar className="h-4 w-4 shrink-0" />
                   <span>{exam.date}</span>
                 </div>
-
-                {numberInfo && (
-                  <div className="flex items-center gap-1.5">
-                    <Fan className="h-4 w-4 shrink-0 animate-spin" />
-                    <span>
-                      {numberInfo.label} - {numberInfo.value}
-                    </span>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -397,7 +250,7 @@ const WeeklyExamCard = ({
           </div>
 
           {/* Topics */}
-          <p className="mt-4 flex-1 text-md leading-relaxed text-[var(--color-gray)] line-clamp-3 md:text-lg">
+          <p className="mt-4 flex-1 text-md leading-relaxed bg-[var(--color-active-bg)] px-4 py-1 rounded text-[var(--color-gray)] line-clamp-3 md:text-lg">
             {exam.topics}
           </p>
 
@@ -410,23 +263,26 @@ const WeeklyExamCard = ({
               <span className="rounded-full border border-[var(--color-active-border)] px-3.5 py-1 text-sm font-medium text-[var(--color-gray)] md:text-md">
                 {toBn(exam.mark)} নম্বর
               </span>
+              {numberInfo && (
+                <span className="rounded-full border border-[var(--color-active-border)] px-3.5 py-1 text-sm font-medium text-[var(--color-gray)] md:text-md">
+                  {numberInfo.label} - {numberInfo.value}
+                </span>
+              )}
             </div>
 
             <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
-              <Button
-                variant="default"
-                size="md"
+              <button
                 onClick={handleDetailClick}
                 onTouchEnd={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
                   handleDetailClick(e);
                 }}
-                className="touch-manipulation rounded-sm"
+                className=" flex items-center gap-x-2 rounded-full border border-[var(--color-active-border)] px-3.5 py-1 text-sm font-medium text-[var(--color-gray)] md:text-md"
               >
                 <Eye className="h-4 w-4" />
                 বিস্তারিত
-              </Button>
+              </button>
             </motion.div>
           </div>
         </div>
@@ -434,9 +290,10 @@ const WeeklyExamCard = ({
 
       {/* Login Prompt */}
       <AnimatePresence>
-        {showLoginPrompt && (
-          <LoginPromptModal onClose={() => setShowLoginPrompt(false)} />
-        )}
+        <LoginPromptOverlay
+          isOpen={showLoginPrompt}
+          onClose={() => setShowLoginPrompt(false)}
+        />
       </AnimatePresence>
 
       {/* Exam Modal - Pass edit/delete props */}
