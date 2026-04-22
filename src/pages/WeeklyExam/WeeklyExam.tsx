@@ -8,17 +8,16 @@ import axiosPublic from "../../hooks/axiosPublic";
 import Marquee from "react-fast-marquee";
 import Skeleton from "../../components/common/Skeleton";
 import { TfiLayoutLineSolid } from "react-icons/tfi";
-import { BookPlus, Fan, Filter, RotateCcw } from "lucide-react";
+import { Fan } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { DeleteModal, EditModal } from "./WeeklyExamUpdateModals";
 import { useGuestPreview } from "../../hooks/useGuestPreview";
 import LoginPromptOverlay from "../Admin/Auth/LoginPromptOverlay";
-import SelectInput from "../../components/common/SelectInput";
-import AnimatedFilterPills from "../../components/common/AnimatedFilterPills";
 import { BN_DAYS_FULL, BN_MONTHS, toBn } from "../../utility/Formatters";
 import { MANAGER_ROLES, STAFF_ROLES } from "../../utility/Constants";
 import type { WeeklyExamData } from "../../types/types";
 import { useNavigate } from "react-router";
+import WeeklyExamHeaderFilters from "./WeeklyExamHeaderFilters";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -102,51 +101,6 @@ const contentVariants: Variants = {
     y: -8,
     transition: { duration: 0.18 },
   },
-};
-
-const filterBarVariants: Variants = {
-  hidden: { opacity: 0, y: 12 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.35,
-      ease: [0.22, 1, 0.36, 1],
-    },
-  },
-};
-
-const badgePulse: Variants = {
-  hidden: { opacity: 0, scale: 0.96 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    transition: { duration: 0.2, ease: "easeOut" },
-  },
-  exit: {
-    opacity: 0,
-    scale: 0.96,
-    transition: { duration: 0.15 },
-  },
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Small UI Components
-// ─────────────────────────────────────────────────────────────────────────────
-const ActiveFilterBadge = ({ count }: { count: number }) => {
-  if (count <= 0) return null;
-
-  return (
-    <motion.span
-      initial={{ scale: 0 }}
-      animate={{ scale: 1 }}
-      exit={{ scale: 0 }}
-      transition={{ type: "spring", stiffness: 500, damping: 25 }}
-      className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--color-text-hover)] text-[10px] font-bold text-[var(--color-bg)] shadow-lg"
-    >
-      {toBn(count)}
-    </motion.span>
-  );
 };
 
 const ClassGroupTitle = ({
@@ -542,163 +496,23 @@ const WeeklyExam = () => {
   // ───────────────────────────────────────────────────────────────────────────
   return (
     <div className="relative mx-auto max-w-7xl">
-      {/* Header */}
-      <header className="mb-8 px-3 text-center bangla sm:mb-10">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-        >
-          <div className="mb-3 inline-flex rounded-full border border-[var(--color-active-border)] bg-[var(--color-active-bg)] px-3 py-1 text-xs font-semibold text-[var(--color-text-hover)]">
-            সাপ্তাহিক আপডেট
-          </div>
-
-          <h1 className="text-2xl font-extrabold text-[var(--color-text)] sm:text-3xl md:text-4xl">
-            সাপ্তাহিক পরীক্ষার ধারণা
-          </h1>
-
-          <p className="mt-3 text-sm text-[var(--color-gray)] sm:text-base">
-            প্রতিটি পরীক্ষার বিষয়ভিত্তিক ধারণা ও নির্দেশনা
-          </p>
-        </motion.div>
-      </header>
-
-      {/* Filter Bar */}
-      <motion.section
-        variants={filterBarVariants}
-        initial="hidden"
-        animate="visible"
-        className="mb-6 rounded-3xl border border-[var(--color-active-border)] bg-[var(--color-bg)] p-4 shadow-sm sm:mb-8 sm:p-5"
-      >
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,260px)_1fr_auto] lg:items-end">
-          {/* Teacher Select */}
-          <div className="relative min-w-0">
-            <SelectInput
-              label="শিক্ষক"
-              value={selectedTeacher}
-              onChange={setSelectedTeacher}
-              placeholder="শিক্ষক বাছুন"
-              options={teacherOptions}
-              disabled={teacherOptions.length <= 1}
-            />
-
-            {isGuest && (
-              <div
-                className="absolute inset-0 z-10 cursor-pointer"
-                onClick={() => setShowLoginPrompt(true)}
-              />
-            )}
-          </div>
-
-          {/* Add exam button */}
-          <AnimatePresence>
-            {!isGuest && isStaff && (
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 8 }}
-                transition={{ duration: 0.25 }}
-                className="flex"
-              >
-                <motion.button
-                  whileHover={{ y: -1 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleAddExam}
-                  className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-text)] px-5 text-sm font-semibold text-[var(--color-bg)] transition-colors hover:bg-[var(--color-text-hover)] bangla"
-                >
-                  <BookPlus size={16} />
-                  ধারণা জমা দিন
-                </motion.button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Stats + Reset */}
-          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-            <AnimatePresence mode="wait">
-              {totalExamsInNumber > 0 && (
-                <motion.div
-                  key={`${activeExamNumber}-${selectedClass}-${selectedTeacher}`}
-                  variants={badgePulse}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  className="rounded-xl border border-[var(--color-active-border)] bg-[var(--color-active-bg)] px-3.5 py-2 text-sm text-[var(--color-gray)] bangla"
-                >
-                  {selectedClass !== "all" || selectedTeacher !== "all" ? (
-                    <>
-                      দেখানো{" "}
-                      <span className="font-semibold text-[var(--color-text)]">
-                        {toBn(filteredCount)}
-                      </span>
-                      {" / "}
-                      মোট{" "}
-                      <span className="font-semibold text-[var(--color-text)]">
-                        {toBn(totalExamsInNumber)}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      মোট{" "}
-                      <span className="font-semibold text-[var(--color-text)]">
-                        {toBn(totalExamsInNumber)}
-                      </span>
-                      টি ধারণা
-                    </>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <AnimatePresence>
-              {activeFilterCount > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.96 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.96 }}
-                  className="relative"
-                >
-                  <motion.button
-                    whileHover={{ y: -1 }}
-                    whileTap={{ scale: 0.96 }}
-                    onClick={handleReset}
-                    className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-active-border)] bg-[var(--color-bg)] text-[var(--color-gray)] transition-colors hover:bg-[var(--color-active-bg)] hover:text-[var(--color-text-hover)]"
-                    title="ফিল্টার রিসেট করুন"
-                  >
-                    <RotateCcw size={16} />
-                  </motion.button>
-
-                  <ActiveFilterBadge count={activeFilterCount} />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        {/* Class Filter */}
-        <div className="mt-4 border-t border-[var(--color-active-border)] pt-4">
-          <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-gray)] bangla">
-            <Filter size={13} />
-            শ্রেণি
-          </div>
-
-          <div className="relative">
-            <AnimatedFilterPills
-              items={availableClasses}
-              activeId={selectedClass}
-              onChange={setSelectedClass}
-              layoutId="weekly-exam-class-pill"
-            />
-
-            {isGuest && (
-              <div
-                className="absolute inset-0 z-10 cursor-pointer"
-                onClick={() => setShowLoginPrompt(true)}
-              />
-            )}
-          </div>
-        </div>
-      </motion.section>
+      <WeeklyExamHeaderFilters
+        isGuest={isGuest}
+        isStaff={isStaff}
+        activeExamNumber={activeExamNumber}
+        selectedTeacher={selectedTeacher}
+        onTeacherChange={setSelectedTeacher}
+        teacherOptions={teacherOptions}
+        selectedClass={selectedClass}
+        onClassChange={setSelectedClass}
+        availableClasses={availableClasses}
+        totalExamsInNumber={totalExamsInNumber}
+        filteredCount={filteredCount}
+        activeFilterCount={activeFilterCount}
+        onAddExam={handleAddExam}
+        onReset={handleReset}
+        onGuestAction={() => setShowLoginPrompt(true)}
+      />
 
       {/* Marquee Notice */}
       <div className="mx-2 mb-6 overflow-hidden rounded-2xl border border-[var(--color-active-border)] bg-[var(--color-bg)] bangla sm:mx-0 sm:mb-8">

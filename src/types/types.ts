@@ -189,3 +189,41 @@ export interface TeacherOption {
   slug: string;
   name: string;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
+export interface SelectOption {
+  value: string;
+  label: string;
+}
+
+export interface WeeklyExamHeaderFiltersProps {
+  isGuest: boolean;
+  isStaff: boolean;
+  activeExamNumber: string | null;
+
+  selectedTeacher: string;
+  onTeacherChange: (value: string) => void;
+  teacherOptions: SelectOption[];
+
+  selectedClass: string;
+  onClassChange: (value: string) => void;
+  availableClasses: string[];
+
+  totalExamsInNumber: number;
+  filteredCount: number;
+  activeFilterCount: number;
+
+  onAddExam: () => void;
+  onReset: () => void;
+  onGuestAction: () => void;
+
+  badgeText?: string;
+  title?: string;
+  description?: string;
+  teacherLabel?: string;
+  addButtonLabel?: string;
+  classLabel?: string;
+  resetTitle?: string;
+}
