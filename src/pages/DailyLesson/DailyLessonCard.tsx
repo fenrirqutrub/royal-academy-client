@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { motion, AnimatePresence, type Variants } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Calendar,
   BookOpen,
@@ -7,18 +7,14 @@ import {
   FileText,
   Folder,
   Eye,
-  X,
   LogIn,
-  UserPlus,
-  Key,
 } from "lucide-react";
-import { useNavigate } from "react-router";
-
 import { useAuth } from "../../context/AuthContext";
 import DailyLessonModal from "./DailyLessonModal";
 import Button from "../../components/common/Button";
 import { toBn } from "../../utility/Formatters";
 import type { DailyLessonCardProps, TeacherInfo } from "../../types/types";
+import LoginPromptOverlay from "../Admin/Auth/LoginPromptOverlay";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 export const extractTeacher = (teacher: TeacherInfo | string | null) => {
@@ -40,99 +36,6 @@ export const extractTeacher = (teacher: TeacherInfo | string | null) => {
   }
 
   return { name, avatarUrl };
-};
-
-// ─── Variants ─────────────────────────────────────────────────────────────────
-const backdropVariants: Variants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 0.2 } },
-  exit: { opacity: 0, transition: { duration: 0.15 } },
-};
-
-const promptVariants: Variants = {
-  hidden: { opacity: 0, scale: 0.92, y: 16 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    y: 0,
-    transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] },
-  },
-  exit: { opacity: 0, scale: 0.92, y: 16, transition: { duration: 0.18 } },
-};
-
-// ─── Login Prompt Modal ───────────────────────────────────────────────────────
-const LoginPromptModal = ({ onClose }: { onClose: () => void }) => {
-  const navigate = useNavigate();
-
-  return (
-    <motion.div
-      variants={backdropVariants}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
-      onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-overlay)] p-4 backdrop-blur-sm"
-    >
-      <motion.div
-        variants={promptVariants}
-        initial="hidden"
-        animate="visible"
-        exit="exit"
-        onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-[var(--color-active-border)] bg-[var(--color-bg)] shadow-2xl"
-      >
-        <div className="h-1 w-full bg-gradient-to-r from-[var(--color-brand)] to-[var(--color-brand-hover)]" />
-
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="বন্ধ করুন"
-          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-active-bg)] text-[var(--color-gray)] transition-colors hover:bg-[var(--color-danger-soft)] hover:text-[var(--color-danger)]"
-        >
-          <X className="h-4 w-4" />
-        </button>
-
-        <div className="px-6 pb-8 pt-6 text-center bangla">
-          <div className="relative mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--color-brand-soft)]">
-            <Key className="h-8 w-8 text-[var(--color-brand)]" />
-          </div>
-
-          <h2 className="mb-2 text-xl font-bold text-[var(--color-text)]">
-            লগইন প্রয়োজন
-          </h2>
-          <p className="mb-6 text-sm leading-relaxed text-[var(--color-gray)]">
-            বিস্তারিত দেখতে এবং সকল ফিচার ব্যবহার করতে লগইন করুন
-          </p>
-
-          <div className="flex flex-col gap-2.5">
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                navigate("/login");
-              }}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-text)] text-sm font-semibold text-[var(--color-bg)] transition-opacity hover:opacity-85 active:scale-[0.98]"
-            >
-              <Key className="h-4 w-4" />
-              লগইন করুন
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                navigate("/signup");
-              }}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[var(--color-active-border)] bg-[var(--color-active-bg)] text-sm font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-active-border)] active:scale-[0.98]"
-            >
-              <UserPlus className="h-4 w-4" />
-              নতুন অ্যাকাউন্ট খুলুন
-            </button>
-          </div>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
 };
 
 // ─── Card ─────────────────────────────────────────────────────────────────────
@@ -264,11 +167,10 @@ const DailyLessonCard = ({
         </div>
       </motion.div>
 
-      <AnimatePresence>
-        {showLoginPrompt && (
-          <LoginPromptModal onClose={() => setShowLoginPrompt(false)} />
-        )}
-      </AnimatePresence>
+      <LoginPromptOverlay
+        isOpen={showLoginPrompt}
+        onClose={() => setShowLoginPrompt(false)}
+      />
 
       {showModal && !isGuest && (
         <DailyLessonModal
