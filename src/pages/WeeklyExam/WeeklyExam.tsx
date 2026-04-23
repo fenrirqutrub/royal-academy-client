@@ -113,9 +113,18 @@ const ClassGroupTitle = ({
       {className}
     </h2>
 
-    <span className=" px-3 py-1 text-xs font-semibold text-[var(--color-gray)] sm:text-sm border-x border-[var(--color-active-border)]">
+    <motion.span
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{
+        delay: index * 0.07 + 0.3,
+        type: "spring",
+        stiffness: 500,
+      }}
+      className=" px-3 py-1 text-xs font-semibold text-[var(--color-gray)] sm:text-sm border-x border-[var(--color-active-border)]"
+    >
       {toBn(count)}টি ধারণা
-    </span>
+    </motion.span>
   </motion.div>
 );
 
