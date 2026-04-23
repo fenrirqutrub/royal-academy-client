@@ -114,7 +114,7 @@ const DailyLessonHeader = ({
         {/* ── Watermark ── */}
         <span
           aria-hidden
-          className="pointer-events-none absolute right-4 top-1 select-none font-bold leading-none text-[var(--color-text)] sm:right-6"
+          className="pointer-events-none absolute right-4 top-1 select-none font-bold leading-none text-[var(--color-text)] md:right-64"
           style={{ fontSize: "clamp(64px, 12vw, 100px)", opacity: 0.04 }}
         >
           {toBn(filteredCount)} / {toBn(totalLessons)}

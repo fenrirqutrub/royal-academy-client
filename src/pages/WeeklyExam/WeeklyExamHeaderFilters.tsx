@@ -35,7 +35,7 @@ const WeeklyExamHeaderFilters = ({
       <div className="border border-t-0 border-[var(--color-active-border)] rounded bg-[var(--color-bg)] px-4 pb-4 pt-5 sm:px-6">
         <span
           aria-hidden
-          className="pointer-events-none absolute right-4 top-1 select-none font-bold leading-none text-[var(--color-text)] bangla sm:right-6"
+          className="pointer-events-none absolute right-4 top-1 select-none font-bold leading-none text-[var(--color-text)] bangla md:right-64"
           style={{ fontSize: "clamp(64px, 12vw, 100px)", opacity: 0.04 }}
         >
           {toBn(filteredCount)} / {toBn(totalExamsInNumber)}
