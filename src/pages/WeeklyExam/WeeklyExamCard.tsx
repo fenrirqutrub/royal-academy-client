@@ -273,11 +273,6 @@ const WeeklyExamCard = ({
             <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
               <button
                 onClick={handleDetailClick}
-                onTouchEnd={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  handleDetailClick(e);
-                }}
                 className=" flex items-center gap-x-2 rounded-full border border-[var(--color-active-border)] px-3 py-1 text-sm font-medium text-[var(--color-gray)] md:text-md"
               >
                 <Eye className="h-4 w-4" />
