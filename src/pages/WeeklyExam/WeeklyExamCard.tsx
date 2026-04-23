@@ -3,7 +3,15 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay } from "swiper/modules";
-import { Eye, Copy, Check, Folder, Calendar, HelpCircle } from "lucide-react";
+import {
+  Eye,
+  Copy,
+  Check,
+  Folder,
+  Calendar,
+  HelpCircle,
+  Fan,
+} from "lucide-react";
 import "swiper/css";
 import ExamModal from "./ExamModal";
 import {
@@ -221,6 +229,12 @@ const WeeklyExamCard = ({
                   <Calendar className="h-4 w-4 shrink-0" />
                   <span>{exam.date}</span>
                 </div>
+                {numberInfo && (
+                  <span className="flex items-center gap-x-2 px-3.5 py-1 text-sm font-medium text-[var(--color-gray)] md:text-md">
+                    <Fan className="w-4 h-4 animate-spin" />
+                    {numberInfo.label} - {numberInfo.value}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -263,11 +277,6 @@ const WeeklyExamCard = ({
               <span className="rounded-full border border-[var(--color-active-border)] px-3.5 py-1 text-sm font-medium text-[var(--color-gray)] md:text-md">
                 {toBn(exam.mark)} নম্বর
               </span>
-              {numberInfo && (
-                <span className="rounded-full border border-[var(--color-active-border)] px-3.5 py-1 text-sm font-medium text-[var(--color-gray)] md:text-md">
-                  {numberInfo.label} - {numberInfo.value}
-                </span>
-              )}
             </div>
 
             <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
@@ -278,7 +287,7 @@ const WeeklyExamCard = ({
                   e.preventDefault();
                   handleDetailClick(e);
                 }}
-                className=" flex items-center gap-x-2 rounded-full border border-[var(--color-active-border)] px-3.5 py-1 text-sm font-medium text-[var(--color-gray)] md:text-md"
+                className=" flex items-center gap-x-2 rounded-full border border-[var(--color-active-border)] px-3 py-1 text-sm font-medium text-[var(--color-gray)] md:text-md"
               >
                 <Eye className="h-4 w-4" />
                 বিস্তারিত
