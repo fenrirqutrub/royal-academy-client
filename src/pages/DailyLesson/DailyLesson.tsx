@@ -126,9 +126,9 @@ const ClassGroupTitle = ({
     variants={groupTitleVariants}
     initial="hidden"
     animate="visible"
-    className="relative mb-5 mt-8 overflow-hidden rounded bangla sm:mt-10"
+    className="relative mb-5 mt-8 overflow-hidden rounded bangla sm:mt-10 border-y border-[var(--color-active-border)]"
   >
-    <div className="flex flex-1 flex-col items-center justify-center gap-2 bg-[var(--color-active-bg)] px-4 py-3.5 sm:flex-row sm:gap-x-10 sm:px-5 sm:py-4">
+    <div className="flex flex-1 flex-col items-center justify-center gap-x-10 bg-[var(--color-active-bg)] px-4 py-3.5 sm:flex-row sm:gap-x-10 sm:px-5 sm:py-4">
       <h2 className="text-lg font-extrabold leading-tight text-[var(--color-text)] sm:text-xl md:text-2xl">
         {className}
       </h2>
@@ -141,7 +141,7 @@ const ClassGroupTitle = ({
           type: "spring",
           stiffness: 500,
         }}
-        className="text-xs font-black text-[var(--color-text)] sm:text-sm"
+        className="text-xs font-black text-[var(--color-gray)] sm:text-sm border-x border-[var(--color-active-border)] px-5"
       >
         {toBn(count)}টি পাঠ
       </motion.span>
