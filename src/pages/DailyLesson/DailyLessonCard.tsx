@@ -6,12 +6,10 @@ import {
   User,
   FileText,
   Folder,
-  Eye,
   LogIn,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import DailyLessonModal from "./DailyLessonModal";
-import Button from "../../components/common/Button";
 import { toBn } from "../../utility/Formatters";
 import type { DailyLessonCardProps, TeacherInfo } from "../../types/types";
 import LoginPromptOverlay from "../Admin/Auth/LoginPromptOverlay";
@@ -55,6 +53,15 @@ const DailyLessonCard = ({
   const { name: teacherName, avatarUrl } = extractTeacher(lesson.teacher);
   const refLabel = lesson.referenceType === "page" ? "পৃষ্ঠা" : "অধ্যায়";
 
+  const handleOpenLesson = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isGuest) {
+      setShowLoginPrompt(true);
+      return;
+    }
+    setShowModal(true);
+  };
+
   return (
     <div>
       <motion.div
@@ -65,8 +72,7 @@ const DailyLessonCard = ({
           duration: 0.44,
           ease: [0.22, 1, 0.36, 1],
         }}
-        whileHover={{ y: -4, transition: { duration: 0.18 } }}
-        className="group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-[var(--color-active-border)] bg-[var(--color-bg)] shadow-sm transition-all duration-300 hover:border-[var(--color-brand)] hover:shadow-xl bangla"
+        className="group relative flex h-[250px] cursor-pointer flex-col overflow-hidden rounded border border-[var(--color-active-border)] bg-[var(--color-bg)] shadow-sm transition-all duration-300 bangla"
       >
         {/* Guest hover lock */}
         {isGuest && (
@@ -82,7 +88,7 @@ const DailyLessonCard = ({
         <div className="h-[3px] w-full shrink-0 bg-gradient-to-r from-[var(--color-brand)] to-[var(--color-brand-hover)]" />
 
         {/* Body */}
-        <div className="flex flex-1 flex-col gap-4 p-5">
+        <div className="flex flex-1 flex-col gap-4 overflow-hidden p-5">
           {/* Teacher + subject */}
           <div className="flex items-start gap-3">
             <div className="relative shrink-0">
@@ -96,7 +102,7 @@ const DailyLessonCard = ({
                       .nextElementSibling as HTMLElement | null;
                     if (fb) fb.style.display = "flex";
                   }}
-                  className="h-11 w-11 rounded-xl object-cover ring-2 ring-[var(--color-brand-soft)] ring-offset-1 ring-offset-[var(--color-bg)]"
+                  className="h-12 w-12 rounded-full object-cover"
                 />
               ) : null}
 
@@ -125,7 +131,7 @@ const DailyLessonCard = ({
 
           {/* Meta pills */}
           <div className="flex flex-wrap gap-1.5">
-            <span className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-active-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-gray)]">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[var(--color-gray)]">
               {lesson.referenceType === "page" ? (
                 <FileText className="h-3 w-3" />
               ) : (
@@ -134,7 +140,7 @@ const DailyLessonCard = ({
               {refLabel} {toBn(lesson.chapterNumber)}
             </span>
 
-            <span className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-active-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-gray)]">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[var(--color-gray)]">
               <Calendar className="h-3 w-3" />
               {lesson.date}
             </span>
@@ -142,28 +148,20 @@ const DailyLessonCard = ({
 
           <div className="h-px rounded-full bg-[var(--color-active-border)]" />
 
-          <p className="line-clamp-4 flex-1 whitespace-pre-line text-sm leading-relaxed text-[var(--color-gray)]">
-            {lesson.topics}
-          </p>
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <p className="line-clamp-4 whitespace-pre-line text-sm leading-relaxed text-[var(--color-gray)]">
+              {lesson.topics}
+            </p>
 
-          <Button
-            variant="default"
-            size="md"
-            onClick={(e) => {
-              e.stopPropagation();
-
-              if (isGuest) {
-                setShowLoginPrompt(true);
-                return;
-              }
-
-              setShowModal(true);
-            }}
-            className="mt-auto self-end gap-2 rounded-xl px-4 text-sm font-semibold"
-          >
-            <Eye className="h-4 w-4" />
-            বিস্তারিত
-          </Button>
+            <div className="absolute bottom-5 right-5 z-10 bg-gradient-to-l from-[var(--color-bg)] via-[var(--color-bg)] to-transparent pl-6 pt-1">
+              <button
+                onClick={handleOpenLesson}
+                className="text-xs font-semibold text-[var(--color-brand)] hover:underline"
+              >
+                আরও দেখুন →
+              </button>
+            </div>
+          </div>
         </div>
       </motion.div>
 
