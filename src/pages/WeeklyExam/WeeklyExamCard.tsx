@@ -270,15 +270,6 @@ const WeeklyExamCard = ({
 
           {/* Footer */}
           <div className="mt-6 flex items-center justify-between gap-3">
-            <div className="flex flex-wrap gap-2">
-              <span className="rounded-full border border-[var(--color-active-border)] px-3.5 py-1 text-sm font-medium text-[var(--color-gray)] md:text-md">
-                {exam.class}
-              </span>
-              <span className="rounded-full border border-[var(--color-active-border)] px-3.5 py-1 text-sm font-medium text-[var(--color-gray)] md:text-md">
-                {toBn(exam.mark)} নম্বর
-              </span>
-            </div>
-
             <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
               <button
                 onClick={handleDetailClick}
@@ -293,6 +284,14 @@ const WeeklyExamCard = ({
                 বিস্তারিত
               </button>
             </motion.div>
+            <div className="flex flex-wrap gap-2">
+              <span className="rounded-full border border-[var(--color-active-border)] px-3.5 py-1 text-sm font-medium text-[var(--color-gray)] md:text-md">
+                {exam.class}
+              </span>
+              <span className="rounded-full border border-[var(--color-active-border)] px-3.5 py-1 text-sm font-medium text-[var(--color-gray)] md:text-md">
+                {toBn(exam.mark)} নম্বর
+              </span>
+            </div>
           </div>
         </div>
       </motion.div>
