@@ -107,13 +107,13 @@ const ClassGroupTitle = ({
     variants={groupTitleVariants}
     initial="hidden"
     animate="visible"
-    className="mb-4 mt-8 flex gap-x-5 items-center justify-center rounded bg-[var(--color-active-bg)] px-4 py-3 bangla sm:mt-10"
+    className="mb-4 mt-8 flex gap-x-10 items-center justify-center rounded bg-[var(--color-active-bg)] border-y border-[var(--color-active-border)] px-4 py-3 bangla sm:mt-10"
   >
-    <h2 className="text-lg font-bold text-[var(--color-text)] sm:text-xl">
+    <h2 className="text-lg font-bold text-[var(--color-text)] md:text-2xl">
       {className}
     </h2>
 
-    <span className=" px-3 py-1 text-xs font-semibold text-[var(--color-text)] sm:text-sm">
+    <span className=" px-3 py-1 text-xs font-semibold text-[var(--color-gray)] sm:text-sm border-x border-[var(--color-active-border)]">
       {toBn(count)}টি ধারণা
     </span>
   </motion.div>
@@ -418,7 +418,7 @@ const WeeklyExam = () => {
     const visibleExams = previewGroup.exams.slice(0, 2);
 
     return (
-      <>
+      <div>
         <ClassGroupTitle
           className={previewGroup.className}
           index={0}
@@ -435,7 +435,7 @@ const WeeklyExam = () => {
 
           <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[var(--color-bg)] to-transparent" />
         </div>
-      </>
+      </div>
     );
   };
 
