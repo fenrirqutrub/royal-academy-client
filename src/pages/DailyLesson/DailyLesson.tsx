@@ -285,7 +285,8 @@ const DailyLesson = () => {
       if (name && slug) map.set(slug, name);
     });
 
-    if (userSlug && !map.has(userSlug)) {
+    // student ছাড়া বাকি সব role-এর user নিজেকে list-এ দেখতে পাবে
+    if (userRole !== "student" && userSlug && !map.has(userSlug)) {
       map.set(userSlug, user?.name || "আমার পাঠ");
     }
 
@@ -296,7 +297,7 @@ const DailyLesson = () => {
         label: name,
       })),
     ];
-  }, [teacherBaseData, userSlug, user?.name]);
+  }, [teacherBaseData, userRole, userSlug, user?.name]);
 
   const subjectBaseData = useMemo(() => {
     let result = dateFilteredData;

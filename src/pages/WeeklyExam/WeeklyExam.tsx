@@ -264,7 +264,7 @@ const WeeklyExam = () => {
       }
     });
 
-    if (userSlug && !map.has(userSlug)) {
+    if (userRole !== "student" && userSlug && !map.has(userSlug)) {
       map.set(userSlug, user?.name || "আমার পরীক্ষা");
     }
 
@@ -275,7 +275,7 @@ const WeeklyExam = () => {
         label: name,
       })),
     ];
-  }, [examNumberFilteredData, userSlug, user?.name]);
+  }, [examNumberFilteredData, userRole, userSlug, user?.name]);
 
   useEffect(() => {
     const exists = teacherOptions.some((opt) => opt.value === selectedTeacher);

@@ -85,7 +85,6 @@ const SelectInput = ({
 
   const selected = options.find((o) => o.value === value);
 
-  /* defaultValue একবার apply হবে */
   useEffect(() => {
     if (
       defaultValue &&
