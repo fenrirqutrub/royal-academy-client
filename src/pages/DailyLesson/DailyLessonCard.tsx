@@ -121,7 +121,7 @@ const DailyLessonCard = ({
           duration: 0.44,
           ease: [0.22, 1, 0.36, 1],
         }}
-        className="group relative flex h-[280px] cursor-pointer flex-col overflow-hidden rounded border border-[var(--color-active-border)] bg-[var(--color-bg)] shadow-sm transition-all duration-300 bangla"
+        className="group relative flex h-[250px] cursor-pointer flex-col overflow-hidden rounded border border-[var(--color-active-border)] bg-[var(--color-bg)] shadow-sm transition-all duration-300 bangla"
       >
         {/* Guest hover lock */}
         {isGuest && (

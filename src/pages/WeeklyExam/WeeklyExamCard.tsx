@@ -81,18 +81,6 @@ const WeeklyExamCard = ({
     return false;
   };
 
-  // ✅ viewedBy update হলে sync করুন (parent থেকে নতুন data আসলে)
-  // useEffect(() => {
-  //   if (exam.viewedBy && Array.isArray(exam.viewedBy)) {
-  //     setViewData({
-  //       viewCount: exam.viewCount || 0,
-  //       viewedBy: exam.viewedBy.filter(
-  //         (v) => v && v.userId && typeof v.userId === "object",
-  //       ),
-  //     });
-  //   }
-  // }, [exam.viewCount, exam.viewedBy]);
-
   const handleCopy = async (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
     if (openLoginPromptIfGuest()) return;
@@ -124,13 +112,10 @@ const WeeklyExamCard = ({
 
     setShowModal(true);
 
-    // ✅ শুধু isAuthenticated চেক, _id নয়
     if (!isAuthenticated || isRecordingView) return;
 
     setIsRecordingView(true);
     try {
-      // ✅ axiosSecure বাদ, axiosPublic ব্যবহার করো
-      // axiosPublic ইতোমধ্যে token interceptor-এ attach করে
       const response = await axiosPublic.patch(
         `/api/weekly-exams/${exam._id}/record-view`,
       );

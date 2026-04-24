@@ -305,7 +305,7 @@ const ExamModal = ({
                     }}
                     whileHover={{ scale: 1.04 }}
                     whileTap={{ scale: 0.94 }}
-                    className="flex items-center gap-1.5 px-3.5 py-2.5 rounded text-xs font-bold transition-all duration-200 shrink-0 bg-red-800 text-[var(--color-text)]"
+                    className="flex items-center gap-1.5 px-3.5 py-2.5 rounded text-xs font-bold transition-all duration-200 shrink-0 bg-red-800 text-[var(--color-bg)]"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     Delete
@@ -321,7 +321,7 @@ const ExamModal = ({
                     }}
                     whileHover={{ scale: 1.04 }}
                     whileTap={{ scale: 0.94 }}
-                    className="flex items-center gap-1.5 px-3.5 py-2.5 rounded text-xs font-bold transition-all duration-200 shrink-0 bg-green-800 text-[var(--color-text)]"
+                    className="flex items-center gap-1.5 px-3.5 py-2.5 rounded text-xs font-bold transition-all duration-200 shrink-0 bg-amber-400 text-[var(--color-bg)]"
                   >
                     <Pencil className="w-3.5 h-3.5" />
                     Edit
@@ -333,16 +333,12 @@ const ExamModal = ({
                   onClick={handleCopy}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className={`relative flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl text-sm font-medium transition-all duration-150 shrink-0 border`}
-                  style={{
-                    backgroundColor: copied
-                      ? "var(--color-text)"
-                      : "var(--color-bg)",
-                    borderColor: copied
-                      ? "var(--color-text)"
-                      : "var(--color-text)",
-                    color: copied ? "var(--color-bg)" : "var(--color-text)",
-                  }}
+                  className={[
+                    "flex shrink-0 items-center gap-2 rounded bg-green-800 text-[var(--color-bg)] px-4 py-2.5 text-sm font-black transition-all duration-200 border border-green-800",
+                    copied
+                      ? "bg-green-800 text-[var(--color-bg)] border border-green-800"
+                      : "bg-green-700 text-[var(--color-bg)] shadow-md border border-green-800",
+                  ].join(" ")}
                 >
                   <AnimatePresence mode="wait">
                     {copied ? (

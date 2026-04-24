@@ -27,12 +27,9 @@ import type {
 import { useNavigate } from "react-router";
 import WeeklyExamHeaderFilters from "./WeeklyExamHeaderFilters";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
 const formatCreatedAt = (iso: string): string => {
   const d = new Date(iso);
-  return `${BN_DAYS_FULL[d.getDay()]}, ${toBn(d.getDate())} ${BN_MONTHS[d.getMonth()]} ${toBn(d.getFullYear())}`;
+  return `${toBn(d.getDate())} ${BN_MONTHS[d.getMonth()]}, ${BN_DAYS_FULL[d.getDay()]}`;
 };
 
 const normalizeImages = (images: RawImage[]): NormalizedImage[] =>
