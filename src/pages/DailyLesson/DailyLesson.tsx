@@ -9,7 +9,7 @@ import Button from "../../components/common/Button";
 import { useAuth } from "../../context/AuthContext";
 import { useGuestPreview } from "../../hooks/useGuestPreview";
 import LoginPromptOverlay from "../Admin/Auth/LoginPromptOverlay";
-import { formatBnDate, toBn } from "../../utility/Formatters";
+import { BN_DAYS_FULL, BN_MONTHS, toBn } from "../../utility/Formatters";
 import {
   CLASS_ORDER,
   PRIVILEGED_ROLES,
@@ -29,6 +29,12 @@ import DailyLessonHeader from "./DailyLessonHeader";
 const GUEST_PREVIEW_CLASS = "৬ষ্ঠ শ্রেণি";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+// DailyLesson.tsx — এই helper যোগ করো উপরে
+const formatLessonDate = (iso: string): string => {
+  const d = new Date(iso);
+  return `${toBn(d.getDate())} ${BN_MONTHS[d.getMonth()]}, ${BN_DAYS_FULL[d.getDay()]}`;
+};
+
 const getTeacherDefault = (role?: UserRole, slug?: string) =>
   STAFF_DASHBOARD_ROLES.includes(role as UserRole) && slug ? slug : "all";
 
@@ -531,7 +537,7 @@ const DailyLesson = () => {
           {class6.lessons.slice(0, 2).map((lesson, i) => (
             <motion.div key={lesson._id} variants={fadeUp}>
               <DailyLessonCard
-                lesson={{ ...lesson, date: formatBnDate(lesson.date) }}
+                lesson={{ ...lesson, date: formatLessonDate(lesson.date) }}
                 index={i}
                 canEdit={false}
                 canDelete={false}
@@ -641,7 +647,7 @@ const DailyLesson = () => {
                               <DailyLessonCard
                                 lesson={{
                                   ...lesson,
-                                  date: formatBnDate(lesson.date),
+                                  date: formatLessonDate(lesson.date),
                                 }}
                                 index={i}
                                 canEdit={canEdit}

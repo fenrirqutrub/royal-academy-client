@@ -22,8 +22,8 @@ const MIN_YEAR = 1950;
 interface DatePickerProps {
   value?: string;
   onChange: (display: string) => void;
-  onDateChange?: (date: Date) => void;
-
+  // ✅ FIX: Accept null for clear
+  onDateChange?: (date: Date | null) => void;
   selectedDate?: Date | null;
   label?: string;
   required?: boolean;
@@ -75,7 +75,6 @@ const DatePicker = ({
     }
 
     setSelected(selectedDate);
-
     setViewYear(selectedDate.getFullYear());
     setViewMonth(selectedDate.getMonth());
   }, [selectedDate]);
@@ -116,7 +115,8 @@ const DatePicker = ({
       const el = yearListRef.current.querySelector(
         `[data-yr="${viewYear}"]`,
       ) as HTMLElement | null;
-      el?.scrollIntoView({ block: "center", behavior: "instant" });
+      // ✅ FIX: Use "auto" instead of "instant"
+      el?.scrollIntoView({ block: "center", behavior: "auto" });
     }
   }, [mode, viewYear]);
 
@@ -205,11 +205,12 @@ const DatePicker = ({
     setOpen(false);
   };
 
+  // ✅ FIX: Clear sends null, not epoch date
   const clear = (e: React.MouseEvent) => {
     e.stopPropagation();
     setSelected(null);
     onChange("");
-    onDateChange?.(new Date(0)); // ✅ clear হলেও parent কে notify করো
+    onDateChange?.(null);
   };
 
   const openCalendar = () => {
@@ -265,7 +266,9 @@ const DatePicker = ({
       >
         <span
           className="flex items-center gap-2 min-w-0"
-          style={{ color: value ? "var(--color-text)" : "var(--color-gray)" }}
+          style={{
+            color: value ? "var(--color-text)" : "var(--color-gray)",
+          }}
         >
           <IoCalendarOutline
             className="text-base shrink-0"
@@ -456,7 +459,7 @@ const DatePicker = ({
 
             {/* Day grid */}
             {mode === "day" && (
-              <>
+              <div>
                 <div className="grid grid-cols-7 px-3 pb-1">
                   {BN_DAYS_SHORT.map((d) => (
                     <div
@@ -519,7 +522,9 @@ const DatePicker = ({
                                     }
                                   : fri
                                     ? { color: "#f87171" }
-                                    : { color: "var(--color-text)" }
+                                    : {
+                                        color: "var(--color-text)",
+                                      }
                           }
                           onMouseEnter={(e) => {
                             if (!dis && !sel)
@@ -573,7 +578,7 @@ const DatePicker = ({
                     আজকের তারিখ নির্বাচন করুন
                   </button>
                 </div>
-              </>
+              </div>
             )}
           </motion.div>
         )}

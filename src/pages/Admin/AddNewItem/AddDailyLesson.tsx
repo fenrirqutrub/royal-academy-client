@@ -1,6 +1,6 @@
 // AddDailyLesson.tsx
 import { useForm, type SubmitHandler, Controller } from "react-hook-form";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { Loader2, BookOpen, FileText } from "lucide-react";
 import toast from "react-hot-toast";
@@ -11,7 +11,11 @@ import axiosPublic from "../../../hooks/axiosPublic";
 import Skeleton from "../../../components/common/Skeleton";
 import ErrorState from "../../../components/common/ErrorState";
 import { useAuth } from "../../../context/AuthContext";
-import { CLASS_OPTIONS, getSubjects } from "../../../utility/Constants";
+import {
+  CLASS_OPTIONS,
+  getSubjects,
+  toLocalIso,
+} from "../../../utility/Constants";
 import DatePicker from "../../../components/common/Datepicker";
 import {
   BN_DAYS_FULL,
@@ -36,23 +40,41 @@ const isValidToken = (token: string): boolean => {
   return /^\d+(\.\d+)?$/.test(n) && parseFloat(n) > 0;
 };
 
+// ✅ FIX: Multiple-hyphen validation (e.g. ১-২-৩ now correctly rejected)
 const validateReference = (raw: string): string | true => {
   if (!raw?.trim()) return true;
+
   const segments = raw
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+
   for (const seg of segments) {
-    if (seg.includes("-")) {
-      const [a, b] = seg.split("-");
-      if (!isValidToken(a) || !isValidToken(b))
-        return "রেঞ্জ সঠিক নয় (যেমন: ১০-১৫)";
-      if (parseFloat(toEn(b)) <= parseFloat(toEn(a)))
-        return "শেষ নম্বর শুরুর চেয়ে বড় হতে হবে";
-    } else {
-      if (!isValidToken(seg)) return "সঠিক নম্বর লিখুন (যেমন: ১, ৫, ২.৫)";
+    const parts = seg.split("-").map((p) => p.trim());
+
+    if (parts.length === 1) {
+      if (!isValidToken(parts[0])) {
+        return "সঠিক নম্বর লিখুন (যেমন: ১, ৫, ২.৫)";
+      }
+      continue;
+    }
+
+    // ✅ FIX: Reject triple-hyphen like ১-২-৩
+    if (parts.length !== 2 || !parts[0] || !parts[1]) {
+      return "রেঞ্জ সঠিক নয় (যেমন: ১০-১৫)";
+    }
+
+    const [a, b] = parts;
+
+    if (!isValidToken(a) || !isValidToken(b)) {
+      return "রেঞ্জ সঠিক নয় (যেমন: ১০-১৫)";
+    }
+
+    if (parseFloat(toEn(b)) <= parseFloat(toEn(a))) {
+      return "শেষ নম্বর শুরুর চেয়ে বড় হতে হবে";
     }
   }
+
   return true;
 };
 
@@ -131,7 +153,11 @@ const ReferenceToggle = ({ value, onChange }: ReferenceToggleProps) => {
       label: "অধ্যায়",
       icon: <BookOpen className="w-3.5 h-3.5" />,
     },
-    { id: "page", label: "পৃষ্ঠা", icon: <FileText className="w-3.5 h-3.5" /> },
+    {
+      id: "page",
+      label: "পৃষ্ঠা",
+      icon: <FileText className="w-3.5 h-3.5" />,
+    },
   ];
 
   return (
@@ -219,10 +245,21 @@ const AddDailyLesson = () => {
   const [submitted, setSubmitted] = useState(false);
   const [refType, setRefType] = useState<ReferenceType>("chapter");
 
-  const rawDateRef = useRef<Date>(new Date());
-  const [pickerDate, setPickerDate] = useState<Date>(new Date());
+  // ✅ FIX: Date refs typed as nullable
+  const rawDateRef = useRef<Date | null>(new Date());
+  const [pickerDate, setPickerDate] = useState<Date | null>(new Date());
+
+  // ✅ FIX: Timer cleanup ref
+  const submittedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const qc = useQueryClient();
+
+  // ✅ FIX: Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (submittedTimerRef.current) clearTimeout(submittedTimerRef.current);
+    };
+  }, []);
 
   // ── Teacher list ─────────────────────────────────────────────────────────────
   const {
@@ -230,7 +267,8 @@ const AddDailyLesson = () => {
     isLoading: teachersLoading,
     isError: teachersError,
   } = useQuery<TeacherItem[]>({
-    queryKey: ["teachers-list"],
+    // ✅ FIX: Include user.id in queryKey so cache refreshes on user change
+    queryKey: ["teachers-list", user?.id],
     queryFn: async () => {
       const res = await axiosPublic.get("/api/users");
       const payload: TeacherItem[] = Array.isArray(res.data)
@@ -259,11 +297,16 @@ const AddDailyLesson = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  const teacherOptions: SelectOption[] = teacherList.map((t) => ({
-    value: t._id,
-    label: t.name,
-    icon: <PiChalkboardTeacherFill />,
-  }));
+  // ✅ FIX: Memoize teacher options
+  const teacherOptions: SelectOption[] = useMemo(
+    () =>
+      teacherList.map((t) => ({
+        value: t._id,
+        label: t.name,
+        icon: <PiChalkboardTeacherFill />,
+      })),
+    [teacherList],
+  );
 
   // ── Form ──────────────────────────────────────────────────────────────────────
   const {
@@ -272,7 +315,8 @@ const AddDailyLesson = () => {
     control,
     watch,
     setValue,
-    clearErrors, // ✅ FIX 4: destructure clearErrors
+    clearErrors,
+    resetField,
     formState: { errors, isValid },
   } = useForm<DailyLessonFormData>({
     mode: "onTouched",
@@ -301,7 +345,7 @@ const AddDailyLesson = () => {
     [setValue],
   );
 
-  // ✅ FIX 2: Run only on mount — no dateValue dependency to avoid double-call
+  // Run only on mount
   useEffect(() => {
     applyDate(new Date());
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -318,7 +362,7 @@ const AddDailyLesson = () => {
     });
   }, [user?.id, isAdmin, teacherList.length, teacherValue, setValue]);
 
-  // ✅ FIX 4: Clear chapterNumber value AND errors on refType switch
+  // Clear chapterNumber value AND errors on refType switch
   const handleRefTypeChange = useCallback(
     (v: ReferenceType) => {
       setRefType(v);
@@ -337,10 +381,25 @@ const AddDailyLesson = () => {
     onSuccess: () => {
       toast.success("প্রতিদিনের পড়া সফলভাবে যোগ হয়েছে!");
       qc.invalidateQueries({ queryKey: ["daily-lessons"] });
+
+      // ✅ FIX: Full reset including refType
+      const now = new Date();
       reset();
-      applyDate(new Date());
+      setRefType("chapter");
+      applyDate(now);
+
+      // ✅ FIX: Auto-set teacher after reset for non-admin
+      if (!isAdmin && user?.id) {
+        setValue("teacher", user.id, {
+          shouldValidate: true,
+          shouldTouch: true,
+        });
+      }
+
       setSubmitted(true);
-      setTimeout(() => setSubmitted(false), 2500);
+      // ✅ FIX: Cleanup previous timer before setting new one
+      if (submittedTimerRef.current) clearTimeout(submittedTimerRef.current);
+      submittedTimerRef.current = setTimeout(() => setSubmitted(false), 2500);
     },
     onError: (err: Error & { response?: { data?: { message?: string } } }) =>
       toast.error(
@@ -352,9 +411,14 @@ const AddDailyLesson = () => {
 
   // ── onSubmit ──────────────────────────────────────────────────────────────────
   const onSubmit: SubmitHandler<DailyLessonFormData> = (data) => {
+    // ✅ FIX: Null-check rawDateRef
+    if (!rawDateRef.current) {
+      toast.error("তারিখ নির্বাচন করুন।");
+      return;
+    }
+
     const teacherId = isAdmin ? data.teacher : user?.id;
 
-    // ✅ FIX 3: Validate with regex instead of just length check
     if (!teacherId || !/^[a-f\d]{24}$/i.test(teacherId)) {
       toast.error("শিক্ষকের তথ্য পাওয়া যায়নি। পৃষ্ঠা রিফ্রেশ করুন।");
       return;
@@ -374,10 +438,13 @@ const AddDailyLesson = () => {
     });
 
     fd.append("teacher", teacherId);
-    fd.append("date", rawDateRef.current.toISOString());
+
+    // ✅ FIX: Use toLocalIso to prevent timezone shift bugs
+    fd.append("date", toLocalIso(rawDateRef.current));
+
     fd.append("referenceType", refType);
 
-    // ✅ FIX 1: Use selected teacher's slug, not always the logged-in user's slug
+    // ✅ FIX: Derive slug from selected teacher (admin) or logged-in user
     if (isAdmin) {
       const selectedTeacher = teacherList.find((t) => t._id === teacherId);
       if (selectedTeacher?.slug) fd.append("teacherSlug", selectedTeacher.slug);
@@ -449,6 +516,7 @@ const AddDailyLesson = () => {
                     selectedDate={pickerDate}
                     onChange={field.onChange}
                     onDateChange={(date) => {
+                      // ✅ FIX: Handle null from DatePicker clear
                       rawDateRef.current = date;
                       setPickerDate(date);
                     }}
@@ -479,7 +547,8 @@ const AddDailyLesson = () => {
                       value={field.value}
                       onChange={(val) => {
                         field.onChange(val);
-                        setValue("subject", "", { shouldTouch: false });
+                        // ✅ FIX: Use resetField for proper validation state reset
+                        resetField("subject", { defaultValue: "" });
                       }}
                       onBlur={field.onBlur}
                       error={fieldState.error?.message}
@@ -614,7 +683,11 @@ const AddDailyLesson = () => {
                           <AnimatePresence mode="wait">
                             <motion.span
                               key={refType}
-                              initial={{ opacity: 0, rotate: -15, scale: 0.7 }}
+                              initial={{
+                                opacity: 0,
+                                rotate: -15,
+                                scale: 0.7,
+                              }}
                               animate={{ opacity: 1, rotate: 0, scale: 1 }}
                               exit={{ opacity: 0, rotate: 15, scale: 0.7 }}
                               transition={{ duration: 0.22 }}
@@ -694,7 +767,10 @@ const AddDailyLesson = () => {
                 control={control}
                 rules={{
                   required: "বিষয়বস্তু আবশ্যিক",
-                  minLength: { value: 5, message: "কমপক্ষে ৫ অক্ষর লিখুন" },
+                  minLength: {
+                    value: 5,
+                    message: "কমপক্ষে ৫ অক্ষর লিখুন",
+                  },
                 }}
                 render={({ field, fieldState }) => (
                   <textarea
@@ -772,7 +848,15 @@ const AddDailyLesson = () => {
                 type="button"
                 onClick={() => {
                   reset();
+                  // ✅ FIX: Also reset refType and re-apply teacher
+                  setRefType("chapter");
                   applyDate(new Date());
+                  if (!isAdmin && user?.id) {
+                    setValue("teacher", user.id, {
+                      shouldValidate: true,
+                      shouldTouch: true,
+                    });
+                  }
                 }}
                 disabled={mutation.isPending}
                 className="sm:w-32 py-3 rounded-xl text-sm font-medium bg-[var(--color-active-bg)] hover:bg-[var(--color-active-border)] text-[var(--color-text)] transition-all disabled:opacity-50 bangla"

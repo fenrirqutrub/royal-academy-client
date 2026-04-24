@@ -1,11 +1,6 @@
 import { motion } from "framer-motion";
-import type { Exam } from "../types/types";
-
-export interface ExamImage {
-  url?: string;
-  imageUrl?: string;
-  publicId?: string;
-}
+// FIX: ExamImage now lives only in types.ts — import from there
+import type { Exam, ExamImage } from "../types/types";
 
 export interface ColorConfig {
   from: string;
@@ -101,7 +96,6 @@ export const isSameCalendarDay = (a: DateInput, b: DateInput): boolean => {
   );
 };
 
-/* Shared color helper */
 export const hexToRgb = (hex: string): string => {
   const raw = hex.replace("#", "");
   const normalized =

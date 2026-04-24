@@ -1,5 +1,3 @@
-// types.ts
-
 import type { ReactNode, RefObject } from "react";
 import type { ColorConfig } from "../utility/Formatters";
 
@@ -26,8 +24,6 @@ export interface SignupForm {
   currentYear: string;
   emergencyContact: string;
 }
-
-// Add to your SelectInputProps in types/types.ts
 
 export interface SelectInputProps {
   options: { value: string; label: string; icon?: React.ReactNode }[];
@@ -57,6 +53,13 @@ export interface TeacherInfo {
   avatar?: { url: string | null; publicId?: string | null } | string | null;
   role?: string;
   slug?: string;
+}
+
+// FIX: Single source of truth — duplicate removed
+export interface ExamImage {
+  imageUrl?: string;
+  url?: string;
+  publicId?: string;
 }
 
 export interface DailyLessonItem {
@@ -106,7 +109,6 @@ export interface ExamModalProps {
   onDelete?: () => void;
 }
 
-// login promt
 export interface LoginPromptOverlayProps {
   isOpen: boolean;
   onClose: () => void;
@@ -121,6 +123,7 @@ export interface DailyLessonFormData {
   date: string;
 }
 
+// FIX: Single declaration with _id included — duplicate removed
 export interface TeacherItem {
   _id: string;
   name: string;
@@ -141,18 +144,6 @@ export interface WeeklyExamFormData {
   topics: string;
   question: string;
   slug?: string;
-}
-
-export interface TeacherItem {
-  name: string;
-  slug: string;
-  role: string;
-}
-
-export interface ExamImage {
-  imageUrl?: string;
-  url?: string;
-  publicId?: string;
 }
 
 export interface WeeklyExamData {
@@ -226,9 +217,6 @@ export interface WeeklyExamHeaderFiltersProps {
   resetTitle?: string;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────────────────────
 export interface NormalizedImage {
   url: string;
   publicId: string;
@@ -237,8 +225,6 @@ export interface NormalizedImage {
 export type RawImage =
   | string
   | { imageUrl?: string; url?: string; publicId?: string };
-
-/* ─── Props ──────────────────────────────────────────────────────────────── */
 
 export interface WeeklyExamCardProps {
   exam: Exam;
@@ -250,7 +236,6 @@ export interface WeeklyExamCardProps {
   onDelete?: () => void;
 }
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 export interface SelectOption {
   value: string;
   label: string;
