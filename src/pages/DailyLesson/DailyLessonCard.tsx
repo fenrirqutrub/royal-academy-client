@@ -11,10 +11,16 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import DailyLessonModal from "./DailyLessonModal";
 import { toBn } from "../../utility/Formatters";
-import type { DailyLessonCardProps, TeacherInfo } from "../../types/types";
+import type {
+  DailyLessonCardProps,
+  TeacherInfo,
+  ViewData,
+} from "../../types/types";
 import LoginPromptOverlay from "../Admin/Auth/LoginPromptOverlay";
+import SeenUserAvatar from "../../components/common/SeenUserAvatar";
+import ViewDetailsModal from "../../components/common/ViewDetailsModal";
+import { axiosPublic } from "../../hooks/axiosPublic";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 export const extractTeacher = (teacher: TeacherInfo | string | null) => {
   if (!teacher) return { name: "—", avatarUrl: null };
   if (typeof teacher === "string") return { name: teacher, avatarUrl: null };
@@ -36,7 +42,6 @@ export const extractTeacher = (teacher: TeacherInfo | string | null) => {
   return { name, avatarUrl };
 };
 
-// ─── Card ─────────────────────────────────────────────────────────────────────
 const DailyLessonCard = ({
   lesson,
   index,
@@ -46,20 +51,62 @@ const DailyLessonCard = ({
   onDelete,
 }: DailyLessonCardProps) => {
   const { isAuthenticated } = useAuth();
+
+  const [viewData, setViewData] = useState<ViewData>(() => ({
+    viewCount: lesson.viewCount || 0,
+    viewedBy: Array.isArray(lesson.viewedBy)
+      ? lesson.viewedBy.filter(
+          (v: ViewData["viewedBy"][number]) =>
+            v?.userId && typeof v.userId === "object",
+        )
+      : [],
+  }));
+
   const [showModal, setShowModal] = useState(false);
+  const [showViewDetails, setShowViewDetails] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [isRecordingView, setIsRecordingView] = useState(false);
 
   const isGuest = !isAuthenticated;
   const { name: teacherName, avatarUrl } = extractTeacher(lesson.teacher);
   const refLabel = lesson.referenceType === "page" ? "পৃষ্ঠা" : "অধ্যায়";
 
-  const handleOpenLesson = (e: React.MouseEvent) => {
+  const handleOpenLesson = async (e: React.MouseEvent) => {
     e.stopPropagation();
+
     if (isGuest) {
       setShowLoginPrompt(true);
       return;
     }
+
     setShowModal(true);
+
+    if (isRecordingView) return;
+
+    setIsRecordingView(true);
+    try {
+      const response = await axiosPublic.patch(
+        `/api/daily-lesson/${lesson._id}/record-view`,
+      );
+
+      if (response.data?.success) {
+        setViewData({
+          viewCount: response.data.viewCount ?? viewData.viewCount,
+          viewedBy: Array.isArray(response.data.viewedBy)
+            ? (response.data.viewedBy as ViewData["viewedBy"]).filter(
+                (v) => v?.userId && typeof v.userId === "object",
+              )
+            : viewData.viewedBy,
+        });
+      }
+    } catch (error) {
+      const err = error as { response?: { status?: number } };
+      if (err?.response?.status === 401) {
+        setShowLoginPrompt(true);
+      }
+    } finally {
+      setIsRecordingView(false);
+    }
   };
 
   return (
@@ -72,7 +119,7 @@ const DailyLessonCard = ({
           duration: 0.44,
           ease: [0.22, 1, 0.36, 1],
         }}
-        className="group relative flex h-[250px] cursor-pointer flex-col overflow-hidden rounded border border-[var(--color-active-border)] bg-[var(--color-bg)] shadow-sm transition-all duration-300 bangla"
+        className="group relative flex h-[280px] cursor-pointer flex-col overflow-hidden rounded border border-[var(--color-active-border)] bg-[var(--color-bg)] shadow-sm transition-all duration-300 bangla"
       >
         {/* Guest hover lock */}
         {isGuest && (
@@ -88,7 +135,7 @@ const DailyLessonCard = ({
         <div className="h-[3px] w-full shrink-0 bg-gradient-to-r from-[var(--color-brand)] to-[var(--color-brand-hover)]" />
 
         {/* Body */}
-        <div className="flex flex-1 flex-col gap-4 overflow-hidden p-5">
+        <div className="flex flex-1 flex-col gap-3 overflow-hidden p-5">
           {/* Teacher + subject */}
           <div className="flex items-start gap-3">
             <div className="relative shrink-0">
@@ -105,7 +152,6 @@ const DailyLessonCard = ({
                   className="h-12 w-12 rounded-full object-cover"
                 />
               ) : null}
-
               <div
                 className="h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--color-brand)] to-[var(--color-brand-hover)] text-sm font-bold text-white shadow-sm"
                 style={{ display: avatarUrl ? "none" : "flex" }}
@@ -149,21 +195,35 @@ const DailyLessonCard = ({
           <div className="h-px rounded-full bg-[var(--color-active-border)]" />
 
           <div className="min-h-0 flex-1 overflow-hidden">
-            <p className="line-clamp-4 whitespace-pre-line text-sm leading-relaxed text-[var(--color-gray)]">
+            <p className="line-clamp-3 whitespace-pre-line text-sm leading-relaxed text-[var(--color-gray)]">
               {lesson.topics}
             </p>
+          </div>
 
-            <div className="absolute bottom-5 right-5 z-10 bg-gradient-to-l from-[var(--color-bg)] via-[var(--color-bg)] to-transparent pl-6 pt-1">
-              <button
-                onClick={handleOpenLesson}
-                className="text-xs font-semibold text-[var(--color-brand)] hover:underline"
-              >
-                আরও দেখুন →
-              </button>
-            </div>
+          {/* ✅ Footer — SeenUserAvatar + বিস্তারিত */}
+          <div className="flex items-center justify-between gap-3 mt-auto">
+            <SeenUserAvatar
+              viewCount={viewData.viewCount}
+              viewedBy={viewData.viewedBy}
+              onViewDetails={() => setShowViewDetails(true)}
+            />
+            <button
+              onClick={handleOpenLesson}
+              className="text-xs font-semibold text-[var(--color-brand)] hover:underline"
+            >
+              আরও দেখুন →
+            </button>
           </div>
         </div>
       </motion.div>
+
+      {/* View Details Modal */}
+      <ViewDetailsModal
+        isOpen={showViewDetails}
+        onClose={() => setShowViewDetails(false)}
+        viewedBy={viewData.viewedBy}
+        viewCount={viewData.viewCount}
+      />
 
       <LoginPromptOverlay
         isOpen={showLoginPrompt}

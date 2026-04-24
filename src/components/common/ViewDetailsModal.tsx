@@ -3,11 +3,15 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, User } from "lucide-react";
 import { toBn } from "../../utility/Formatters";
+import { useAuth } from "../../context/AuthContext";
+import { isStaffRole, ROLE_LABELS } from "./SeenUserAvatar";
 
+// ✅ role যোগ করা হয়েছে
 interface ViewedByUser {
   userId: {
     _id: string;
     name: string;
+    role?: string;
     studentClass?: string;
     roll?: string;
     avatar?: { url: string };
@@ -28,25 +32,34 @@ const ViewDetailsModal = ({
   viewedBy,
   viewCount,
 }: ViewDetailsModalProps) => {
+  const { user } = useAuth();
+
+  // ✅ _id এর বদলে id
+  const currentUserId = user?.id ?? "";
+  const currentUserIsStudent = (user?.role ?? "student") === "student";
+
   const safeViewedBy = Array.isArray(viewedBy)
     ? viewedBy.filter(
         (v) => v?.userId && typeof v.userId === "object" && v.userId.name,
       )
     : [];
 
-  // Unique users (latest viewedAt রাখো)
-  const uniqueUsers = safeViewedBy.reduce<ViewedByUser[]>((acc, cur) => {
-    const existing = acc.findIndex((v) => v.userId._id === cur.userId._id);
-    if (existing === -1) {
-      acc.push(cur);
-    } else {
-      // সর্বশেষ view time রাখো
-      if (new Date(cur.viewedAt) > new Date(acc[existing].viewedAt)) {
-        acc[existing] = cur;
+  // ✅ count সহ unique users
+  const uniqueUsers = safeViewedBy.reduce<(ViewedByUser & { count: number })[]>(
+    (acc, cur) => {
+      const existing = acc.findIndex((v) => v.userId._id === cur.userId._id);
+      if (existing === -1) {
+        acc.push({ ...cur, count: 1 });
+      } else {
+        acc[existing].count += 1;
+        if (new Date(cur.viewedAt) > new Date(acc[existing].viewedAt)) {
+          acc[existing].viewedAt = cur.viewedAt;
+        }
       }
-    }
-    return acc;
-  }, []);
+      return acc;
+    },
+    [],
+  );
 
   return (
     <AnimatePresence>
@@ -66,7 +79,7 @@ const ViewDetailsModal = ({
             className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl bg-[var(--color-bg)] shadow-2xl max-h-[80vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Handle bar (mobile) */}
+            {/* Handle bar */}
             <div className="flex justify-center pt-3 pb-1 sm:hidden">
               <div className="w-10 h-1 rounded-full bg-[var(--color-active-border)]" />
             </div>
@@ -93,48 +106,68 @@ const ViewDetailsModal = ({
             <div className="overflow-y-auto flex-1 p-3">
               {uniqueUsers.length > 0 ? (
                 <div className="space-y-1">
-                  {uniqueUsers.map((view, index) => (
-                    <motion.div
-                      key={view.userId._id || index}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.04 }}
-                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-[var(--color-active-bg)] transition-colors"
-                    >
-                      {/* Avatar */}
-                      {view.userId.avatar?.url ? (
-                        <img
-                          src={view.userId.avatar.url}
-                          alt={view.userId.name}
-                          className="w-10 h-10 rounded-full object-cover shrink-0 border border-[var(--color-active-border)]"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-[var(--color-active-bg)] border border-[var(--color-active-border)] flex items-center justify-center shrink-0">
-                          <User className="w-5 h-5 text-[var(--color-gray)]" />
+                  {uniqueUsers.map((view, index) => {
+                    const isStaff = isStaffRole(view.userId.role);
+                    const isOwnEntry = view.userId._id === currentUserId;
+
+                    const showAvatar =
+                      isStaff || isOwnEntry || !currentUserIsStudent;
+
+                    return (
+                      <motion.div
+                        key={view.userId._id || index}
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.04 }}
+                        className="flex items-center gap-3 p-3 rounded-xl hover:bg-[var(--color-active-bg)] transition-colors"
+                      >
+                        {/* Avatar */}
+                        {showAvatar && view.userId.avatar?.url ? (
+                          <img
+                            src={view.userId.avatar.url}
+                            alt={view.userId.name}
+                            className="w-10 h-10 rounded-full object-cover shrink-0 border border-[var(--color-active-border)]"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-[var(--color-active-bg)] border border-[var(--color-active-border)] flex items-center justify-center shrink-0">
+                            <User className="w-5 h-5 text-[var(--color-gray)]" />
+                          </div>
+                        )}
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm text-[var(--color-text)] truncate">
+                            {view.userId.name}
+                          </p>
+                          <p className="text-xs text-[var(--color-gray)] mt-0.5">
+                            {isStaff
+                              ? (ROLE_LABELS[view.userId.role!] ??
+                                view.userId.role)
+                              : view.userId.studentClass
+                                ? `শ্রেণি: ${view.userId.studentClass}${
+                                    view.userId.roll
+                                      ? ` • রোল: ${toBn(view.userId.roll)}`
+                                      : ""
+                                  }`
+                                : "—"}
+                          </p>
                         </div>
-                      )}
 
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm text-[var(--color-text)] truncate">
-                          {view.userId.name}
-                        </p>
-                        <p className="text-xs text-[var(--color-gray)] mt-0.5">
-                          {view.userId.studentClass
-                            ? `শ্রেণি: ${view.userId.studentClass}`
-                            : "শ্রেণি: —"}
-                          {view.userId.roll
-                            ? ` • রোল: ${toBn(view.userId.roll)}`
-                            : ""}
-                        </p>
-                      </div>
-
-                      {/* Date */}
-                      <span className="text-[10px] text-[var(--color-gray)] shrink-0">
-                        {new Date(view.viewedAt).toLocaleDateString("bn-BD")}
-                      </span>
-                    </motion.div>
-                  ))}
+                        {/* Date */}
+                        {/* Date + Count */}
+                        <div className="flex flex-col items-end gap-0.5 shrink-0">
+                          <span className="text-[10px] text-[var(--color-gray)]">
+                            {new Date(view.viewedAt).toLocaleDateString(
+                              "bn-BD",
+                            )}
+                          </span>
+                          <span className="text-[10px] font-semibold text-[var(--color-gray)]">
+                            {toBn(view.count)} বার
+                          </span>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="py-14 text-center">

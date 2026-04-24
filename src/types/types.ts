@@ -73,6 +73,8 @@ export interface DailyLessonItem {
   createdAt: string;
   slug?: string;
   teacherSlug?: string;
+  viewCount?: number;
+  viewedBy?: ViewData["viewedBy"];
 }
 
 export interface DailyLessonCardProps {
@@ -305,6 +307,7 @@ export interface ViewData {
     userId: {
       _id: string;
       name: string;
+      role?: string;
       studentClass?: string;
       roll?: string;
       avatar?: { url: string };
@@ -333,6 +336,7 @@ export interface Exam {
     userId: {
       _id: string;
       name: string;
+      role?: string;
       studentClass?: string;
       roll?: string;
       avatar?: { url: string };
