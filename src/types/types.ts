@@ -250,34 +250,26 @@ export type FilterPillItem = {
 export interface DailyLessonHeaderProps {
   isGuest?: boolean;
   isStaff?: boolean;
-
   title?: string;
   description?: string;
-
   selectedDate?: Date;
-  onDateChange?: (date: Date) => void;
+  onDateChange?: (date: Date | null) => void;
   activeDates?: Set<string>;
-
   selectedTeacher: string;
   onTeacherChange: (value: string) => void;
   teacherOptions: SelectOption[];
-
   selectedSubject?: string;
   onSubjectChange?: (value: string) => void;
   subjectOptions?: SelectOption[];
-
   selectedClass: string;
   onClassChange: (value: string) => void;
   availableClasses: FilterPillItem[];
-
   totalLessons: number;
   filteredCount: number;
   activeFilterCount: number;
-
   onAddLesson?: () => void;
   onReset?: () => void;
   onGuestAction?: () => void;
-
   teacherLabel?: string;
   subjectLabel?: string;
   classLabel?: string;

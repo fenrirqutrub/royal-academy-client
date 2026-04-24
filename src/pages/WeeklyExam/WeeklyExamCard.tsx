@@ -16,7 +16,6 @@ import {
 import "swiper/css";
 import ExamModal from "./ExamModal";
 import {
-  type ExamImage,
   AnimatedSlide,
   SlideDots,
   SlideProgress,
@@ -28,7 +27,12 @@ import Button from "../../components/common/Button";
 import { getCloudinaryOptimizedUrls } from "../../hooks/useCloudinaryUpload";
 import toast from "react-hot-toast";
 import { COLORS } from "../../styles/colors";
-import type { Exam, ViewData, WeeklyExamCardProps } from "../../types/types";
+import type {
+  Exam,
+  ExamImage,
+  ViewData,
+  WeeklyExamCardProps,
+} from "../../types/types";
 import LoginPromptOverlay from "../Admin/Auth/LoginPromptOverlay";
 import SeenUserAvatar from "../../components/common/SeenUserAvatar";
 import ViewDetailsModal from "../../components/common/ViewDetailsModal";

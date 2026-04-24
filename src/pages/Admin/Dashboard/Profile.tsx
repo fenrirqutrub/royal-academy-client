@@ -973,7 +973,7 @@ const Profile = () => {
                             }
                             onChange={setDobDisplay}
                             onDateChange={(date) => {
-                              if (!isNaN(date.getTime()))
+                              if (date && !isNaN(date.getTime()))
                                 setDobIso(toLocalIso(date));
                             }}
                             placeholder="জন্ম তারিখ বেছে নিন"
