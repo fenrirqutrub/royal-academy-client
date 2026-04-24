@@ -119,7 +119,7 @@ const DailyLessonModal = ({
                 onClick={onClose}
                 whileHover={{ scale: 1.1, rotate: 90 }}
                 whileTap={{ scale: 0.9 }}
-                className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-danger)] text-white transition-opacity hover:opacity-90"
+                className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full bg-red-500 text-white transition-opacity hover:opacity-90"
                 aria-label="বন্ধ করুন"
               >
                 <X className="h-4 w-4" />
@@ -238,21 +238,6 @@ const DailyLessonModal = ({
               </p>
 
               <div className="flex flex-wrap items-center gap-2">
-                {canEdit && (
-                  <motion.button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEdit();
-                    }}
-                    whileHover={{ scale: 1.04 }}
-                    whileTap={{ scale: 0.94 }}
-                    className="flex shrink-0 items-center gap-1.5 rounded-xl border border-[var(--color-active-border)] bg-[var(--color-success-soft)] px-3.5 py-2.5 text-xs font-bold text-[var(--color-success)] transition-all duration-200 hover:opacity-90"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                    সম্পাদনা
-                  </motion.button>
-                )}
-
                 {canDelete && (
                   <motion.button
                     onClick={(e) => {
@@ -261,10 +246,25 @@ const DailyLessonModal = ({
                     }}
                     whileHover={{ scale: 1.04 }}
                     whileTap={{ scale: 0.94 }}
-                    className="flex shrink-0 items-center gap-1.5 rounded-xl border border-[var(--color-active-border)] bg-[var(--color-danger-soft)] px-3.5 py-2.5 text-xs font-bold text-[var(--color-danger)] transition-all duration-200 hover:opacity-90"
+                    className="flex shrink-0 items-center gap-1.5 rounded  bg-red-600 border border-red-400 px-3.5 py-2.5 text-xs font-bold text-[var(--color-bg)] transition-all duration-200 hover:opacity-90"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
-                    মুছুন
+                    Delete
+                  </motion.button>
+                )}
+
+                {canEdit && (
+                  <motion.button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEdit();
+                    }}
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.94 }}
+                    className="flex shrink-0 items-center gap-1.5 rounded bg-amber-400 border border-amber-400 px-3.5 py-2.5 text-xs font-bold text-[var(--color-bg)] transition-all duration-200 hover:opacity-90"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Edit
                   </motion.button>
                 )}
 
@@ -274,10 +274,10 @@ const DailyLessonModal = ({
                   whileTap={{ scale: 0.94 }}
                   aria-label={copied ? "কপি সম্পন্ন" : "কপি করুন"}
                   className={[
-                    "flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black transition-all duration-200",
+                    "flex shrink-0 items-center gap-2 rounded bg-green-400 text-[var(--color-bg)] px-4 py-2.5 text-sm font-black transition-all duration-200 border border-green-400",
                     copied
-                      ? "bg-[var(--color-success-soft)] text-[var(--color-success)]"
-                      : "bg-gradient-to-r from-[var(--color-brand)] to-[var(--color-brand-hover)] text-white shadow-md",
+                      ? "bg-green-400 text-[var(--color-bg)] border border-green-400"
+                      : "bg-greed-800 text-[var(--color-bg)] shadow-md border border-green-400",
                   ].join(" ")}
                 >
                   <AnimatePresence mode="wait">

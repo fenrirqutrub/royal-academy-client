@@ -10,6 +10,8 @@ import {
   HelpCircle,
   Fan,
   Triangle,
+  ChevronRight,
+  ChevronLeft,
 } from "lucide-react";
 import "swiper/css";
 import ExamModal from "./ExamModal";
@@ -203,10 +205,11 @@ const WeeklyExamCard = ({
                 {images.map((img, i) => {
                   const imgUrl = getImageUrl(img);
                   const urls = getCloudinaryOptimizedUrls(imgUrl);
+                  const finalUrl = urls.thumb || imgUrl;
                   return (
                     <SwiperSlide key={i}>
                       <AnimatedSlide
-                        img={urls.thumb || imgUrl}
+                        img={finalUrl}
                         isActive={i === activeSlide}
                         className="h-full w-full object-cover"
                       />
@@ -327,9 +330,11 @@ const WeeklyExamCard = ({
             <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
               <button
                 onClick={handleDetailClick}
-                className="flex items-center gap-x-2 rounded-full border border-[var(--color-active-border)] px-3 py-1 text-sm font-medium text-[var(--color-gray)] md:text-md"
+                className="flex items-center px-3 py-1 text-sm font-medium text-[var(--color-gray)] md:text-md"
               >
+                <ChevronLeft className="w-4 h-4" />
                 বিস্তারিত
+                <ChevronRight className="w-4 h-4" />
               </button>
             </motion.div>
           </div>

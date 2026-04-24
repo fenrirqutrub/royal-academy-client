@@ -7,6 +7,8 @@ import {
   FileText,
   Folder,
   LogIn,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import DailyLessonModal from "./DailyLessonModal";
@@ -211,7 +213,9 @@ const DailyLessonCard = ({
               onClick={handleOpenLesson}
               className="text-xs font-semibold text-[var(--color-brand)] hover:underline"
             >
-              আরও দেখুন →
+              <ChevronLeft className="w-4 h-4" />
+              বিস্তারিত
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
