@@ -1,61 +1,10 @@
-import type { ReactNode } from "react";
 import { motion } from "framer-motion";
-import { Plus, RotateCcw } from "lucide-react";
+import { Plus } from "lucide-react";
 import AnimatedFilterPills from "../../components/common/AnimatedFilterPills";
 import SelectInput from "../../components/common/SelectInput";
 import { BN_DAYS_FULL, BN_MONTHS, toBn } from "../../utility/Formatters";
 import DatePicker from "../../components/common/Datepicker";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-type SelectOption = {
-  label: string;
-  value: string;
-  icon?: ReactNode;
-};
-
-type FilterPillItem = {
-  id: string;
-  label: string;
-};
-
-interface DailyLessonHeaderProps {
-  isGuest?: boolean;
-  isStaff?: boolean;
-
-  title?: string;
-  description?: string;
-
-  selectedDate?: Date;
-  onDateChange?: (date: Date) => void;
-  activeDates?: Set<string>;
-
-  selectedTeacher: string;
-  onTeacherChange: (value: string) => void;
-  teacherOptions: SelectOption[];
-
-  selectedSubject?: string;
-  onSubjectChange?: (value: string) => void;
-  subjectOptions?: SelectOption[];
-
-  selectedClass: string;
-  onClassChange: (value: string) => void;
-  availableClasses: FilterPillItem[];
-
-  totalLessons: number;
-  filteredCount: number;
-  activeFilterCount: number;
-
-  onAddLesson?: () => void;
-  onReset?: () => void;
-  onGuestAction?: () => void;
-
-  teacherLabel?: string;
-  subjectLabel?: string;
-  classLabel?: string;
-  dateLabel?: string;
-  addButtonLabel?: string;
-  resetTitle?: string;
-}
+import type { DailyLessonHeaderProps } from "../../types/types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const safeDate = (date: Date | undefined): Date => {
@@ -78,25 +27,16 @@ const DailyLessonHeader = ({
   selectedTeacher,
   onTeacherChange,
   teacherOptions,
-
   selectedClass,
   onClassChange,
   availableClasses,
-
   totalLessons,
   filteredCount,
-  activeFilterCount,
-
   onAddLesson,
-  onReset,
   onGuestAction,
-
   teacherLabel = "শিক্ষক",
-
   classLabel = "শ্রেণি",
   dateLabel = "তারিখ",
-  addButtonLabel = "পাঠ যোগ করুন",
-  resetTitle = "ফিল্টার রিসেট করুন",
 }: DailyLessonHeaderProps) => {
   const resolvedDate = safeDate(selectedDate);
 
@@ -136,21 +76,6 @@ const DailyLessonHeader = ({
 
           {/* ── Action buttons ── */}
           <div className="flex shrink-0 items-center gap-2 pt-1">
-            {activeFilterCount > 0 && !!onReset && (
-              <button
-                type="button"
-                onClick={onReset}
-                title={resetTitle}
-                className="relative flex h-8 items-center gap-1.5 rounded-md border border-[var(--color-active-border)] px-2.5 text-[11px] text-[var(--color-gray)] transition-colors hover:border-[var(--color-text)] hover:text-[var(--color-text)]"
-              >
-                <RotateCcw size={12} strokeWidth={2.4} />
-                <span className="hidden sm:inline">রিসেট</span>
-                <span className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--color-text)] text-[9px] font-bold text-[var(--color-bg)]">
-                  {toBn(activeFilterCount)}
-                </span>
-              </button>
-            )}
-
             {!isGuest && isStaff && !!onAddLesson && (
               <button
                 type="button"
@@ -158,7 +83,6 @@ const DailyLessonHeader = ({
                 className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[var(--color-text)] px-3.5 text-[11px] font-semibold text-[var(--color-bg)] transition-opacity hover:opacity-80 sm:text-xs"
               >
                 <Plus size={13} strokeWidth={2.3} />
-                <span className="hidden sm:inline">{addButtonLabel}</span>
               </button>
             )}
           </div>

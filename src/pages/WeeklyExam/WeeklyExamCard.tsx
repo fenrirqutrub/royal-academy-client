@@ -1,16 +1,15 @@
-// src/components/WeeklyExam/WeeklyExamCard.tsx
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay } from "swiper/modules";
 import {
-  Eye,
   Copy,
   Check,
   Folder,
   Calendar,
   HelpCircle,
   Fan,
+  Triangle,
 } from "lucide-react";
 import "swiper/css";
 import ExamModal from "./ExamModal";
@@ -27,8 +26,11 @@ import Button from "../../components/common/Button";
 import { getCloudinaryOptimizedUrls } from "../../hooks/useCloudinaryUpload";
 import toast from "react-hot-toast";
 import { COLORS } from "../../styles/colors";
-import type { WeeklyExamCardProps } from "../../types/types";
+import type { Exam, ViewData, WeeklyExamCardProps } from "../../types/types";
 import LoginPromptOverlay from "../Admin/Auth/LoginPromptOverlay";
+import SeenUserAvatar from "../../components/common/SeenUserAvatar";
+import ViewDetailsModal from "../../components/common/ViewDetailsModal";
+import { axiosPublic } from "../../hooks/axiosPublic";
 
 const WeeklyExamCard = ({
   exam,
@@ -41,20 +43,31 @@ const WeeklyExamCard = ({
 }: WeeklyExamCardProps) => {
   const { user, isAuthenticated } = useAuth();
 
+  // ✅ Initial viewedBy data safely handle করুন
+  const [viewData, setViewData] = useState<ViewData>(() => ({
+    viewCount: exam.viewCount || 0,
+    viewedBy: Array.isArray(exam.viewedBy)
+      ? exam.viewedBy.filter(
+          (v: NonNullable<Exam["viewedBy"]>[number]) =>
+            v?.userId && typeof v.userId === "object",
+        )
+      : [],
+  }));
+
+  const [showViewDetails, setShowViewDetails] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
   const [progressKey, setProgressKey] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [isRecordingView, setIsRecordingView] = useState(false); // ✅ loading state
 
   const isGuest = !isAuthenticated;
   const isStudent = user?.role === "student";
-
   const color = COLORS[index % COLORS.length];
   const images = Array.isArray(exam.images) ? exam.images : [];
   const hasImages = images.length > 0;
   const multipleImages = images.length > 1;
-
   const numberInfo = getNumberInfo(exam);
   const canSeeQuestion = !isGuest && !isStudent && !!exam.question;
 
@@ -65,6 +78,18 @@ const WeeklyExamCard = ({
     }
     return false;
   };
+
+  // ✅ viewedBy update হলে sync করুন (parent থেকে নতুন data আসলে)
+  // useEffect(() => {
+  //   if (exam.viewedBy && Array.isArray(exam.viewedBy)) {
+  //     setViewData({
+  //       viewCount: exam.viewCount || 0,
+  //       viewedBy: exam.viewedBy.filter(
+  //         (v) => v && v.userId && typeof v.userId === "object",
+  //       ),
+  //     });
+  //   }
+  // }, [exam.viewCount, exam.viewedBy]);
 
   const handleCopy = async (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
@@ -91,10 +116,44 @@ const WeeklyExamCard = ({
     }
   };
 
-  const handleDetailClick = (e: React.MouseEvent | React.TouchEvent) => {
+  const handleDetailClick = async (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
     if (openLoginPromptIfGuest()) return;
+
     setShowModal(true);
+
+    // ✅ শুধু isAuthenticated চেক, _id নয়
+    if (!isAuthenticated || isRecordingView) return;
+
+    setIsRecordingView(true);
+    try {
+      // ✅ axiosSecure বাদ, axiosPublic ব্যবহার করো
+      // axiosPublic ইতোমধ্যে token interceptor-এ attach করে
+      const response = await axiosPublic.patch(
+        `/api/weekly-exams/${exam._id}/record-view`,
+      );
+
+      if (response.data?.success) {
+        setViewData({
+          viewCount: response.data.viewCount ?? viewData.viewCount,
+          viewedBy: Array.isArray(response.data.viewedBy)
+            ? response.data.viewedBy.filter(
+                (v: ViewData["viewedBy"][number]) =>
+                  v?.userId && typeof v.userId === "object",
+              )
+            : viewData.viewedBy,
+        });
+      }
+    } catch (error) {
+      const err = error as { response?: { status?: number; data?: unknown } };
+      if (err?.response?.status === 401) {
+        setShowLoginPrompt(true);
+      } else {
+        console.error("View record failed:", err?.response?.data || error);
+      }
+    } finally {
+      setIsRecordingView(false);
+    }
   };
 
   const getImageUrl = (img: string | ExamImage): string => {
@@ -113,20 +172,16 @@ const WeeklyExamCard = ({
           ease: [0.22, 1, 0.36, 1],
         }}
         whileHover={{ y: -4 }}
-        className={`group flex h-full flex-col overflow-hidden rounded-xl border bg-[var(--color-bg)] shadow-md transition-all duration-300 bangla border-[var(--color-active-border)]/60 hover:border-[var(--color-active-border)]/90 hover:shadow-xl ${
-          isGuest ? "cursor-pointer" : ""
-        }`}
+        className={`group flex h-full flex-col overflow-hidden rounded-xl border bg-[var(--color-bg)] shadow-md transition-all duration-300 bangla border-[var(--color-active-border)]/60 hover:border-[var(--color-active-border)]/90 hover:shadow-xl ${isGuest ? "cursor-pointer" : ""}`}
       >
-        {/* ── Image Section ── */}
+        {/* Image Section - আগের মতোই */}
         <div className="relative aspect-video overflow-hidden select-none bg-[var(--color-bg)]">
           {hasImages ? (
             <div className="h-full w-full">
               <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-
               {multipleImages && (
                 <SlideProgress key={progressKey} color={color} />
               )}
-
               <Swiper
                 onSlideChange={(swiper) => {
                   setActiveSlide(swiper.realIndex);
@@ -148,7 +203,6 @@ const WeeklyExamCard = ({
                 {images.map((img, i) => {
                   const imgUrl = getImageUrl(img);
                   const urls = getCloudinaryOptimizedUrls(imgUrl);
-
                   return (
                     <SwiperSlide key={i}>
                       <AnimatedSlide
@@ -160,7 +214,6 @@ const WeeklyExamCard = ({
                   );
                 })}
               </Swiper>
-
               {multipleImages && (
                 <SlideDots
                   count={images.length}
@@ -187,7 +240,6 @@ const WeeklyExamCard = ({
             </div>
           )}
 
-          {/* Question badge */}
           {canSeeQuestion && (
             <motion.div
               initial={{ scale: 0 }}
@@ -199,9 +251,6 @@ const WeeklyExamCard = ({
             </motion.div>
           )}
 
-          {/* ── REMOVED: Edit/Delete buttons from card ── */}
-
-          {/* Guest hover overlay */}
           {isGuest && (
             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-[var(--color-bg)]/20 opacity-0 transition-opacity group-hover:opacity-100">
               <div className="rounded-full bg-[var(--color-bg)] px-4 py-2 text-sm font-semibold text-[var(--color-text)]">
@@ -211,34 +260,35 @@ const WeeklyExamCard = ({
           )}
         </div>
 
-        {/* ── Content ── */}
+        {/* Content */}
         <div className="flex flex-1 flex-col p-5">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
               <h3 className="text-xl font-bold leading-tight tracking-tight text-[var(--color-text)] md:text-2xl">
                 {exam.subject}
               </h3>
-
               <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-[var(--color-gray)]">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <Folder className="h-4 w-4 shrink-0" />
                   <span className="truncate">{exam.teacher || "—"}</span>
                 </div>
-
-                <div className="flex items-center gap-1.5">
-                  <Calendar className="h-4 w-4 shrink-0" />
-                  <span>{exam.date}</span>
-                </div>
                 {numberInfo && (
-                  <span className="flex items-center gap-x-2 px-3.5 py-1 text-sm font-medium text-[var(--color-gray)] md:text-md">
+                  <span className="flex items-center gap-x-2 text-sm font-medium text-[var(--color-gray)] md:text-md">
                     <Fan className="w-4 h-4 animate-spin" />
                     {numberInfo.label} - {numberInfo.value}
                   </span>
                 )}
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4 shrink-0" />
+                  <span>{exam.date}</span>
+                </div>
+                <span className="flex items-center gap-1 text-sm text-[var(--color-gray)] md:text-md">
+                  <Triangle className="h-4 w-4 shrink-0" />
+                  {toBn(exam.mark)} নম্বর
+                </span>
               </div>
             </div>
 
-            {/* Copy */}
             <Button
               size="icon"
               variant="ghost"
@@ -263,33 +313,36 @@ const WeeklyExamCard = ({
             </Button>
           </div>
 
-          {/* Topics */}
           <p className="mt-4 flex-1 text-md leading-relaxed bg-[var(--color-active-bg)] px-4 py-1 rounded text-[var(--color-gray)] line-clamp-3 md:text-lg">
             {exam.topics}
           </p>
 
-          {/* Footer */}
+          {/* ✅ Footer */}
           <div className="mt-6 flex items-center justify-between gap-3">
+            <SeenUserAvatar
+              viewCount={viewData.viewCount}
+              viewedBy={viewData.viewedBy}
+              onViewDetails={() => setShowViewDetails(true)}
+            />
             <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
               <button
                 onClick={handleDetailClick}
-                className=" flex items-center gap-x-2 rounded-full border border-[var(--color-active-border)] px-3 py-1 text-sm font-medium text-[var(--color-gray)] md:text-md"
+                className="flex items-center gap-x-2 rounded-full border border-[var(--color-active-border)] px-3 py-1 text-sm font-medium text-[var(--color-gray)] md:text-md"
               >
-                <Eye className="h-4 w-4" />
                 বিস্তারিত
               </button>
             </motion.div>
-            <div className="flex flex-wrap gap-2">
-              <span className="rounded-full border border-[var(--color-active-border)] px-3.5 py-1 text-sm font-medium text-[var(--color-gray)] md:text-md">
-                {exam.class}
-              </span>
-              <span className="rounded-full border border-[var(--color-active-border)] px-3.5 py-1 text-sm font-medium text-[var(--color-gray)] md:text-md">
-                {toBn(exam.mark)} নম্বর
-              </span>
-            </div>
           </div>
         </div>
       </motion.div>
+
+      {/* View Details Modal */}
+      <ViewDetailsModal
+        isOpen={showViewDetails}
+        onClose={() => setShowViewDetails(false)}
+        viewedBy={viewData.viewedBy}
+        viewCount={viewData.viewCount}
+      />
 
       {/* Login Prompt */}
       <AnimatePresence>
@@ -299,7 +352,7 @@ const WeeklyExamCard = ({
         />
       </AnimatePresence>
 
-      {/* Exam Modal - Pass edit/delete props */}
+      {/* Exam Modal */}
       {showModal && !isGuest && (
         <ExamModal
           exam={exam}

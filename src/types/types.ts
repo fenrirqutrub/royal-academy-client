@@ -1,7 +1,7 @@
 // types.ts
 
 import type { ReactNode, RefObject } from "react";
-import type { ColorConfig, Exam } from "../utility/Formatters";
+import type { ColorConfig } from "../utility/Formatters";
 
 // ─────────────────────────────────────────────────────────────
 // 🔹 FORM TYPES
@@ -25,13 +25,6 @@ export interface SignupForm {
   qualification: string;
   currentYear: string;
   emergencyContact: string;
-}
-
-// SelectInputProps
-export interface SelectOption {
-  value: string;
-  label: string;
-  icon?: ReactNode;
 }
 
 // Add to your SelectInputProps in types/types.ts
@@ -155,8 +148,9 @@ export interface TeacherItem {
 }
 
 export interface ExamImage {
-  imageUrl: string;
-  publicId: string;
+  imageUrl?: string;
+  url?: string;
+  publicId?: string;
 }
 
 export interface WeeklyExamData {
@@ -171,6 +165,8 @@ export interface WeeklyExamData {
   topics: string;
   question?: string | null;
   images: (string | ExamImage)[];
+  viewCount?: number;
+  viewedBy?: ViewData["viewedBy"];
   createdAt: string;
 }
 
@@ -188,14 +184,6 @@ export interface EditFormValues {
 export interface TeacherOption {
   slug: string;
   name: string;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────────────────────
-export interface SelectOption {
-  value: string;
-  label: string;
 }
 
 export interface CompactSelectProps {
@@ -258,4 +246,97 @@ export interface WeeklyExamCardProps {
   canDelete?: boolean;
   onEdit?: () => void;
   onDelete?: () => void;
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+export interface SelectOption {
+  value: string;
+  label: string;
+  icon?: ReactNode;
+}
+
+export type FilterPillItem = {
+  id: string;
+  label: string;
+};
+
+export interface DailyLessonHeaderProps {
+  isGuest?: boolean;
+  isStaff?: boolean;
+
+  title?: string;
+  description?: string;
+
+  selectedDate?: Date;
+  onDateChange?: (date: Date) => void;
+  activeDates?: Set<string>;
+
+  selectedTeacher: string;
+  onTeacherChange: (value: string) => void;
+  teacherOptions: SelectOption[];
+
+  selectedSubject?: string;
+  onSubjectChange?: (value: string) => void;
+  subjectOptions?: SelectOption[];
+
+  selectedClass: string;
+  onClassChange: (value: string) => void;
+  availableClasses: FilterPillItem[];
+
+  totalLessons: number;
+  filteredCount: number;
+  activeFilterCount: number;
+
+  onAddLesson?: () => void;
+  onReset?: () => void;
+  onGuestAction?: () => void;
+
+  teacherLabel?: string;
+  subjectLabel?: string;
+  classLabel?: string;
+  dateLabel?: string;
+  addButtonLabel?: string;
+  resetTitle?: string;
+}
+
+export interface ViewData {
+  viewCount: number;
+  viewedBy: {
+    userId: {
+      _id: string;
+      name: string;
+      studentClass?: string;
+      roll?: string;
+      avatar?: { url: string };
+    };
+    viewedAt: string;
+  }[];
+}
+
+export interface Exam {
+  _id: string;
+  ExamNumber: number | string;
+  subject: string;
+  class: string;
+  mark: number | string;
+  topics: string;
+  teacher?: string;
+  date: string;
+  images?: (string | ExamImage)[];
+  numberType?: "pageNumber" | "chapterNumber";
+  pageNumber?: string | number | null;
+  chapterNumber?: string | number | null;
+  question?: string | null;
+
+  viewCount?: number;
+  viewedBy?: {
+    userId: {
+      _id: string;
+      name: string;
+      studentClass?: string;
+      roll?: string;
+      avatar?: { url: string };
+    };
+    viewedAt: string;
+  }[];
 }

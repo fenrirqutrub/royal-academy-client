@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Plus, RotateCcw } from "lucide-react";
+import { Plus } from "lucide-react";
 import AnimatedFilterPills from "../../components/common/AnimatedFilterPills";
 import SelectInput from "../../components/common/SelectInput";
 import { toBn } from "../../utility/Formatters";
@@ -17,13 +17,10 @@ const WeeklyExamHeaderFilters = ({
   availableClasses,
   totalExamsInNumber,
   filteredCount,
-  activeFilterCount,
   onAddExam,
-  onReset,
   onGuestAction,
   title = "সাপ্তাহিক পরীক্ষার ধারণা",
   description = "প্রতিটি পরীক্ষার বিষয়ভিত্তিক ধারণা ও নির্দেশনা",
-  resetTitle = "ফিল্টার রিসেট করুন",
 }: WeeklyExamHeaderFiltersProps) => {
   return (
     <motion.section
@@ -54,21 +51,6 @@ const WeeklyExamHeaderFilters = ({
           </div>
 
           <div className="flex shrink-0 items-center gap-2 pt-1">
-            {activeFilterCount > 0 && (
-              <button
-                type="button"
-                onClick={onReset}
-                title={resetTitle}
-                className="relative flex h-8 items-center gap-1.5 rounded-md border border-[var(--color-active-border)] px-2.5 text-[11px] text-[var(--color-gray)] transition-colors hover:border-[var(--color-text)] hover:text-[var(--color-text)]"
-              >
-                <RotateCcw size={12} strokeWidth={2.4} />
-                <span className="hidden sm:inline">রিসেট</span>
-                <span className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--color-text)] text-[9px] font-bold text-[var(--color-bg)]">
-                  {toBn(activeFilterCount)}
-                </span>
-              </button>
-            )}
-
             {!isGuest && isStaff && (
               <button
                 type="button"

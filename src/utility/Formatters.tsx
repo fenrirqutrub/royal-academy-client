@@ -1,25 +1,10 @@
 import { motion } from "framer-motion";
+import type { Exam } from "../types/types";
 
 export interface ExamImage {
   url?: string;
   imageUrl?: string;
   publicId?: string;
-}
-
-export interface Exam {
-  _id: string;
-  ExamNumber: number | string;
-  subject: string;
-  class: string;
-  mark: number | string;
-  topics: string;
-  teacher?: string;
-  date: string;
-  images?: (string | ExamImage)[];
-  numberType?: "pageNumber" | "chapterNumber";
-  pageNumber?: string | number | null;
-  chapterNumber?: string | number | null;
-  question?: string | null;
 }
 
 export interface ColorConfig {
