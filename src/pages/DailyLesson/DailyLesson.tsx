@@ -471,7 +471,7 @@ const DailyLesson = () => {
     setShowLoginPrompt(true);
   };
 
-  const handleDateChange = (date: Date) => {
+  const handleDateChange = (date: Date | null) => {
     if (!(date instanceof Date) || Number.isNaN(date.getTime())) return;
 
     // DatePicker clear করলে epoch 0 পাঠায়
