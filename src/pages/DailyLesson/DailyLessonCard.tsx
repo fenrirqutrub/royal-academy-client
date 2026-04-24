@@ -211,7 +211,7 @@ const DailyLessonCard = ({
             />
             <button
               onClick={handleOpenLesson}
-              className="text-xs font-semibold text-[var(--color-brand)] hover:underline"
+              className="flex items-center px-3 py-1 text-sm font-medium text-[var(--color-gray)] md:text-md"
             >
               <ChevronLeft className="w-4 h-4" />
               বিস্তারিত
