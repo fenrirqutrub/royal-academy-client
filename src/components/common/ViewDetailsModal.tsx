@@ -96,7 +96,7 @@ const ViewDetailsModal = ({
               </div>
               <button
                 onClick={onClose}
-                className="p-2 rounded-full hover:bg-[var(--color-active-bg)] transition-colors"
+                className="p-2 rounded-full bg-red-600 text-white transition-colors"
               >
                 <X className="w-4 h-4 text-[var(--color-gray)]" />
               </button>
