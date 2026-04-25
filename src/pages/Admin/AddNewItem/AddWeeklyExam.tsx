@@ -923,40 +923,9 @@ const AddWeeklyExam = () => {
                   images={editedImages}
                   onChange={setEditedImages}
                   maxImages={10}
+                  allowSkipEdit={true}
                 />
               </AnimatedCard>
-
-              {/* ── Upload Progress Bar ── */}
-              <AnimatePresence>
-                {mutation.isPending && editedImages.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="space-y-2 px-1"
-                  >
-                    <div className="flex justify-between items-center text-xs bangla text-[var(--color-gray)]">
-                      <span className="flex items-center gap-1.5">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-500" />
-                        {uploadProgress < 100
-                          ? `ছবি আপলোড হচ্ছে (${toBn(editedImages.length)}টি)…`
-                          : "ডেটা সংরক্ষণ হচ্ছে…"}
-                      </span>
-                      <span className="font-bold text-violet-500">
-                        {toBn(uploadProgress)}%
-                      </span>
-                    </div>
-                    <div className="w-full h-2.5 bg-[var(--color-active-bg)] rounded-full overflow-hidden border border-[var(--color-active-border)]">
-                      <motion.div
-                        className="h-full rounded-full bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500"
-                        initial={{ width: "0%" }}
-                        animate={{ width: `${uploadProgress}%` }}
-                        transition={{ duration: 0.3, ease: "easeOut" }}
-                      />
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
 
               {/* Divider */}
               <motion.div
