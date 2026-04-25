@@ -91,6 +91,7 @@ const Complain = () => {
       setConfirmDelete(false);
       toast.success(data?.message || "অভিযোগ সফলভাবে মুছে ফেলা হয়েছে");
     },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (error: any) => {
       setConfirmDelete(false);
       const message =

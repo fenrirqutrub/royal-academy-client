@@ -20,7 +20,7 @@ const ComplainBtn = () => {
         initial={{ opacity: 0, y: 18, scale: 0.92 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
-        className="fixed right-3 md:right-5 bottom-20 md:bottom-5 z-50"
+        className="fixed right-5  bottom-20 md:bottom-5 z-50"
       >
         <motion.div
           animate={{ y: [0, -4, 0] }}
