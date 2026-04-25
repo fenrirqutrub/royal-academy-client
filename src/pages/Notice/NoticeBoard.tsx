@@ -13,6 +13,7 @@ import EmptyState from "../../components/common/Emptystate";
 import NoticeTabs from "../../components/common/NoticeTabs";
 import Routine from "../Routine/Routine";
 import ExamMarks from "../ExamMarks/ExamMarks";
+import Complain from "../Complain/Complain";
 
 const HOME_LIMIT = 5;
 const PAGE_LIMIT = 10;
@@ -161,6 +162,7 @@ const NoticeBoard = () => {
   const hasMore = !isNoticePage && (notices?.length ?? 0) > HOME_LIMIT;
 
   const renderContent = () => {
+    if (activeTabId === "complain") return <Complain />;
     if (activeTabId === "routine") return <Routine />;
     if (activeTabId === "marks") return <ExamMarks />;
     return null;

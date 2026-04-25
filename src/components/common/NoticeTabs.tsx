@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const tabs = [
   { id: "notice", label: "নোটিশ বোর্ড", icon: "📋" },
+  { id: "complain", label: "আভিযোগ বাক্স", icon: "📋" },
   { id: "routine", label: "ক্লাস রুটিন", icon: "📅" },
   { id: "marks", label: "মান বন্টন", icon: "📊" },
 ];
