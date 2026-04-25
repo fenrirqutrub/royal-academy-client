@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { LoaderCircle, AlertCircle, X } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { LoaderCircle, AlertCircle, X, Trash2 } from "lucide-react";
+import toast from "react-hot-toast";
 import axiosPublic from "../../hooks/axiosPublic";
 import { Pagination } from "../../components/common/Pagination";
 import { toBn } from "../../utility/Formatters";
@@ -67,6 +68,9 @@ const Row = ({ label, value }: { label: string; value?: string | null }) => {
 const Complain = () => {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Complain | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const queryClient = useQueryClient();
 
   const { data, isLoading, isError } = useQuery<Complain[]>({
     queryKey: ["complains"],
@@ -75,6 +79,44 @@ const Complain = () => {
       return res.data;
     },
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await axiosPublic.delete(`/api/complain/${id}`);
+      return res.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["complains"] });
+      setSelected(null);
+      setConfirmDelete(false);
+      toast.success(data?.message || "অভিযোগ সফলভাবে মুছে ফেলা হয়েছে");
+    },
+    onError: (error: any) => {
+      setConfirmDelete(false);
+      const message =
+        error?.response?.data?.message || "অভিযোগ মুছতে সমস্যা হয়েছে";
+      toast.error(message);
+    },
+  });
+
+  const handleDeleteClick = () => {
+    setConfirmDelete(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (selected) {
+      deleteMutation.mutate(selected._id);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setConfirmDelete(false);
+  };
+
+  const handleCloseModal = () => {
+    setSelected(null);
+    setConfirmDelete(false);
+  };
 
   const totalPages = Math.ceil((data?.length ?? 0) / ITEMS_PER_PAGE);
   const paginated = data?.slice(
@@ -99,7 +141,7 @@ const Complain = () => {
     );
 
   return (
-    <div className="p-5  mx-auto">
+    <div className="p-5 mx-auto">
       {/* Header */}
       <div className="mb-6">
         <h2 className="text-xl font-semibold text-[var(--color-text)]">
@@ -170,7 +212,7 @@ const Complain = () => {
         className={`${
           selected ? "visible opacity-100" : "invisible opacity-0"
         } fixed inset-0 z-[200000000] bg-[var(--color-bg)] transition-all duration-300`}
-        onClick={() => setSelected(null)}
+        onClick={handleCloseModal}
       >
         <div
           className="w-full h-full overflow-y-auto"
@@ -192,12 +234,25 @@ const Complain = () => {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => setSelected(null)}
-                  className="p-2 rounded-full bg-red-500 hover:rotate-90 transition-transform duration-300"
-                >
-                  <X className="text-white w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* Delete Button */}
+                  <button
+                    onClick={handleDeleteClick}
+                    disabled={deleteMutation.isPending}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">মুছুন</span>
+                  </button>
+
+                  {/* Close Button */}
+                  <button
+                    onClick={handleCloseModal}
+                    className="p-2 rounded-full bg-red-500 hover:rotate-90 transition-transform duration-300"
+                  >
+                    <X className="text-white w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               {/* Body */}
@@ -249,7 +304,7 @@ const Complain = () => {
                 </p>
 
                 <p className="text-xs text-[var(--color-gray)] mt-2 text-right">
-                  অভিযোগের সময়:{" "}
+                  অভিযোগের সময়:{" "}
                   {new Date(selected.createdAt).toLocaleString("bn-BD", {
                     dateStyle: "long",
                     timeStyle: "short",
@@ -258,6 +313,66 @@ const Complain = () => {
               </div>
             </>
           )}
+        </div>
+      </div>
+
+      {/* Delete Confirmation Dialog */}
+      <div
+        className={`${
+          confirmDelete ? "visible opacity-100" : "invisible opacity-0"
+        } fixed inset-0 z-[300000000] flex items-center justify-center transition-all duration-200`}
+      >
+        {/* Backdrop */}
+        <div
+          className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+          onClick={handleCancelDelete}
+        />
+
+        {/* Dialog Box */}
+        <div className="relative bg-[var(--color-bg)] rounded-2xl shadow-2xl p-6 mx-4 w-full max-w-sm flex flex-col gap-4 border border-[var(--color-active-border)]">
+          {/* Icon */}
+          <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto">
+            <Trash2 className="w-5 h-5 text-red-500" />
+          </div>
+
+          {/* Text */}
+          <div className="text-center">
+            <p className="text-base font-semibold text-[var(--color-text)] mb-1">
+              অভিযোগ মুছবেন?
+            </p>
+            <p className="text-sm text-[var(--color-gray)]">
+              এই অভিযোগটি স্থায়ীভাবে মুছে যাবে। এই কাজটি পূর্বাবস্থায় ফেরানো
+              যাবে না।
+            </p>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3 mt-1">
+            <button
+              onClick={handleCancelDelete}
+              disabled={deleteMutation.isPending}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-[var(--color-active-border)] text-sm font-medium text-[var(--color-text)] hover:bg-[var(--color-active-bg)] transition-colors disabled:opacity-50"
+            >
+              বাতিল
+            </button>
+            <button
+              onClick={handleConfirmDelete}
+              disabled={deleteMutation.isPending}
+              className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {deleteMutation.isPending ? (
+                <>
+                  <LoaderCircle className="w-4 h-4 animate-spin" />
+                  <span>মুছছে...</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4" />
+                  <span>মুছুন</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>
