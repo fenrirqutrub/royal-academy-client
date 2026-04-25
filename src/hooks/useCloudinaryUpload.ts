@@ -269,6 +269,40 @@ export const getCloudinaryOptimizedUrls = (baseUrl: string) => {
   };
 };
 
+export const uploadEditedBlobsToCloudinary = async (
+  blobs: Blob[],
+  options: { folder?: string; onProgress?: (percent: number) => void } = {},
+): Promise<CloudinaryResult[]> => {
+  const { folder = "uploads", onProgress } = options;
+
+  if (blobs.length === 0) return [];
+
+  const totalBytes = blobs.reduce((sum, b) => sum + b.size, 0);
+  const results: CloudinaryResult[] = [];
+
+  // No conversion needed — blobs are already WebP from the editor
+  onProgress?.(5);
+
+  for (let i = 0; i < blobs.length; i++) {
+    const result = await uploadSingleWithProgress(
+      blobs[i],
+      folder,
+      `image_${i}`,
+      (loaded) => {
+        const prevBytes = blobs.slice(0, i).reduce((s, b) => s + b.size, 0);
+        const currentProgress = loaded / blobs[i].size;
+        const overall =
+          (prevBytes + blobs[i].size * currentProgress) / totalBytes;
+        onProgress?.(5 + Math.round(overall * 95));
+      },
+    );
+    results.push(result);
+  }
+
+  onProgress?.(100);
+  return results;
+};
+
 /**
  * Render helper — returns the best <source> srcSet for a <picture> element.
  * Usage:

@@ -1,12 +1,11 @@
 /* eslint-disable react-hooks/rules-of-hooks */
 // AddWeeklyExam.tsx
 import { useForm, type SubmitHandler, Controller } from "react-hook-form";
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import {
   Loader2,
   ImagePlus,
-  X,
   FileText,
   BookOpen,
   HelpCircle,
@@ -27,7 +26,10 @@ import {
   getSubjects,
   NUMBER_TYPE_OPTIONS,
 } from "../../../utility/Constants";
-import { uploadMultipleToCloudinary } from "../../../hooks/useCloudinaryUpload";
+import { uploadEditedBlobsToCloudinary } from "../../../hooks/useCloudinaryUpload";
+import ImageUploadWithEditor, {
+  type EditedImage,
+} from "../../../components/common/ImageUploadWithEditor";
 import type {
   SelectOption,
   TeacherItem,
@@ -127,14 +129,6 @@ const pulseGlow: Variants = {
       "0 0 0 0 rgba(139, 92, 246, 0)",
     ],
     transition: { duration: 2, repeat: Infinity },
-  },
-};
-
-const shimmer: Variants = {
-  initial: { x: "-100%" },
-  animate: {
-    x: "100%",
-    transition: { duration: 1.5, repeat: Infinity, repeatDelay: 0.5 },
   },
 };
 
@@ -292,10 +286,8 @@ const AddWeeklyExam = () => {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin" || user?.role === "owner";
 
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
+  const [editedImages, setEditedImages] = useState<EditedImage[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const hasUserEditedExamNumber = useRef(false);
   const qc = useQueryClient();
 
@@ -433,38 +425,25 @@ const AddWeeklyExam = () => {
     setValue("teacher", user.name, { shouldValidate: true, shouldTouch: true });
   }, [user?.name, isAdmin, teacherList.length, teacherValue, setValue]);
 
-  // ── Image handlers ─────────────────────────────────────
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    if (!files.length) return;
-    setImageFiles((p) => [...p, ...files]);
-    setPreviews((p) => [...p, ...files.map((f) => URL.createObjectURL(f))]);
-    e.target.value = "";
-  };
-
-  const removeImage = (i: number) => {
-    URL.revokeObjectURL(previews[i]);
-    setImageFiles((p) => p.filter((_, j) => j !== i));
-    setPreviews((p) => p.filter((_, j) => j !== i));
-  };
-
   // ── Mutation ───────────────────────────────────────────
   const mutation = useMutation({
     mutationFn: async (data: {
       formData: WeeklyExamFormData;
-      images: File[];
+      images: EditedImage[];
     }) => {
       let uploadedImages: { imageUrl: string; publicId: string }[] = [];
 
       if (data.images.length > 0) {
         setUploadProgress(0);
-        const cloudinaryResults = await uploadMultipleToCloudinary(
-          data.images,
-          {
-            folder: "weekly-exams",
-            onProgress: setUploadProgress,
-          },
-        );
+
+        // Extract blobs — already WebP from editor
+        const blobs = data.images.map((img) => img.blob);
+
+        const cloudinaryResults = await uploadEditedBlobsToCloudinary(blobs, {
+          folder: "weekly-exams",
+          onProgress: setUploadProgress,
+        });
+
         uploadedImages = cloudinaryResults.map((r) => ({
           imageUrl: r.secure_url,
           publicId: r.public_id,
@@ -503,8 +482,9 @@ const AddWeeklyExam = () => {
         topics: "",
         question: "",
       });
-      setImageFiles([]);
-      setPreviews([]);
+      // Clean up preview URLs
+      editedImages.forEach((img) => URL.revokeObjectURL(img.previewUrl));
+      setEditedImages([]);
       setUploadProgress(0);
     },
     onError: (err: Error & { response?: { data?: { message?: string } } }) => {
@@ -519,7 +499,7 @@ const AddWeeklyExam = () => {
     if (!isAdmin && user?.name) {
       data.teacher = user.name;
     }
-    mutation.mutate({ formData: data, images: imageFiles });
+    mutation.mutate({ formData: data, images: editedImages });
   };
 
   const handleReset = () => {
@@ -535,8 +515,8 @@ const AddWeeklyExam = () => {
       topics: "",
       question: "",
     });
-    setImageFiles([]);
-    setPreviews([]);
+    editedImages.forEach((img) => URL.revokeObjectURL(img.previewUrl));
+    setEditedImages([]);
     setUploadProgress(0);
   };
 
@@ -933,104 +913,22 @@ const AddWeeklyExam = () => {
                 </p>
               </AnimatedCard>
 
-              {/* ── Row 7: Image Upload ── */}
+              {/* ── Row 7: Image Upload with Editor ── */}
               <AnimatedCard index={9}>
                 <label className={labelCls}>
                   <ImagePlus className="w-4 h-4" />
                   ছবি সংযুক্ত করুন (ঐচ্ছিক)
                 </label>
-                <motion.div
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.99 }}
-                  onClick={() => fileInputRef.current?.click()}
-                  className="cursor-pointer border-2 border-dashed border-[var(--color-active-border)] 
-                    hover:border-violet-400 rounded-xl p-8 flex flex-col items-center gap-3 
-                    transition-all duration-300 group relative overflow-hidden"
-                >
-                  <motion.div
-                    variants={shimmer}
-                    initial="initial"
-                    animate="animate"
-                    className="absolute inset-0 bg-gradient-to-r from-transparent via-violet-500/5 to-transparent"
-                  />
-                  <motion.div
-                    whileHover={{ rotate: 15, scale: 1.1 }}
-                    transition={{ type: "spring", stiffness: 400 }}
-                  >
-                    <ImagePlus className="w-10 h-10 text-[var(--color-gray)] group-hover:text-violet-500 transition-colors" />
-                  </motion.div>
-                  <p className="text-sm text-[var(--color-gray)] group-hover:text-violet-500 transition-colors bangla font-medium">
-                    ক্লিক করুন বা ছবি টেনে আনুন
-                  </p>
-                  <p className="text-xs text-[var(--color-gray)] bangla">
-                    PNG, JPG, WEBP • একাধিক ছবি বেছে নেওয়া যাবে
-                  </p>
-                </motion.div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={handleFileChange}
+                <ImageUploadWithEditor
+                  images={editedImages}
+                  onChange={setEditedImages}
+                  maxImages={10}
                 />
-
-                <AnimatePresence>
-                  {previews.length > 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 mt-4"
-                    >
-                      {previews.map((src, i) => (
-                        <motion.div
-                          key={src}
-                          initial={{ opacity: 0, scale: 0.8, rotate: -10 }}
-                          animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                          exit={{ opacity: 0, scale: 0.8, rotate: 10 }}
-                          transition={{ type: "spring", stiffness: 400 }}
-                          className="relative group aspect-square rounded-xl overflow-hidden 
-                            border-2 border-[var(--color-active-border)] hover:border-violet-400 
-                            transition-colors"
-                        >
-                          <img
-                            src={src}
-                            alt={`preview-${i}`}
-                            className="w-full h-full object-cover"
-                          />
-                          <motion.button
-                            type="button"
-                            onClick={() => removeImage(i)}
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            className="absolute top-1.5 right-1.5 w-6 h-6 bg-rose-500 rounded-full 
-                              flex items-center justify-center opacity-0 group-hover:opacity-100 
-                              transition-all shadow-lg"
-                          >
-                            <X className="w-3.5 h-3.5 text-white" />
-                          </motion.button>
-                        </motion.div>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {previews.length > 0 && (
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="text-xs text-[var(--color-gray)] mt-2 bangla flex items-center gap-1.5"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                    {toBn(previews.length)}টি ছবি নির্বাচিত
-                  </motion.p>
-                )}
               </AnimatedCard>
 
               {/* ── Upload Progress Bar ── */}
               <AnimatePresence>
-                {mutation.isPending && imageFiles.length > 0 && (
+                {mutation.isPending && editedImages.length > 0 && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
@@ -1041,7 +939,7 @@ const AddWeeklyExam = () => {
                       <span className="flex items-center gap-1.5">
                         <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-500" />
                         {uploadProgress < 100
-                          ? `ছবি আপলোড হচ্ছে (${toBn(imageFiles.length)}টি)…`
+                          ? `ছবি আপলোড হচ্ছে (${toBn(editedImages.length)}টি)…`
                           : "ডেটা সংরক্ষণ হচ্ছে…"}
                       </span>
                       <span className="font-bold text-violet-500">
@@ -1095,12 +993,10 @@ const AddWeeklyExam = () => {
                         <span className="flex items-center justify-between text-xs bangla">
                           <span className="flex items-center gap-1.5">
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            {imageFiles.length > 0
-                              ? uploadProgress <= 30
-                                ? `ছবি কম্প্রেস হচ্ছে (${toBn(imageFiles.length)}টি)…`
-                                : uploadProgress < 100
-                                  ? "আপলোড হচ্ছে…"
-                                  : "ডেটা সংরক্ষণ হচ্ছে…"
+                            {editedImages.length > 0
+                              ? uploadProgress < 100
+                                ? "আপলোড হচ্ছে…"
+                                : "ডেটা সংরক্ষণ হচ্ছে…"
                               : "সংরক্ষণ হচ্ছে…"}
                           </span>
                           <span className="font-bold">
