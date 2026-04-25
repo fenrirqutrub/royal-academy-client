@@ -123,7 +123,7 @@ const Notification = () => {
   });
 
   const activeNotices = useMemo(() => {
-    const result = notices.slice().reverse().slice(0, 5);
+    const result = notices.slice().slice(0, 3);
     activeNoticesRef.current = result;
     return result;
   }, [notices]);
@@ -298,7 +298,7 @@ const Notification = () => {
   };
 
   return (
-    <>
+    <div>
       <div className="relative">
         {/* ── Bell button ── */}
         <motion.button
@@ -515,7 +515,7 @@ const Notification = () => {
         notice={selectedNotice}
         onClose={() => setSelectedNotice(null)}
       />
-    </>
+    </div>
   );
 };
 

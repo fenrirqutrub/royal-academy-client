@@ -10,7 +10,6 @@ import { toBn } from "../../utility/Formatters";
 import ErrorState from "../../components/common/ErrorState";
 import Skeleton from "../../components/common/Skeleton";
 import EmptyState from "../../components/common/Emptystate";
-
 import NoticeTabs from "../../components/common/NoticeTabs";
 import Routine from "../Routine/Routine";
 import ExamMarks from "../ExamMarks/ExamMarks";
@@ -201,7 +200,6 @@ const NoticeBoard = () => {
               <span className="w-5" />
             </div>
 
-            {/* ✅ এখানে বসবে — Header এর ঠিক নিচে */}
             {isNoticePage && activeTabId !== "notice" ? (
               <motion.div
                 key={activeTabId}
@@ -212,7 +210,7 @@ const NoticeBoard = () => {
                 {renderContent()}
               </motion.div>
             ) : (
-              <>
+              <div>
                 {/* Notice Rows */}
                 <AnimatePresence>
                   {visibleNotices.map((item, i) => (
@@ -249,7 +247,7 @@ const NoticeBoard = () => {
                     onPageChange={setCurrentPage}
                   />
                 )}
-              </>
+              </div>
             )}
           </motion.div>
         )}
