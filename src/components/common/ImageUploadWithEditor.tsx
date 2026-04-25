@@ -1,7 +1,7 @@
 // src/components/common/ImageUploadWithEditor.tsx
 import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ImagePlus, CheckCircle2, Pencil, Trash2 } from "lucide-react";
+import { ImagePlus, CheckCircle2, Pencil, X } from "lucide-react";
 import ImageEditor from "./ImageEditor";
 import { toBn } from "../../utility/Formatters";
 
@@ -209,8 +209,7 @@ const ImageUploadWithEditor = ({
                 {/* Overlay with actions */}
                 <div
                   className="absolute inset-0 bg-black/0 group-hover:bg-black/40 
-                  transition-all duration-300 flex items-center justify-center gap-2 
-                  opacity-0 group-hover:opacity-100"
+                  transition-all duration-300 flex items-center justify-center gap-2"
                 >
                   <motion.button
                     type="button"
@@ -220,7 +219,7 @@ const ImageUploadWithEditor = ({
                     }}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
-                    className="w-9 h-9 bg-violet-500 rounded-full flex items-center 
+                    className="w-9 h-9 bg-amber-500 rounded-full flex items-center 
                       justify-center shadow-lg transition-all"
                     title="পুনরায় সম্পাদনা"
                   >
@@ -232,13 +231,12 @@ const ImageUploadWithEditor = ({
                       e.stopPropagation();
                       removeImage(i);
                     }}
-                    whileHover={{ scale: 1.1 }}
+                    whileHover={{ scale: 1.15 }}
                     whileTap={{ scale: 0.9 }}
-                    className="w-9 h-9 bg-rose-500 rounded-full flex items-center 
-                      justify-center shadow-lg transition-all"
-                    title="মুছে ফেলুন"
+                    className="absolute top-1.5 right-1.5 z-10 w-6 h-6 rounded-full bg-rose-500 backdrop-blur-sm text-white flex items-center justify-center transition-colors shadow-md"
+                    title="মুছুন"
                   >
-                    <Trash2 className="w-4 h-4 text-white" />
+                    <X className="w-3.5 h-3.5" />
                   </motion.button>
                 </div>
 

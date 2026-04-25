@@ -203,7 +203,7 @@ const ImageEditor = ({ file, onConfirm, onCancel }: ImageEditorProps) => {
         <button
           type="button"
           onClick={onCancel}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm transition-all active:scale-95"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm transition-all active:scale-95"
         >
           <X className="w-4 h-4" />
           <span className="bangla hidden sm:inline">বাতিল</span>
@@ -218,7 +218,7 @@ const ImageEditor = ({ file, onConfirm, onCancel }: ImageEditorProps) => {
           type="button"
           onClick={handleConfirm}
           disabled={isProcessing || !croppedAreaPixels}
-          className="flex items-center gap-2 px-5 py-2 rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white text-sm font-semibold transition-all active:scale-95 disabled:opacity-50 shadow-lg shadow-violet-500/30"
+          className="flex items-center gap-2 px-5 py-2 rounded bg-[var(--color-text)] text-[var(--color-bg)] text-sm font-semibold transition-all active:scale-95 disabled:opacity-50 shadow-lg shadow-violet-500/30"
         >
           {isProcessing ? (
             <motion.div
@@ -289,8 +289,8 @@ const ImageEditor = ({ file, onConfirm, onCancel }: ImageEditorProps) => {
               onClick={() => setActiveTab(tab)}
               className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all bangla ${
                 activeTab === tab
-                  ? "bg-violet-600 text-white shadow-lg shadow-violet-500/20"
-                  : "bg-white/10 text-white/60 hover:bg-white/15 hover:text-white/80"
+                  ? "bg-[var(--color-text)] text-[var(--color-bg)] shadow-lg shadow-violet-500/20"
+                  : "bg-[var(--color-bg)] text-[var(--color-text)]"
               }`}
             >
               {tab === "crop" ? (
