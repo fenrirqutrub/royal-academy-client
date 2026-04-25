@@ -142,7 +142,7 @@ const Complain = () => {
     );
 
   return (
-    <div className="p-5 mx-auto">
+    <div className="p-5 mx-auto min-h-screen">
       {/* Header */}
       <div className="mb-6">
         <h2 className="text-xl font-semibold text-[var(--color-text)]">

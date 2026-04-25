@@ -38,6 +38,7 @@ interface AuthContextType {
   setUser: (user: AuthUser | null) => void;
   login: (phoneOrEmail: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  hasRole: (role: AuthUser["role"]) => boolean;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -126,6 +127,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     navigate("/", { replace: true });
   }, [navigate, queryClient]);
 
+  const hasRole = (role: AuthUser["role"]) => user?.role === role;
+
   return (
     <AuthContext.Provider
       value={{
@@ -135,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser,
         login,
         logout,
+        hasRole,
       }}
     >
       {children}

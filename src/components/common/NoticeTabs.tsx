@@ -1,24 +1,44 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-
-const tabs = [
-  { id: "notice", label: "নোটিশ বোর্ড", icon: "📋" },
-  { id: "complain", label: "আভিযোগ বাক্স", icon: "📋" },
-  { id: "routine", label: "ক্লাস রুটিন", icon: "📅" },
-  { id: "marks", label: "মান বন্টন", icon: "📊" },
-];
+import { useAuth, type AuthUser } from "../../context/AuthContext";
 
 interface NoticeTabsProps {
   activeId: string;
   onChange: (id: string) => void;
 }
 
+type Tab = {
+  id: string;
+  label: string;
+  icon: string;
+  roles?: AuthUser["role"][];
+};
+
 const NoticeTabs = ({ activeId, onChange }: NoticeTabsProps) => {
+  const { hasRole } = useAuth();
   const [open, setOpen] = useState(false);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
-  const active = tabs.find((t) => t.id === activeId) ?? tabs[0];
+  const allTabs: Tab[] = [
+    { id: "notice", label: "নোটিশ বোর্ড", icon: "📋" },
+
+    {
+      id: "complain",
+      label: "আভিযোগ বাক্স",
+      icon: "📋",
+      roles: ["principal", "admin", "owner"],
+    },
+
+    { id: "routine", label: "ক্লাস রুটিন", icon: "📅" },
+    { id: "marks", label: "মান বন্টন", icon: "📊" },
+  ];
+
+  const tabs = allTabs.filter(
+    (tab) => !tab.roles || tab.roles.some((r) => hasRole(r)),
+  );
+
+  const active = allTabs.find((t) => t.id === activeId) ?? allTabs[0];
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
