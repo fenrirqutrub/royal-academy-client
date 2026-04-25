@@ -12,68 +12,138 @@ export interface CloudinaryResult {
   bytes: number;
 }
 
-// ── OffscreenCanvas support check (faster than main thread) ───────────────
+export interface ConvertedImageBlobs {
+  avif: Blob | null;
+  webp: Blob;
+  /** Which format is preferred for upload (avif if supported, else webp) */
+  preferred: "avif" | "webp";
+  preferredBlob: Blob;
+}
+
+// ── Browser support detection ─────────────────────────────────────────────
+const supportsAVIF = (): Promise<boolean> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img.width === 1);
+    img.onerror = () => resolve(false);
+    // 1×1 AVIF test image
+    img.src =
+      "data:image/avif;base64,AAAAIGZ0eXBhdmlmAAAAAGF2aWZtaWYxbWlhZk1BMUIAAADybWV0YQAAAAAAAAAoaGRscgAAAAAAAAAAcGljdAAAAAAAAAAAAAAAAGxpYmF2aWYAAAAADnBpdG0AAAAAAAEAAAAeaWxvYwAAAABEAAABAAEAAAABAAABGgAAABcAAAAoaWluZgAAAAAAAQAAABppbmZlAgAAAAABAABhdjAxQ29sb3IAAAAAamlwcnAAAABLaXBjbwAAABRpc3BlAAAAAAAAAAEAAAABAAAAEHBpeGkAAAAAAwgICAAAAAxhdjFDgQAMAAAAABNjb2xybmNseAACAAIABoAAAAAXaXBtYQAAAAAAAAABAAEEAQKDBAAAAB9tZGF0EgAKBzgADlAgIGkyCR/wAABAAACvcA==";
+  });
+};
+
+let avifSupported: boolean | null = null;
+const getAVIFSupport = async (): Promise<boolean> => {
+  if (avifSupported !== null) return avifSupported;
+  avifSupported = await supportsAVIF();
+  return avifSupported;
+};
+
 const hasOffscreenCanvas =
   typeof OffscreenCanvas !== "undefined" &&
   typeof createImageBitmap !== "undefined";
 
-// ── Resize + WebP convert — optimized for large files ─────────────────────
-const compressToWebP = async (file: File | Blob): Promise<Blob> => {
-  const MAX_DIMENSION = 1920;
-  const QUALITY = 0.82;
-
-  // createImageBitmap is MUCH faster than Image() for large files
+// ── Core resize + multi-format convert ───────────────────────────────────
+const resizeToDimensions = async (
+  file: File | Blob,
+  maxDimension = 1920,
+): Promise<{
+  canvas: HTMLCanvasElement | OffscreenCanvas;
+  bitmap: ImageBitmap;
+}> => {
   const bitmap = await createImageBitmap(file);
-
   let { width, height } = bitmap;
 
-  // Only resize if needed
-  if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
-    const ratio = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height);
+  if (width > maxDimension || height > maxDimension) {
+    const ratio = Math.min(maxDimension / width, maxDimension / height);
     width = Math.round(width * ratio);
     height = Math.round(height * ratio);
   }
 
-  // Use OffscreenCanvas if available (non-blocking, faster)
   if (hasOffscreenCanvas) {
     const canvas = new OffscreenCanvas(width, height);
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d") as OffscreenCanvasRenderingContext2D;
     if (!ctx) throw new Error("OffscreenCanvas context failed");
     ctx.drawImage(bitmap, 0, 0, width, height);
-    bitmap.close();
-    return canvas.convertToBlob({ type: "image/webp", quality: QUALITY });
+    return { canvas, bitmap };
   }
 
-  // Fallback: regular canvas
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas context failed");
   ctx.drawImage(bitmap, 0, 0, width, height);
-  bitmap.close();
+  return { canvas, bitmap };
+};
 
+const canvasToBlob = (
+  canvas: HTMLCanvasElement | OffscreenCanvas,
+  type: string,
+  quality: number,
+): Promise<Blob> => {
+  if (canvas instanceof OffscreenCanvas) {
+    return canvas.convertToBlob({ type, quality });
+  }
   return new Promise((resolve, reject) => {
-    canvas.toBlob(
+    (canvas as HTMLCanvasElement).toBlob(
       (blob) => {
         if (blob) resolve(blob);
-        else reject(new Error("WebP conversion failed"));
+        else reject(new Error(`Failed to convert canvas to ${type}`));
       },
-      "image/webp",
-      QUALITY,
+      type,
+      quality,
     );
   });
 };
 
+/**
+ * Converts any image file/blob to both WebP and AVIF (if browser supports encoding).
+ * Returns both blobs + which one is preferred for upload.
+ * Frontend-only — no server involved.
+ */
+export const convertToModernFormats = async (
+  file: File | Blob,
+  maxDimension = 1920,
+  quality = 0.82,
+): Promise<ConvertedImageBlobs> => {
+  const { canvas, bitmap } = await resizeToDimensions(file, maxDimension);
+  bitmap.close();
+
+  const webpBlob = await canvasToBlob(canvas, "image/webp", quality);
+
+  // Try AVIF encoding — not all browsers support encoding even if they support decoding
+  let avifBlob: Blob | null = null;
+  try {
+    const candidate = await canvasToBlob(canvas, "image/avif", quality);
+    // Some browsers silently fall back to PNG when AVIF encode fails
+    if (
+      candidate.type === "image/avif" &&
+      candidate.size < webpBlob.size * 1.5
+    ) {
+      avifBlob = candidate;
+    }
+  } catch {
+    // AVIF encode not supported — fine, use WebP
+  }
+
+  const preferred = avifBlob ? "avif" : "webp";
+  const preferredBlob = avifBlob ?? webpBlob;
+
+  return { avif: avifBlob, webp: webpBlob, preferred, preferredBlob };
+};
+
 // ── Single upload with XHR progress ──────────────────────────────────────
-const uploadSingleWithProgress = (
+export const uploadSingleWithProgress = (
   blob: Blob,
   folder: string,
+  filename: string,
   onProgress?: (loaded: number, total: number) => void,
 ): Promise<CloudinaryResult> => {
   return new Promise((resolve, reject) => {
+    const ext = blob.type === "image/avif" ? "avif" : "webp";
     const fd = new FormData();
-    fd.append("file", blob, "image.webp");
+    fd.append("file", blob, `${filename}.${ext}`);
     fd.append("upload_preset", UPLOAD_PRESET);
     fd.append("folder", folder);
 
@@ -82,17 +152,15 @@ const uploadSingleWithProgress = (
       "POST",
       `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
     );
-    xhr.timeout = 120000;
+    xhr.timeout = 120_000;
 
     xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && onProgress) {
-        onProgress(e.loaded, e.total);
-      }
+      if (e.lengthComputable && onProgress) onProgress(e.loaded, e.total);
     };
 
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(JSON.parse(xhr.responseText));
+        resolve(JSON.parse(xhr.responseText) as CloudinaryResult);
       } else {
         try {
           const err = JSON.parse(xhr.responseText);
@@ -109,49 +177,64 @@ const uploadSingleWithProgress = (
   });
 };
 
-// ── Multiple upload with accurate progress ────────────────────────────────
+/**
+ * Upload a single file — converts to WebP/AVIF first, uploads preferred format.
+ * Vercel-safe: all heavy work done in browser, only small blob hits the CDN.
+ */
+export const uploadToCloudinaryDirect = async (
+  file: File | Blob,
+  folder = "uploads",
+  onProgress?: (percent: number) => void,
+): Promise<CloudinaryResult> => {
+  onProgress?.(5);
+  const converted = await convertToModernFormats(file);
+  onProgress?.(30);
+
+  const result = await uploadSingleWithProgress(
+    converted.preferredBlob,
+    folder,
+    "image",
+    (loaded, total) => {
+      const uploadPercent = 30 + Math.round((loaded / total) * 70);
+      onProgress?.(Math.min(uploadPercent, 99));
+    },
+  );
+
+  onProgress?.(100);
+  return result;
+};
+
+/**
+ * Multiple file upload with accurate combined progress.
+ */
 export const uploadMultipleToCloudinary = async (
   files: File[],
-  options: {
-    folder?: string;
-    onProgress?: (percent: number) => void;
-  } = {},
+  options: { folder?: string; onProgress?: (percent: number) => void } = {},
 ): Promise<CloudinaryResult[]> => {
   const { folder = "uploads", onProgress } = options;
-  const results: CloudinaryResult[] = [];
 
-  // Step 1: Compress all files first (show compression progress)
-  const compressedBlobs: Blob[] = [];
-
+  const convertedFiles: ConvertedImageBlobs[] = [];
   for (let i = 0; i < files.length; i++) {
-    const blob = await compressToWebP(files[i]);
-    compressedBlobs.push(blob);
-    // Compression = first 30% of progress
+    const converted = await convertToModernFormats(files[i]);
+    convertedFiles.push(converted);
     onProgress?.(Math.round(((i + 1) / files.length) * 30));
   }
 
-  // Step 2: Upload with real byte-level progress
-  const totalBytes = compressedBlobs.reduce((sum, b) => sum + b.size, 0);
+  const blobs = convertedFiles.map((c) => c.preferredBlob);
+  const totalBytes = blobs.reduce((sum, b) => sum + b.size, 0);
+  const results: CloudinaryResult[] = [];
 
-  for (let i = 0; i < compressedBlobs.length; i++) {
+  for (let i = 0; i < blobs.length; i++) {
     const result = await uploadSingleWithProgress(
-      compressedBlobs[i],
+      blobs[i],
       folder,
-      (loaded, total) => {
-        const currentFileProgress = loaded / total;
-        const previousFilesBytes = compressedBlobs
-          .slice(0, i)
-          .reduce((sum, b) => sum + b.size, 0);
-        const currentProgress =
-          previousFilesBytes + compressedBlobs[i].size * currentFileProgress;
-
-        // Upload = remaining 70% of progress (30-100)
-        const uploadPercent =
-          30 + Math.round((currentProgress / totalBytes) * 70);
-        onProgress?.(Math.min(uploadPercent, 99));
+      `image_${i}`,
+      (loaded) => {
+        const prevBytes = blobs.slice(0, i).reduce((s, b) => s + b.size, 0);
+        const overall = prevBytes + blobs[i].size * (loaded / blobs[i].size);
+        onProgress?.(30 + Math.round((overall / totalBytes) * 70));
       },
     );
-
     results.push(result);
   }
 
@@ -159,36 +242,41 @@ export const uploadMultipleToCloudinary = async (
   return results;
 };
 
-// ── Single upload (for avatar etc.) ──────────────────────────────────────
-export const uploadToCloudinaryDirect = async (
-  file: File | Blob,
-  folder: string = "uploads",
-): Promise<CloudinaryResult> => {
-  const blob = await compressToWebP(file);
-  return uploadSingleWithProgress(blob, folder);
-};
-
-// ── Cloudinary URL transforms for display (NO eager needed!) ─────────────
+// ── Cloudinary URL transforms ─────────────────────────────────────────────
 export const getCloudinaryOptimizedUrls = (baseUrl: string) => {
   if (!baseUrl || typeof baseUrl !== "string") {
-    return { avif: "", webp: "", original: "" };
+    return { auto: "", avif: "", webp: "", thumb: "", full: "", original: "" };
   }
-
   const parts = baseUrl.split("/upload/");
   if (parts.length !== 2) {
-    return { avif: baseUrl, webp: baseUrl, original: baseUrl };
+    return {
+      auto: baseUrl,
+      avif: baseUrl,
+      webp: baseUrl,
+      thumb: baseUrl,
+      full: baseUrl,
+      original: baseUrl,
+    };
   }
-
   const [prefix, suffix] = parts;
   return {
-    // f_auto automatically serves avif/webp based on browser support
     auto: `${prefix}/upload/f_auto,q_auto/${suffix}`,
     avif: `${prefix}/upload/f_avif,q_auto/${suffix}`,
     webp: `${prefix}/upload/f_webp,q_auto/${suffix}`,
-    // Thumbnail for cards
     thumb: `${prefix}/upload/f_auto,q_auto,w_400,c_limit/${suffix}`,
-    // Full size for modal
     full: `${prefix}/upload/f_auto,q_auto,w_1200,c_limit/${suffix}`,
     original: baseUrl,
   };
 };
+
+/**
+ * Render helper — returns the best <source> srcSet for a <picture> element.
+ * Usage:
+ *   const urls = getCloudinaryOptimizedUrls(imageUrl);
+ *   <picture>
+ *     <source type="image/avif" srcSet={urls.avif} />
+ *     <source type="image/webp" srcSet={urls.webp} />
+ *     <img src={urls.original} alt="..." />
+ *   </picture>
+ */
+export { getAVIFSupport };

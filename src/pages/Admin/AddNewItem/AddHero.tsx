@@ -4,30 +4,37 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactCrop, { type Crop, type PixelCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
-
 import {
   Upload,
   CheckCircle,
   XCircle,
   Crop as CropIcon,
   Check,
+  ImageIcon,
+  Loader2,
 } from "lucide-react";
+
 import axiosPublic from "../../../hooks/axiosPublic";
 import Button from "../../../components/common/Button";
-import { uploadToCloudinaryDirect } from "../../../hooks/useCloudinaryUpload";
+import {
+  uploadToCloudinaryDirect,
+  convertToModernFormats,
+  type ConvertedImageBlobs,
+} from "../../../hooks/useCloudinaryUpload";
+
+// ─── Types ────────────────────────────────────────────────────────────────
 
 interface HeroFormData {
   title: string;
 }
 
 interface ApiError {
-  response?: {
-    data?: {
-      message?: string;
-    };
-  };
+  response?: { data?: { message?: string } };
 }
 
+// ─── Crop helper ──────────────────────────────────────────────────────────
+// No fixed aspect — whatever the user draws is what they get.
+// Width is always ≥ height (landscape guard).
 const getCroppedBlob = (
   image: HTMLImageElement,
   pixelCrop: PixelCrop,
@@ -36,18 +43,17 @@ const getCroppedBlob = (
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("No canvas context");
 
-  const rect = image.getBoundingClientRect();
-  const scaleX = image.naturalWidth / rect.width;
-  const scaleY = image.naturalHeight / rect.height;
+  const scaleX = image.naturalWidth / image.width;
+  const scaleY = image.naturalHeight / image.height;
 
-  canvas.width = Math.round(pixelCrop.width * scaleX);
-  canvas.height = Math.round(pixelCrop.height * scaleY);
+  let w = Math.round(pixelCrop.width * scaleX);
+  let h = Math.round(pixelCrop.height * scaleY);
 
-  // ✅ Canvas width সবসময় height এর চেয়ে বড় কিনা check
-  if (canvas.width < canvas.height) {
-    // Portrait হয়ে গেলে swap করো
-    [canvas.width, canvas.height] = [canvas.height, canvas.width];
-  }
+  // Landscape guard: if portrait, swap so width > height
+  if (w < h) [w, h] = [h, w];
+
+  canvas.width = w;
+  canvas.height = h;
 
   ctx.drawImage(
     image,
@@ -57,36 +63,74 @@ const getCroppedBlob = (
     pixelCrop.height * scaleY,
     0,
     0,
-    canvas.width,
-    canvas.height,
+    w,
+    h,
   );
 
   return new Promise((resolve, reject) => {
     canvas.toBlob(
-      (blob) => {
-        if (blob) resolve(blob);
-        else reject(new Error("Canvas toBlob failed"));
-      },
+      (blob) => (blob ? resolve(blob) : reject(new Error("toBlob failed"))),
       "image/webp",
-      0.85,
+      0.92,
     );
   });
 };
 
+// ─── Format badge component ───────────────────────────────────────────────
+const FormatBadge = ({
+  format,
+  size,
+}: {
+  format: "avif" | "webp" | "webp-fallback";
+  size: number;
+}) => {
+  const labels: Record<string, { label: string; color: string }> = {
+    avif: {
+      label: "AVIF",
+      color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+    },
+    webp: {
+      label: "WebP",
+      color: "bg-sky-500/20 text-sky-400 border-sky-500/30",
+    },
+    "webp-fallback": {
+      label: "WebP",
+      color: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+    },
+  };
+  const { label, color } = labels[format];
+  const kb = (size / 1024).toFixed(1);
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${color}`}
+    >
+      {label} · {kb} KB
+    </span>
+  );
+};
+
+// ─── Main component ───────────────────────────────────────────────────────
 const AddHero = () => {
   const [rawImageSrc, setRawImageSrc] = useState<string>("");
   const [crop, setCrop] = useState<Crop>({
     unit: "%",
-    width: 100,
-    height: 100,
-    x: 0,
-    y: 0,
+    width: 80,
+    height: 80,
+    x: 10,
+    y: 10,
   });
   const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
   const imgRef = useRef<HTMLImageElement>(null);
-  const [croppedPreview, setCroppedPreview] = useState<string>("");
-  const [croppedBlob, setCroppedBlob] = useState<Blob | null>(null);
+
+  // After crop confirmation
+  const [convertedFormats, setConvertedFormats] =
+    useState<ConvertedImageBlobs | null>(null);
+  const [croppedPreviewUrl, setCroppedPreviewUrl] = useState<string>("");
+
   const [isCropping, setIsCropping] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const queryClient = useQueryClient();
 
@@ -97,12 +141,15 @@ const AddHero = () => {
     formState: { errors },
   } = useForm<HeroFormData>();
 
+  // ── File input ────────────────────────────────────────────────────────
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setCroppedPreview("");
-    setCroppedBlob(null);
+    // Revoke old URLs
+    if (croppedPreviewUrl) URL.revokeObjectURL(croppedPreviewUrl);
+    setCroppedPreviewUrl("");
+    setConvertedFormats(null);
 
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -113,71 +160,77 @@ const AddHero = () => {
     e.target.value = "";
   };
 
+  // ── Default crop on image load ────────────────────────────────────────
   const onImageLoad = useCallback(
     (e: React.SyntheticEvent<HTMLImageElement>) => {
       const img = e.currentTarget;
-
       setTimeout(() => {
         const rect = img.getBoundingClientRect();
         const displayW = rect.width;
         const displayH = rect.height;
-
         if (!displayW || !displayH) return;
 
-        // ✅ Landscape crop — width সবসময় height এর চেয়ে বড়
-        const cropW = displayW;
-        const cropH = displayW * (9 / 16); // 16:9 landscape ratio
+        // Default: full width, 16:9 landscape crop centred
+        const cropH = Math.min(displayW * (9 / 16), displayH);
+        const cropW = cropH < displayH ? displayW : displayH * (16 / 9);
+        const x = (displayW - cropW) / 2;
+        const y = (displayH - cropH) / 2;
 
-        // যদি cropH image এর height এর চেয়ে বড় হয়ে যায়
-        const finalCropH = cropH > displayH ? displayH : cropH;
-        const finalCropW = cropH > displayH ? displayH * (16 / 9) : cropW;
-
-        const x = (displayW - finalCropW) / 2;
-        const y = (displayH - finalCropH) / 2;
-
-        setCrop({
+        const initial: PixelCrop = {
           unit: "px",
           x,
           y,
-          width: finalCropW,
-          height: finalCropH,
-        });
-
-        setCompletedCrop({
-          unit: "px",
-          x,
-          y,
-          width: finalCropW,
-          height: finalCropH,
-        } as PixelCrop);
+          width: cropW,
+          height: cropH,
+        };
+        setCrop(initial);
+        setCompletedCrop(initial);
       }, 50);
     },
     [],
   );
 
+  // ── Confirm crop → convert to avif/webp ──────────────────────────────
   const handleCropConfirm = async () => {
     if (!imgRef.current || !completedCrop) return;
     try {
-      const blob = await getCroppedBlob(imgRef.current, completedCrop);
-      const previewUrl = URL.createObjectURL(blob);
-      setCroppedBlob(blob);
-      setCroppedPreview(previewUrl);
+      setIsConverting(true);
+      const rawBlob = await getCroppedBlob(imgRef.current, completedCrop);
+
+      // Convert to modern formats in-browser
+      const formats = await convertToModernFormats(rawBlob, 1920, 0.85);
+      setConvertedFormats(formats);
+
+      const previewUrl = URL.createObjectURL(formats.preferredBlob);
+      setCroppedPreviewUrl(previewUrl);
       setIsCropping(false);
     } catch (err) {
-      console.error("Crop failed:", err);
+      console.error("Crop/convert failed:", err);
+    } finally {
+      setIsConverting(false);
     }
   };
 
+  // ── Submit ────────────────────────────────────────────────────────────
   const createHeroMutation = useMutation({
     mutationFn: async (data: HeroFormData) => {
-      if (!croppedBlob) throw new Error("Please crop the image first");
+      if (!convertedFormats)
+        throw new Error("Please select and crop an image first");
 
-      const cloudResult = await uploadToCloudinaryDirect(croppedBlob, "heroes");
+      setUploadProgress(0);
+
+      // Upload whichever format was generated (avif preferred, webp fallback)
+      const cloudResult = await uploadToCloudinaryDirect(
+        convertedFormats.preferredBlob,
+        "heroes",
+        (pct) => setUploadProgress(pct),
+      );
 
       const response = await axiosPublic.post("/api/heroes", {
         title: data.title,
         imageUrl: cloudResult.secure_url,
         imagePublicId: cloudResult.public_id,
+        imageFormat: convertedFormats.preferred, // store which format was uploaded
       });
 
       return response.data;
@@ -185,9 +238,11 @@ const AddHero = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["heroes"] });
       reset();
-      setCroppedPreview("");
-      setCroppedBlob(null);
+      if (croppedPreviewUrl) URL.revokeObjectURL(croppedPreviewUrl);
+      setCroppedPreviewUrl("");
+      setConvertedFormats(null);
       setRawImageSrc("");
+      setUploadProgress(0);
     },
   });
 
@@ -195,53 +250,56 @@ const AddHero = () => {
     createHeroMutation.mutate(data);
   };
 
+  // ─── Render ───────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg)]">
+    <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg)] py-12">
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full container"
+        transition={{ duration: 0.45 }}
+        className="w-full container max-w-2xl"
       >
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.5 }}
-          className="text-center mb-8"
+          transition={{ delay: 0.15, duration: 0.45 }}
+          className="text-center mb-10"
         >
           <h1 className="text-5xl md:text-6xl font-bold mb-3 text-[var(--color-text)]">
             Create Hero
           </h1>
-          <p className="text-[var(--color-gray)] text-lg">
-            Upload your hero image to Cloudinary
+          <p className="text-[var(--color-gray)] text-base">
+            Crop freely · Converts to AVIF / WebP in browser · Uploads direct to
+            Cloudinary
           </p>
         </motion.div>
 
-        {/* Status Messages */}
+        {/* Status messages */}
         <AnimatePresence mode="wait">
           {createHeroMutation.isSuccess && (
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
+              key="success"
+              initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="mb-6 p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 flex items-center gap-3"
+              exit={{ opacity: 0, y: -8 }}
+              className="mb-6 p-4 rounded-2xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 flex items-center gap-3"
             >
-              <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+              <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0" />
               <p className="text-green-800 dark:text-green-300 font-medium">
                 Hero created successfully!
               </p>
             </motion.div>
           )}
-
           {createHeroMutation.isError && (
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
+              key="error"
+              initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="mb-6 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 flex items-center gap-3"
+              exit={{ opacity: 0, y: -8 }}
+              className="mb-6 p-4 rounded-2xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 flex items-center gap-3"
             >
-              <XCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
+              <XCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
               <p className="text-red-800 dark:text-red-300 font-medium">
                 {(createHeroMutation.error as ApiError)?.response?.data
                   ?.message || "Error creating hero"}
@@ -251,11 +309,11 @@ const AddHero = () => {
         </AnimatePresence>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {/* Title Input */}
+          {/* Title */}
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 0, x: -16 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4, duration: 0.5 }}
+            transition={{ delay: 0.25, duration: 0.45 }}
           >
             <label className="block mb-2 text-sm font-semibold text-[var(--color-text)]">
               Hero Title
@@ -274,7 +332,7 @@ const AddHero = () => {
             />
             {errors.title && (
               <motion.p
-                initial={{ opacity: 0, y: -5 }}
+                initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="mt-2 text-sm text-red-500"
               >
@@ -283,11 +341,11 @@ const AddHero = () => {
             )}
           </motion.div>
 
-          {/* Image Upload */}
+          {/* Image upload / preview */}
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 0, x: -16 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.5, duration: 0.5 }}
+            transition={{ delay: 0.35, duration: 0.45 }}
           >
             <label className="block mb-2 text-sm font-semibold text-[var(--color-text)]">
               Hero Image
@@ -301,22 +359,26 @@ const AddHero = () => {
               id="imageUpload"
             />
 
-            {!croppedPreview ? (
+            {!croppedPreviewUrl ? (
               <label
                 htmlFor="imageUpload"
-                className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-[var(--color-active-border)] rounded-xl cursor-pointer bg-[var(--color-active-bg)] hover:border-[var(--color-text-hover)] transition-all duration-200"
+                className="flex flex-col items-center justify-center w-full h-52 border-2 border-dashed border-[var(--color-active-border)] rounded-2xl cursor-pointer bg-[var(--color-active-bg)] hover:border-[var(--color-text-hover)] transition-all duration-200 group"
               >
                 <motion.div
-                  initial={{ scale: 0.9 }}
-                  animate={{ scale: 1 }}
+                  whileHover={{ scale: 1.05 }}
                   className="flex flex-col items-center"
                 >
-                  <Upload className="w-12 h-12 text-[var(--color-gray)] mb-3" />
-                  <p className="text-sm text-[var(--color-text)] font-medium">
-                    Click to upload — any orientation
+                  <div className="w-16 h-16 rounded-2xl bg-[var(--color-active-border)]/30 flex items-center justify-center mb-4 group-hover:bg-[var(--color-text-hover)]/10 transition-colors">
+                    <ImageIcon className="w-8 h-8 text-[var(--color-gray)]" />
+                  </div>
+                  <p className="text-sm text-[var(--color-text)] font-semibold mb-1">
+                    Click to upload any image
                   </p>
-                  <p className="text-xs text-[var(--color-gray)] mt-1">
-                    You'll crop after upload • Max 5MB
+                  <p className="text-xs text-[var(--color-gray)]">
+                    Any size · Any format · You'll crop it next
+                  </p>
+                  <p className="text-xs text-[var(--color-gray)] mt-1 opacity-70">
+                    Converts to AVIF / WebP in browser before upload
                   </p>
                 </motion.div>
               </label>
@@ -324,46 +386,107 @@ const AddHero = () => {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="relative w-full rounded-xl overflow-hidden border-2 border-[var(--color-text-hover)]"
-                style={{ aspectRatio: "8/3" }}
+                className="space-y-3"
               >
-                <img
-                  src={croppedPreview}
-                  alt="Cropped preview"
-                  className="w-full h-full object-cover"
-                />
-                <label
-                  htmlFor="imageUpload"
-                  className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200 cursor-pointer"
+                {/* Preview */}
+                <div
+                  className="relative w-full rounded-2xl overflow-hidden border-2 border-[var(--color-text-hover)]"
+                  style={{ aspectRatio: "16/9" }}
                 >
-                  <CropIcon className="w-8 h-8 text-white mb-2" />
-                  <span className="text-white text-sm font-medium">
-                    Change / Re-crop
-                  </span>
-                </label>
+                  <img
+                    src={croppedPreviewUrl}
+                    alt="Cropped preview"
+                    className="w-full h-full object-cover"
+                  />
+                  <label
+                    htmlFor="imageUpload"
+                    className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200 cursor-pointer"
+                  >
+                    <CropIcon className="w-8 h-8 text-white mb-2" />
+                    <span className="text-white text-sm font-medium">
+                      Change / Re-crop
+                    </span>
+                  </label>
+                </div>
+
+                {/* Format info */}
+                {convertedFormats && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex flex-wrap items-center gap-2 px-1"
+                  >
+                    <span className="text-xs text-[var(--color-gray)]">
+                      Converted:
+                    </span>
+                    {convertedFormats.avif && (
+                      <FormatBadge
+                        format="avif"
+                        size={convertedFormats.avif.size}
+                      />
+                    )}
+                    <FormatBadge
+                      format={convertedFormats.avif ? "webp" : "webp-fallback"}
+                      size={convertedFormats.webp.size}
+                    />
+                    <span className="text-xs text-[var(--color-gray)] ml-auto">
+                      Uploading:{" "}
+                      <span className="font-semibold text-[var(--color-text)]">
+                        {convertedFormats.preferred.toUpperCase()}
+                      </span>
+                    </span>
+                  </motion.div>
+                )}
               </motion.div>
             )}
           </motion.div>
 
-          {/* Submit Button */}
+          {/* Upload progress */}
+          <AnimatePresence>
+            {createHeroMutation.isPending && uploadProgress > 0 && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-[var(--color-gray)]">
+                    {uploadProgress < 30 ? "Converting…" : "Uploading…"}
+                  </span>
+                  <span className="text-xs font-semibold text-[var(--color-text)]">
+                    {uploadProgress}%
+                  </span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-[var(--color-active-border)]/30 overflow-hidden">
+                  <motion.div
+                    className="h-full rounded-full bg-[var(--color-text)]"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${uploadProgress}%` }}
+                    transition={{ duration: 0.3 }}
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Submit */}
           <motion.button
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.5 }}
+            transition={{ delay: 0.45, duration: 0.45 }}
             type="submit"
-            disabled={createHeroMutation.isPending || !croppedBlob}
+            disabled={createHeroMutation.isPending || !convertedFormats}
             whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="w-full py-4 rounded-xl bg-[var(--color-text)] text-[var(--color-bg)]  font-bold text-lg shadow-lg shadow-indigo-500/30 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            whileTap={{ scale: 0.97 }}
+            className="w-full py-4 rounded-xl bg-[var(--color-text)] text-[var(--color-bg)] font-bold text-lg shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {createHeroMutation.isPending ? (
               <>
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
-                />
-                Uploading...
+                <Loader2 className="w-5 h-5 animate-spin" />
+                {uploadProgress < 30
+                  ? "Converting…"
+                  : `Uploading… ${uploadProgress}%`}
               </>
             ) : (
               <>
@@ -374,18 +497,18 @@ const AddHero = () => {
           </motion.button>
         </form>
 
-        {/* Footer Note */}
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.7, duration: 0.5 }}
-          className="text-center mt-6 text-sm text-[var(--color-gray)]"
+          transition={{ delay: 0.6 }}
+          className="text-center mt-6 text-xs text-[var(--color-gray)]"
         >
-          Images will be uploaded to Cloudinary • ID auto-generated
+          All conversion happens in your browser · Server never sees the
+          original file
         </motion.p>
       </motion.div>
 
-      {/* ─── Crop Modal ──────────────────────────────────────────────────────── */}
+      {/* ─── Crop Modal ─────────────────────────────────────────────────── */}
       <AnimatePresence>
         {isCropping && rawImageSrc && (
           <motion.div
@@ -395,19 +518,20 @@ const AddHero = () => {
             className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.92, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
+              exit={{ scale: 0.92, opacity: 0 }}
               className="bg-[var(--color-bg)] rounded-2xl p-6 w-full max-w-3xl shadow-2xl"
             >
-              {/* Modal Header */}
+              {/* Modal header */}
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-xl font-bold text-[var(--color-text)]">
                     Crop Image
                   </h2>
                   <p className="text-sm text-[var(--color-gray)] mt-0.5">
-                    Drag to reposition the crop area
+                    Drag freely — any shape works. Width will always be ≥
+                    height.
                   </p>
                 </div>
                 <button
@@ -418,14 +542,15 @@ const AddHero = () => {
                 </button>
               </div>
 
-              {/* Crop area */}
-              <div className="flex justify-center rounded-xl bg-[var(--color-active-bg)] p-2">
+              {/* Crop area — NO fixed aspect ratio */}
+              <div className="flex justify-center rounded-xl bg-[var(--color-active-bg)] p-2 max-h-[65vh] overflow-auto">
                 <ReactCrop
                   crop={crop}
                   onChange={(c) => setCrop(c)}
                   onComplete={(c) => setCompletedCrop(c)}
-                  minWidth={100}
-                  aspect={16 / 9}
+                  minWidth={80}
+                  minHeight={40}
+                  // aspect is intentionally NOT set → free crop
                 >
                   <img
                     ref={imgRef}
@@ -434,7 +559,7 @@ const AddHero = () => {
                     onLoad={onImageLoad}
                     style={{
                       maxWidth: "100%",
-                      maxHeight: "70vh",
+                      maxHeight: "60vh",
                       objectFit: "contain",
                     }}
                   />
@@ -445,17 +570,26 @@ const AddHero = () => {
               <div className="flex gap-3 mt-4">
                 <Button
                   onClick={() => setIsCropping(false)}
-                  className="flex-1 py-3 rounded  font-semibold bg-red-500 transition-all"
+                  className="flex-1 py-3 rounded font-semibold bg-red-500 transition-all"
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={handleCropConfirm}
-                  disabled={!completedCrop}
+                  disabled={!completedCrop || isConverting}
                   className="flex-1 py-3 text-md md:text-xl rounded justify-center gap-2 disabled:opacity-50 transition-all"
                 >
-                  <Check className="w-5 h-5" />
-                  Crop
+                  {isConverting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Converting…
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-5 h-5" />
+                      Confirm Crop
+                    </>
+                  )}
                 </Button>
               </div>
             </motion.div>

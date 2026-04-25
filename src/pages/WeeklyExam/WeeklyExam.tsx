@@ -45,19 +45,36 @@ const normalizeImages = (images: RawImage[]): NormalizedImage[] =>
 const sortExamNumbers = (nums: string[]): string[] =>
   [...nums].sort((a, b) => Number(a) - Number(b));
 
-const getLastSaturdayMidnight = (): Date => {
-  const dhaka = new Date(
+const isInExamViewWindow = (): boolean => {
+  const now = new Date(
     new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka" }),
   );
+  const day = now.getDay();
+  const hour = now.getHours();
+  const NOON = 12;
 
-  const day = dhaka.getDay();
-  const daysBack = day === 6 ? 0 : day + 1;
+  // Thursday 12pm থেকে Saturday 12pm পর্যন্ত
+  if (day === 4 && hour >= NOON) return true; // বৃহস্পতিবার দুপুর ১২টার পর
+  if (day === 5) return true; // শুক্রবার সারাদিন
+  if (day === 6 && hour < NOON) return true; // শনিবার দুপুর ১২টার আগে
 
-  const sat = new Date(dhaka);
-  sat.setDate(sat.getDate() - daysBack);
-  sat.setHours(0, 0, 0, 0);
+  return false;
+};
 
-  return sat;
+const getThursdayMidnightStart = (): Date => {
+  const now = new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka" }),
+  );
+  const day = now.getDay();
+
+  const daysBack =
+    day === 4 ? 0 : day === 5 ? 1 : day === 6 ? 2 : day === 0 ? 3 : day + 3;
+
+  const thursday = new Date(now);
+  thursday.setDate(thursday.getDate() - daysBack);
+  thursday.setHours(0, 0, 0, 0); // midnight, না noon
+
+  return thursday;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -223,8 +240,20 @@ const WeeklyExam = () => {
   const shouldShowNextExam = useMemo(() => {
     if (!latestExamCreatedAt) return false;
 
-    const lastSat = getLastSaturdayMidnight();
-    return latestExamCreatedAt.getTime() < lastSat.getTime();
+    const thursdayNoon = getThursdayMidnightStart();
+
+    console.log("latestExamCreatedAt:", latestExamCreatedAt);
+    console.log("thursdayNoon:", thursdayNoon);
+    console.log("isInWindow:", isInExamViewWindow());
+    console.log(
+      "examIsFromThisWeek:",
+      latestExamCreatedAt.getTime() >= thursdayNoon.getTime(),
+    );
+
+    if (!isInExamViewWindow()) return false;
+    const examIsFromThisWeek =
+      latestExamCreatedAt.getTime() >= thursdayNoon.getTime();
+    return !examIsFromThisWeek;
   }, [latestExamCreatedAt]);
 
   const displayExamNumbers = useMemo(() => {
@@ -313,6 +342,16 @@ const WeeklyExam = () => {
 
   const groupedByClass = useMemo(() => {
     let filtered = examNumberFilteredData;
+
+    console.log("examNumberFilteredData:", examNumberFilteredData.length);
+    console.log("selectedTeacher:", selectedTeacher);
+    console.log("selectedClass:", selectedClass);
+    console.log(
+      "filtered after teacher:",
+      filtered.filter(
+        (e) => selectedTeacher === "all" || e.teacherSlug === selectedTeacher,
+      ).length,
+    );
 
     if (selectedTeacher !== "all") {
       filtered = filtered.filter((e) => e.teacherSlug === selectedTeacher);
