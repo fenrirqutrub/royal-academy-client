@@ -145,7 +145,7 @@ const Complain = () => {
     <div className="p-5 mx-auto min-h-screen">
       {/* Header */}
       <div className="mb-6">
-        <h2 className="text-xl font-semibold text-[var(--color-text)]">
+        <h2 className="text-xl md:text-3xl font-semibold text-[var(--color-text)]">
           অভিযোগ সমূহ
           {data && (
             <span className="ml-2 text-sm font-normal text-[var(--color-gray)]">
@@ -157,7 +157,7 @@ const Complain = () => {
 
       {/* List */}
       {!paginated?.length ? (
-        <p className="text-center text-sm text-[var(--color-gray)] py-16">
+        <p className="text-center text-sm md:text-lg text-[var(--color-gray)] py-16">
           কোনো অভিযোগ নেই
         </p>
       ) : (
@@ -177,12 +177,12 @@ const Complain = () => {
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <p className="text-sm font-semibold text-[var(--color-text)] truncate">
+                  <p className="text-sm md:text-lg font-semibold text-[var(--color-text)] truncate">
                     {c.postedBy?.name ?? "অজানা"}
                   </p>
                   {c.postedBy?.role === "student" &&
                     c.postedBy?.studentClass && (
-                      <span className="text-[0.65rem] px-1.5 py-0.5 rounded border border-[var(--color-active-border)] text-[var(--color-gray)] shrink-0">
+                      <span className="text-sm md:text-lg px-1.5 py-0.5 rounded border border-[var(--color-active-border)] text-[var(--color-gray)] shrink-0">
                         {c.postedBy.studentClass}
                       </span>
                     )}
@@ -220,7 +220,7 @@ const Complain = () => {
           onClick={(e) => e.stopPropagation()}
         >
           {selected && (
-            <>
+            <div>
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-active-border)] sticky top-0 bg-[var(--color-bg)] z-10">
                 <div className="flex items-center gap-3">
@@ -312,7 +312,7 @@ const Complain = () => {
                   })}
                 </p>
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>
