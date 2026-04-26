@@ -2,15 +2,12 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axiosPublic from "../../hooks/axiosPublic";
 import Skeleton from "../common/Skeleton";
-import {
-  type Teacher,
-  type SessionSummary,
-  TeacherCard,
-} from "./TeacherFiles.Ui";
+import { type Teacher, TeacherCard } from "./TeacherFiles.Ui";
 import SearchBar from "../common/Searchbar";
 import EmptyState from "../common/Emptystate";
 import { useAuth } from "../../context/AuthContext";
 import { toBn } from "../../utility/Formatters";
+import type { SessionSummary } from "../common/SessionSections";
 
 const TeacherFiles = () => {
   const [search, setSearch] = useState("");
