@@ -12,17 +12,21 @@ import {
   Trash2,
   AlertTriangle,
   Monitor,
-  Wifi,
-  Cpu,
   Clock,
 } from "lucide-react";
-
 import PersonModal, {
   InfoRow,
   Section,
   formatDOB,
 } from "../common/PersonModal";
 import { Avatar } from "../common/Avatar";
+import {
+  SessionInfoSections,
+  type SessionSummary,
+  formatBrowser,
+  formatDateTime,
+  formatLocation,
+} from "../common/SessionSections";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface Teacher {
@@ -56,84 +60,6 @@ export interface Teacher {
   permanentDivision?: string | null;
   avatar?: { url: string | null };
   isHardcoded?: boolean;
-}
-
-export interface SessionSummary {
-  _id: string;
-  name?: string | null;
-  role?: string | null;
-  slug?: string | null;
-  totalLogins?: number;
-  totalActiveSeconds?: number;
-  totalActiveMinutes?: number;
-  lastLoginAt?: string | null;
-  lastActiveAt?: string | null;
-  lastDevice?: {
-    vendor?: string | null;
-    model?: string | null;
-    type?: string | null;
-  };
-  lastOS?: {
-    name?: string | null;
-    version?: string | null;
-  };
-  lastBrowser?: {
-    name?: string | null;
-    version?: string | null;
-  };
-  lastIP?: string | null;
-  lastHardware?: {
-    screenWidth?: number | null;
-    screenHeight?: number | null;
-    colorDepth?: number | null;
-    pixelRatio?: number | null;
-    ram?: number | null;
-    cpuCores?: number | null;
-    isTouchScreen?: boolean | null;
-    maxTouchPoints?: number | null;
-    language?: string | null;
-    languages?: string[];
-    timezone?: string | null;
-    timezoneOffset?: number | null;
-    platform?: string | null;
-    cookiesEnabled?: boolean | null;
-    doNotTrack?: string | null;
-    pdfViewerEnabled?: boolean | null;
-    webglVendor?: string | null;
-    webglRenderer?: string | null;
-    screenResolution?: string | null;
-    availableResolution?: string | null;
-    colorGamut?: string | null;
-    hdr?: boolean | null;
-    prefersDark?: boolean | null;
-    prefersReducedMotion?: boolean | null;
-    touchSupport?: boolean | null;
-    pointerType?: string | null;
-    fonts?: string[];
-    plugins?: string[];
-  };
-  lastNetwork?: {
-    type?: string | null;
-    effectiveType?: string | null;
-    downlink?: number | null;
-    rtt?: number | null;
-    saveData?: boolean | null;
-  };
-  lastBattery?: {
-    level?: number | null;
-    charging?: boolean | null;
-  };
-  lastViewport?: {
-    width?: number | null;
-    height?: number | null;
-    outerWidth?: number | null;
-    outerHeight?: number | null;
-  };
-  lastOrientation?: {
-    angle?: number | null;
-    type?: string | null;
-  };
-  isOnline?: boolean;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -177,295 +103,6 @@ const YEAR_LABEL: Record<string, string> = {
   ma: "এমএ",
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-const joinValues = (
-  arr?: Array<string | number | null | undefined>,
-): string | null => {
-  const clean = (arr ?? []).filter(
-    (v) => v !== null && v !== undefined && String(v).trim() !== "",
-  );
-  return clean.length ? clean.join(", ") : null;
-};
-
-const boolText = (v?: boolean | null) =>
-  v === null || v === undefined ? null : v ? "হ্যাঁ" : "না";
-
-const formatDateTime = (value?: string | null) => {
-  if (!value) return null;
-  const d = new Date(value);
-  if (isNaN(d.getTime())) return null;
-  return d.toLocaleString("bn-BD", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
-const formatBrowser = (b?: SessionSummary["lastBrowser"]) =>
-  joinValues([b?.name, b?.version]);
-
-const formatOS = (o?: SessionSummary["lastOS"]) =>
-  joinValues([o?.name, o?.version]);
-
-const formatDevice = (d?: SessionSummary["lastDevice"]) =>
-  joinValues([d?.vendor, d?.model, d?.type]);
-
-const formatScreen = (w?: number | null, h?: number | null) =>
-  w || h ? `${w ?? "—"} × ${h ?? "—"}` : null;
-
-const formatViewport = (v?: SessionSummary["lastViewport"]) =>
-  v?.width || v?.height ? `${v.width ?? "—"} × ${v.height ?? "—"}` : null;
-
-const formatOuterViewport = (v?: SessionSummary["lastViewport"]) =>
-  v?.outerWidth || v?.outerHeight
-    ? `${v.outerWidth ?? "—"} × ${v.outerHeight ?? "—"}`
-    : null;
-
-const formatBattery = (b?: SessionSummary["lastBattery"]) => {
-  if (!b) return null;
-  if (b.level == null && b.charging == null) return null;
-  return `${b.level ?? "—"}%${b.charging === true ? " · চার্জ হচ্ছে" : b.charging === false ? " · চার্জ হচ্ছে না" : ""}`;
-};
-
-const formatOrientation = (o?: SessionSummary["lastOrientation"]) => {
-  if (!o) return null;
-  return joinValues([
-    o.type ?? null,
-    o.angle !== null && o.angle !== undefined ? `${o.angle}°` : null,
-  ]);
-};
-
-// ── Session sections ──────────────────────────────────────────────────────────
-const SessionInfoSections = ({
-  sessionInfo,
-  color,
-}: {
-  sessionInfo?: SessionSummary | null;
-  color: string;
-}) => {
-  if (!sessionInfo) {
-    return (
-      <Section
-        title="ডিভাইস / সেশন তথ্য"
-        color={color + "0a"}
-        borderColor={color + "33"}
-        titleColor={color}
-        icon={<Monitor className="w-3 h-3" />}
-      >
-        <p className="text-xs bangla text-[var(--color-gray)]">
-          এখনো কোনো সেশন তথ্য পাওয়া যায়নি।
-        </p>
-      </Section>
-    );
-  }
-
-  const hw = sessionInfo.lastHardware;
-  const nw = sessionInfo.lastNetwork;
-  const bt = sessionInfo.lastBattery;
-  const vp = sessionInfo.lastViewport;
-  const or = sessionInfo.lastOrientation;
-
-  const hasDeviceSection =
-    formatBrowser(sessionInfo.lastBrowser) ||
-    formatOS(sessionInfo.lastOS) ||
-    formatDevice(sessionInfo.lastDevice) ||
-    sessionInfo.lastIP;
-
-  const hasHardwareSection =
-    hw?.screenResolution ||
-    formatScreen(hw?.screenWidth, hw?.screenHeight) ||
-    hw?.availableResolution ||
-    hw?.colorDepth != null ||
-    hw?.pixelRatio != null ||
-    hw?.ram != null ||
-    hw?.cpuCores != null ||
-    hw?.language ||
-    joinValues(hw?.languages) ||
-    hw?.timezone ||
-    hw?.timezoneOffset != null ||
-    hw?.platform ||
-    hw?.webglVendor ||
-    hw?.webglRenderer ||
-    hw?.colorGamut ||
-    hw?.pointerType ||
-    joinValues(hw?.fonts) ||
-    joinValues(hw?.plugins) ||
-    boolText(hw?.isTouchScreen) ||
-    boolText(hw?.touchSupport) ||
-    boolText(hw?.cookiesEnabled) ||
-    boolText(hw?.pdfViewerEnabled) ||
-    boolText(hw?.hdr) ||
-    boolText(hw?.prefersDark) ||
-    boolText(hw?.prefersReducedMotion);
-
-  const hasNetworkSection =
-    nw?.type ||
-    nw?.effectiveType ||
-    nw?.downlink != null ||
-    nw?.rtt != null ||
-    nw?.saveData != null ||
-    formatBattery(bt) ||
-    formatViewport(vp) ||
-    formatOuterViewport(vp) ||
-    formatOrientation(or);
-
-  return (
-    <>
-      <Section
-        title="সেশন সারাংশ"
-        color="rgba(34,197,94,0.06)"
-        borderColor="rgba(34,197,94,0.2)"
-        titleColor="#22c55e"
-        icon={<Clock className="w-3 h-3" />}
-      >
-        <InfoRow
-          label="অবস্থা"
-          value={sessionInfo.isOnline ? "অনলাইন" : "অফলাইন"}
-        />
-        <InfoRow
-          label="মোট লগইন"
-          value={
-            sessionInfo.totalLogins != null
-              ? String(sessionInfo.totalLogins)
-              : null
-          }
-        />
-        <InfoRow
-          label="সক্রিয় সময়"
-          value={
-            sessionInfo.totalActiveMinutes != null
-              ? `${sessionInfo.totalActiveMinutes} মিনিট`
-              : null
-          }
-        />
-        <InfoRow
-          label="শেষ লগইন"
-          value={formatDateTime(sessionInfo.lastLoginAt)}
-        />
-        <InfoRow
-          label="শেষ সক্রিয়"
-          value={formatDateTime(sessionInfo.lastActiveAt)}
-        />
-      </Section>
-
-      {hasDeviceSection && (
-        <Section
-          title="ডিভাইস ও ব্রাউজার"
-          color="rgba(59,130,246,0.06)"
-          borderColor="rgba(59,130,246,0.2)"
-          titleColor="#3b82f6"
-          icon={<Monitor className="w-3 h-3" />}
-        >
-          <InfoRow
-            label="ব্রাউজার"
-            value={formatBrowser(sessionInfo.lastBrowser)}
-          />
-          <InfoRow label="OS" value={formatOS(sessionInfo.lastOS)} />
-          <InfoRow
-            label="ডিভাইস"
-            value={formatDevice(sessionInfo.lastDevice)}
-          />
-          <InfoRow label="IP" value={sessionInfo.lastIP} />
-        </Section>
-      )}
-
-      {hasHardwareSection && (
-        <Section
-          title="হার্ডওয়্যার ও পরিবেশ"
-          color="rgba(139,92,246,0.06)"
-          borderColor="rgba(139,92,246,0.2)"
-          titleColor="#8b5cf6"
-          icon={<Cpu className="w-3 h-3" />}
-        >
-          <InfoRow label="স্ক্রিন" value={hw?.screenResolution} />
-          <InfoRow
-            label="স্ক্রিন (W×H)"
-            value={formatScreen(hw?.screenWidth, hw?.screenHeight)}
-          />
-          <InfoRow label="Available" value={hw?.availableResolution} />
-          <InfoRow
-            label="Color depth"
-            value={hw?.colorDepth != null ? String(hw.colorDepth) : null}
-          />
-          <InfoRow
-            label="Pixel ratio"
-            value={hw?.pixelRatio != null ? String(hw.pixelRatio) : null}
-          />
-          <InfoRow
-            label="RAM"
-            value={hw?.ram != null ? `${hw.ram} GB` : null}
-          />
-          <InfoRow
-            label="CPU cores"
-            value={hw?.cpuCores != null ? String(hw.cpuCores) : null}
-          />
-          <InfoRow label="Touch screen" value={boolText(hw?.isTouchScreen)} />
-          <InfoRow label="Touch support" value={boolText(hw?.touchSupport)} />
-          <InfoRow
-            label="Max touch"
-            value={
-              hw?.maxTouchPoints != null ? String(hw.maxTouchPoints) : null
-            }
-          />
-          <InfoRow label="Language" value={hw?.language} />
-          <InfoRow label="Languages" value={joinValues(hw?.languages)} />
-          <InfoRow label="Timezone" value={hw?.timezone} />
-          <InfoRow
-            label="TZ offset"
-            value={
-              hw?.timezoneOffset != null ? String(hw.timezoneOffset) : null
-            }
-          />
-          <InfoRow label="Platform" value={hw?.platform} />
-          <InfoRow label="Cookies" value={boolText(hw?.cookiesEnabled)} />
-          <InfoRow label="DNT" value={hw?.doNotTrack} />
-          <InfoRow label="PDF viewer" value={boolText(hw?.pdfViewerEnabled)} />
-          <InfoRow label="GPU vendor" value={hw?.webglVendor} />
-          <InfoRow label="GPU renderer" value={hw?.webglRenderer} />
-          <InfoRow label="Color gamut" value={hw?.colorGamut} />
-          <InfoRow label="HDR" value={boolText(hw?.hdr)} />
-          <InfoRow label="Dark mode" value={boolText(hw?.prefersDark)} />
-          <InfoRow
-            label="Reduced motion"
-            value={boolText(hw?.prefersReducedMotion)}
-          />
-          <InfoRow label="Pointer" value={hw?.pointerType} />
-          <InfoRow label="Fonts" value={joinValues(hw?.fonts)} />
-          <InfoRow label="Plugins" value={joinValues(hw?.plugins)} />
-        </Section>
-      )}
-
-      {hasNetworkSection && (
-        <Section
-          title="নেটওয়ার্ক / ব্যাটারি / ভিউপোর্ট"
-          color="rgba(245,158,11,0.06)"
-          borderColor="rgba(245,158,11,0.2)"
-          titleColor="#f59e0b"
-          icon={<Wifi className="w-3 h-3" />}
-        >
-          <InfoRow label="Network type" value={nw?.type} />
-          <InfoRow label="Effective type" value={nw?.effectiveType} />
-          <InfoRow
-            label="Downlink"
-            value={nw?.downlink != null ? `${nw.downlink} Mbps` : null}
-          />
-          <InfoRow
-            label="RTT"
-            value={nw?.rtt != null ? `${nw.rtt} ms` : null}
-          />
-          <InfoRow label="Save data" value={boolText(nw?.saveData)} />
-          <InfoRow label="Battery" value={formatBattery(bt)} />
-          <InfoRow label="Viewport" value={formatViewport(vp)} />
-          <InfoRow label="Outer viewport" value={formatOuterViewport(vp)} />
-          <InfoRow label="Orientation" value={formatOrientation(or)} />
-        </Section>
-      )}
-    </>
-  );
-};
-
 // ══════════════════════════════════════════════════
 // DELETE CONFIRM MODAL
 // ══════════════════════════════════════════════════
@@ -506,12 +143,10 @@ const DeleteConfirmModal = ({
         }}
       >
         <div className="h-[3px] bg-rose-500" />
-
         <div className="p-6">
           <div className="flex items-center justify-center w-12 h-12 rounded-2xl mx-auto mb-4 bg-rose-500/10 border border-rose-500/20">
             <AlertTriangle className="w-6 h-6 text-rose-500" />
           </div>
-
           <h3
             className="text-lg font-bold text-center bangla mb-1"
             style={{ color: "var(--color-text)" }}
@@ -524,7 +159,6 @@ const DeleteConfirmModal = ({
           >
             নিচের শিক্ষককে স্থায়ীভাবে মুছে ফেলা হবে:
           </p>
-
           <div
             className="flex items-center gap-3 rounded-xl p-3 mt-3 mb-5"
             style={{
@@ -553,7 +187,6 @@ const DeleteConfirmModal = ({
               </p>
             </div>
           </div>
-
           <div className="flex gap-3">
             <button
               onClick={onCancel}
@@ -572,7 +205,7 @@ const DeleteConfirmModal = ({
               className="flex-1 py-2.5 rounded-xl text-sm font-semibold bangla transition-all flex items-center justify-center gap-2 disabled:opacity-60"
               style={{
                 backgroundColor: isDeleting
-                  ? "rgb(239,68,68,0.6)"
+                  ? "rgba(239,68,68,0.6)"
                   : "rgb(239,68,68)",
                 color: "#fff",
               }}
@@ -591,7 +224,9 @@ const DeleteConfirmModal = ({
   );
 };
 
-// ── TeacherModal ──────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════
+// TEACHER MODAL
+// ══════════════════════════════════════════════════
 export const TeacherModal = ({
   teacher,
   sessionInfo,
@@ -678,7 +313,7 @@ export const TeacherModal = ({
                     color: sessionInfo.isOnline ? "#22c55e" : "#94a3b8",
                   }}
                 >
-                  {sessionInfo.isOnline ? "অনলাইন" : "অফলাইন"}
+                  {sessionInfo.isOnline ? "🟢 অনলাইন" : "⚫ অফলাইন"}
                 </span>
               )}
             </div>
@@ -686,6 +321,7 @@ export const TeacherModal = ({
         </>
       }
     >
+      {/* ── মূল তথ্য ── */}
       <Section
         title="মূল তথ্য"
         color="var(--color-active-bg)"
@@ -704,6 +340,7 @@ export const TeacherModal = ({
         <InfoRow label="জরুরি" value={teacher.emergencyContact} />
       </Section>
 
+      {/* ── শিক্ষাগত যোগ্যতা ── */}
       {hasEducation && (
         <Section
           title="শিক্ষাগত যোগ্যতা"
@@ -742,6 +379,7 @@ export const TeacherModal = ({
         </Section>
       )}
 
+      {/* ── বর্তমান ঠিকানা ── */}
       {hasPresent && (
         <Section
           title="বর্তমান ঠিকানা"
@@ -759,6 +397,7 @@ export const TeacherModal = ({
         </Section>
       )}
 
+      {/* ── স্থায়ী ঠিকানা ── */}
       {hasPermanent && (
         <Section
           title="স্থায়ী ঠিকানা"
@@ -786,7 +425,12 @@ export const TeacherModal = ({
         </Section>
       )}
 
-      <SessionInfoSections sessionInfo={sessionInfo} color={color} />
+      {/* ── Session Info (বর্তমান + ইতিহাস) ── */}
+      <SessionInfoSections
+        userId={teacher._id}
+        sessionInfo={sessionInfo}
+        accent={color}
+      />
     </PersonModal>
   );
 };
@@ -850,12 +494,16 @@ export const TeacherCard = ({
           border: "1px solid var(--color-active-border)",
         }}
       >
+        {/* top accent bar */}
         <div
           className="h-1.5"
-          style={{ background: `linear-gradient(90deg,${color},${color}40)` }}
+          style={{
+            background: `linear-gradient(90deg,${color},${color}40)`,
+          }}
         />
 
         <div className="p-4 flex flex-col flex-1">
+          {/* avatar + name */}
           <div className="flex items-start gap-3 mb-4">
             <Avatar
               name={teacher.name}
@@ -894,6 +542,7 @@ export const TeacherCard = ({
                     #{teacher.slug}
                   </span>
                 )}
+                {/* online badge */}
                 {sessionInfo && (
                   <span
                     className="text-[9px] px-1.5 py-0.5 rounded font-bold bangla"
@@ -911,10 +560,12 @@ export const TeacherCard = ({
             </div>
           </div>
 
+          {/* info rows */}
           <div
             className="space-y-2.5 pt-3 flex-1"
             style={{ borderTop: "1px solid var(--color-active-border)" }}
           >
+            {/* education */}
             <div className="flex items-center gap-2.5">
               <div
                 className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
@@ -969,6 +620,19 @@ export const TeacherCard = ({
               </div>
             )}
 
+            {/* IP location */}
+            {sessionInfo?.lastLocation?.city && (
+              <div className="flex items-center gap-2.5">
+                <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 bg-[rgba(16,185,129,0.1)]">
+                  <MapPin className="w-3 h-3" style={{ color: "#10b981" }} />
+                </div>
+                <span className="text-xs bangla text-[var(--color-gray)] truncate">
+                  📍 {formatLocation(sessionInfo.lastLocation)}
+                </span>
+              </div>
+            )}
+
+            {/* browser */}
             {sessionInfo?.lastBrowser?.name && (
               <div className="flex items-center gap-2.5">
                 <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 bg-[rgba(59,130,246,0.1)]">
@@ -980,6 +644,7 @@ export const TeacherCard = ({
               </div>
             )}
 
+            {/* last active */}
             {sessionInfo?.lastActiveAt && (
               <div className="flex items-center gap-2.5">
                 <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 bg-[rgba(245,158,11,0.12)]">
@@ -992,11 +657,12 @@ export const TeacherCard = ({
             )}
           </div>
 
+          {/* action buttons */}
           <div className="mt-4 flex gap-2">
             <button
               type="button"
               onClick={() => setModalOpen(true)}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bangla cursor-pointer transition-all bg-transparent text-[var(--color-gray)] border border-[var(--color-active-border)] "
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bangla cursor-pointer transition-all bg-transparent text-[var(--color-gray)] border border-[var(--color-active-border)]"
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = color + "88";
                 e.currentTarget.style.color = color;

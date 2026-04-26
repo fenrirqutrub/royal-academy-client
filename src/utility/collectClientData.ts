@@ -1,5 +1,4 @@
 // src/utility/collectClientData.ts
-// Browser থেকে যা যা পাওয়া সম্ভব সব collect করে — সবই optional, error হলে silent fail
 
 export interface ClientHardware {
   screenWidth: number | null;
@@ -18,7 +17,6 @@ export interface ClientHardware {
   cookiesEnabled: boolean | null;
   doNotTrack: string | null;
   pdfViewerEnabled: boolean | null;
-  // ✅ New fields
   webglVendor: string | null;
   webglRenderer: string | null;
   screenResolution: string | null;
@@ -31,6 +29,11 @@ export interface ClientHardware {
   pointerType: string | null;
   fonts: string[];
   plugins: string[];
+  maxTextureSize: number | null;
+  antialiasSupport: boolean | null;
+  audioSampleRate: number | null;
+  performanceMemory: number | null;
+  canvasFingerprint: string | null;
 }
 
 export interface ClientNetwork {
@@ -67,21 +70,38 @@ export interface ClientData {
 }
 
 // ── WebGL helpers ─────────────────────────────────────────────────────────────
-const getWebGLInfo = (): { vendor: string | null; renderer: string | null } => {
+const getWebGLInfo = (): {
+  vendor: string | null;
+  renderer: string | null;
+  maxTextureSize: number | null;
+  antialiasSupport: boolean | null;
+} => {
   try {
     const canvas = document.createElement("canvas");
     const gl =
       canvas.getContext("webgl") ||
       (canvas.getContext("experimental-webgl") as WebGLRenderingContext | null);
-    if (!gl) return { vendor: null, renderer: null };
+    if (!gl)
+      return {
+        vendor: null,
+        renderer: null,
+        maxTextureSize: null,
+        antialiasSupport: null,
+      };
     const ext = gl.getExtension("WEBGL_debug_renderer_info");
-    if (!ext) return { vendor: null, renderer: null };
     return {
-      vendor: gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) ?? null,
-      renderer: gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) ?? null,
+      vendor: ext ? gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) : null,
+      renderer: ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : null,
+      maxTextureSize: gl.getParameter(gl.MAX_TEXTURE_SIZE) ?? null,
+      antialiasSupport: gl.getContextAttributes()?.antialias ?? null,
     };
   } catch {
-    return { vendor: null, renderer: null };
+    return {
+      vendor: null,
+      renderer: null,
+      maxTextureSize: null,
+      antialiasSupport: null,
+    };
   }
 };
 
@@ -117,9 +137,7 @@ const detectFonts = (): string[] => {
       const w = ctx.measureText(testStr).width;
       if (w !== baselineWidth) available.push(font);
     });
-  } catch (err) {
-    console.error(err);
-  }
+  } catch {}
   return available;
 };
 
@@ -140,6 +158,66 @@ const mqMatch = (q: string): boolean => {
     return window.matchMedia(q).matches;
   } catch {
     return false;
+  }
+};
+
+// ── Audio sample rate ─────────────────────────────────────────────────────────
+const getAudioSampleRate = (): number | null => {
+  try {
+    const ctx = new (
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext })
+        .webkitAudioContext
+    )();
+    const rate = ctx.sampleRate;
+    ctx.close().catch(() => {});
+    return rate ?? null;
+  } catch {
+    return null;
+  }
+};
+
+// ── Performance memory (Chrome only) ──────────────────────────────────────────
+const getPerformanceMemory = (): number | null => {
+  try {
+    const perf = performance as Performance & {
+      memory?: { jsHeapSizeLimit?: number };
+    };
+    return perf.memory?.jsHeapSizeLimit
+      ? Math.round(perf.memory.jsHeapSizeLimit / 1048576)
+      : null;
+  } catch {
+    return null;
+  }
+};
+
+// ── Canvas fingerprint (short hash) ───────────────────────────────────────────
+const getCanvasFingerprint = (): string | null => {
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = 200;
+    canvas.height = 50;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.textBaseline = "top";
+    ctx.font = "14px Arial";
+    ctx.fillStyle = "#f60";
+    ctx.fillRect(0, 0, 200, 50);
+    ctx.fillStyle = "#069";
+    ctx.fillText("Browser fp 🔍", 2, 2);
+    ctx.fillStyle = "rgba(102,204,0,0.7)";
+    ctx.fillText("Canvas test", 4, 18);
+    const dataURL = canvas.toDataURL();
+    // Simple hash
+    let hash = 0;
+    for (let i = 0; i < dataURL.length; i++) {
+      const char = dataURL.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash |= 0;
+    }
+    return hash.toString(36);
+  } catch {
+    return null;
   }
 };
 
@@ -170,7 +248,6 @@ const collectHardware = (): ClientHardware => {
     cookiesEnabled: navigator.cookieEnabled ?? null,
     doNotTrack: navigator.doNotTrack ?? null,
     pdfViewerEnabled: nav.pdfViewerEnabled ?? null,
-    // ✅ New
     webglVendor: webgl.vendor,
     webglRenderer: webgl.renderer,
     screenResolution: window.screen
@@ -195,6 +272,11 @@ const collectHardware = (): ClientHardware => {
         : null,
     fonts: detectFonts(),
     plugins: detectPlugins(),
+    maxTextureSize: webgl.maxTextureSize,
+    antialiasSupport: webgl.antialiasSupport,
+    audioSampleRate: getAudioSampleRate(),
+    performanceMemory: getPerformanceMemory(),
+    canvasFingerprint: getCanvasFingerprint(),
   };
 };
 

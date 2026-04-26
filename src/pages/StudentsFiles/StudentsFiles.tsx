@@ -1,17 +1,14 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axiosPublic from "../../hooks/axiosPublic";
-import {
-  type Student,
-  type SessionSummary,
-  StudentCard,
-} from "./StudentsFiles.Ui";
+import { type Student, StudentCard } from "./StudentsFiles.Ui";
 import SearchBar from "../../components/common/Searchbar";
 import Skeleton from "../../components/common/Skeleton";
 import EmptyState from "../../components/common/Emptystate";
 import { useAuth } from "../../context/AuthContext";
 import Swal from "sweetalert2";
 import { toBn } from "../../utility/Formatters";
+import type { SessionSummary } from "../../components/common/SessionSections";
 
 const StudentsFiles = () => {
   const [search, setSearch] = useState("");
