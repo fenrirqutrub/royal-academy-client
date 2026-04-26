@@ -2,22 +2,47 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axiosPublic from "../../hooks/axiosPublic";
 import { type Student, StudentCard } from "./StudentsFiles.Ui";
+import { type SessionSummary } from "../../components/common/SessionSections";
 import SearchBar from "../../components/common/Searchbar";
 import Skeleton from "../../components/common/Skeleton";
 import EmptyState from "../../components/common/Emptystate";
+import SelectInput from "../../components/common/SelectInput";
 import { useAuth } from "../../context/AuthContext";
 import Swal from "sweetalert2";
 import { toBn } from "../../utility/Formatters";
-import type { SessionSummary } from "../../components/common/SessionSections";
+
+// ── Class order for sorting ───────────────────────────────────────────────────
+const CLASS_ORDER = [
+  "ষষ্ঠ শ্রেণি",
+  "সপ্তম শ্রেণি",
+  "অষ্টম শ্রেণি",
+  "নবম শ্রেণি",
+  "দশম শ্রেণি",
+  "একাদশ শ্রেণি",
+  "দ্বাদশ শ্রেণি",
+];
+
+const CLASS_OPTIONS = [
+  { value: "", label: "সব শ্রেণি" },
+  ...CLASS_ORDER.map((c) => ({ value: c, label: c })),
+];
+
+const getClassIndex = (cls?: string | null): number => {
+  if (!cls) return 999;
+  const idx = CLASS_ORDER.indexOf(cls);
+  return idx === -1 ? 998 : idx;
+};
 
 const StudentsFiles = () => {
   const [search, setSearch] = useState("");
+  const [classFilter, setClassFilter] = useState("");
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
   const canDelete = ["owner", "admin", "principal"].includes(user?.role ?? "");
   const canEdit = ["owner", "admin", "principal"].includes(user?.role ?? "");
 
+  // ── Students query ──
   const {
     data: students = [],
     isLoading,
@@ -33,6 +58,7 @@ const StudentsFiles = () => {
     },
   });
 
+  // ── Session summary query ──
   const { data: sessionSummary = [] } = useQuery<SessionSummary[]>({
     queryKey: ["sessions-summary"],
     queryFn: async () => {
@@ -48,7 +74,7 @@ const StudentsFiles = () => {
     return new Map(sessionSummary.map((s) => [String(s._id), s]));
   }, [sessionSummary]);
 
-  // Delete mutation
+  // ── Delete mutation ──
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       await axiosPublic.delete(`/api/users/${id}`);
@@ -83,7 +109,7 @@ const StudentsFiles = () => {
     },
   });
 
-  // Edit mutation
+  // ── Edit mutation ──
   const editMutation = useMutation({
     mutationFn: async ({
       id,
@@ -123,7 +149,7 @@ const StudentsFiles = () => {
     },
   });
 
-  // Delete handler with SweetAlert2
+  // ── Delete handler ──
   const handleDelete = async (id: string, name: string) => {
     const result = await Swal.fire({
       title: "আপনি কি নিশ্চিত?",
@@ -154,49 +180,96 @@ const StudentsFiles = () => {
       },
       allowOutsideClick: () => !Swal.isLoading(),
     });
-
     return result.isConfirmed;
   };
 
-  // Edit handler
+  // ── Edit handler ──
   const handleEdit = async (id: string, data: Partial<Student>) => {
     await editMutation.mutateAsync({ id, data });
   };
 
-  const filtered = students.filter((s) => {
+  // ── Filter + Sort ──
+  const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return (
-      !q ||
-      s.name?.toLowerCase().includes(q) ||
-      s.phone?.includes(q) ||
-      s.studentClass?.toLowerCase().includes(q) ||
-      s.district?.toLowerCase().includes(q)
-    );
-  });
+
+    return students
+      .filter((s) => {
+        // class filter
+        if (classFilter && s.studentClass !== classFilter) return false;
+        // search filter
+        if (
+          q &&
+          !s.name?.toLowerCase().includes(q) &&
+          !s.phone?.includes(q) &&
+          !s.studentClass?.toLowerCase().includes(q) &&
+          !s.district?.toLowerCase().includes(q)
+        )
+          return false;
+        return true;
+      })
+      .sort(
+        (a, b) => getClassIndex(a.studentClass) - getClassIndex(b.studentClass),
+      );
+  }, [students, search, classFilter]);
+
+  // ── Count per class (for display) ──
+  const classCount = useMemo(() => {
+    if (!classFilter) return students.length;
+    return students.filter((s) => s.studentClass === classFilter).length;
+  }, [students, classFilter]);
 
   return (
     <div className="min-h-screen px-4 sm:px-6 bg-[var(--color-bg)] relative">
-      {/* header */}
-      <div className="mb-7 flex items-end justify-center md:justify-between flex-wrap gap-4">
-        <div>
-          <h2 className="text-xl text-center text-[var(--color-gray)]">
-            মোট{" "}
-            <span className="font-semibold" style={{ color: "#3b82f6" }}>
-              {toBn(students.length)}
-            </span>{" "}
-            জন নিবন্ধিত
+      {/* ── Header ── */}
+      <div className="mb-7 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="text-center md:text-left">
+          <h2 className="text-xl text-[var(--color-gray)]">
+            {classFilter ? (
+              <>
+                <span className="font-semibold" style={{ color: "#3b82f6" }}>
+                  {classFilter}
+                </span>
+                {" — "}
+                <span className="font-semibold" style={{ color: "#3b82f6" }}>
+                  {toBn(classCount)}
+                </span>{" "}
+                জন
+              </>
+            ) : (
+              <>
+                মোট{" "}
+                <span className="font-semibold" style={{ color: "#3b82f6" }}>
+                  {toBn(students.length)}
+                </span>{" "}
+                জন নিবন্ধিত
+              </>
+            )}
           </h2>
         </div>
-        <div className="w-full sm:w-72">
-          <SearchBar
-            value={search}
-            onChange={setSearch}
-            placeholder="নাম, ফোন বা জেলা দিয়ে খুঁজুন..."
-          />
+
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+          {/* Class filter */}
+          <div className="w-full sm:w-52">
+            <SelectInput
+              value={classFilter}
+              onChange={setClassFilter}
+              options={CLASS_OPTIONS}
+              placeholder="সব শ্রেণি"
+            />
+          </div>
+
+          {/* Search */}
+          <div className="w-full sm:w-72">
+            <SearchBar
+              value={search}
+              onChange={setSearch}
+              placeholder="নাম, ফোন বা জেলা দিয়ে খুঁজুন..."
+            />
+          </div>
         </div>
       </div>
 
-      {/* content */}
+      {/* ── Content ── */}
       {isLoading ? (
         <Skeleton variant="student-card" count={6} />
       ) : isError ? (
@@ -205,8 +278,12 @@ const StudentsFiles = () => {
         </div>
       ) : filtered.length === 0 ? (
         <EmptyState
-          query={search}
-          message={!search ? "কোনো ছাত্রছাত্রী পাওয়া যায়নি" : undefined}
+          query={search || classFilter}
+          message={
+            !search && !classFilter
+              ? "কোনো ছাত্রছাত্রী পাওয়া যায়নি"
+              : undefined
+          }
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">

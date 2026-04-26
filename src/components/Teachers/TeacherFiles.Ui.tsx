@@ -453,7 +453,7 @@ export const TeacherCard = ({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const { color, label, handle } =
+  const { color, label } =
     ROLE_CONFIG[teacher.role ?? "teacher"] ?? ROLE_CONFIG.teacher;
 
   const handleDelete = async () => {
@@ -521,42 +521,12 @@ export const TeacherCard = ({
                   style={{ color }}
                 />
               </div>
-              <p className="text-xs mt-0.5 font-mono text-[var(--color-gray)]">
-                @{handle}
+              <p
+                className=" text-xs font-black w-14 py-1 px-3 rounded-full uppercase tracking-widest bangla"
+                style={{ backgroundColor: color + "18", color }}
+              >
+                {label}
               </p>
-              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                <span
-                  className="text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-widest bangla"
-                  style={{ backgroundColor: color + "18", color }}
-                >
-                  {label}
-                </span>
-                {teacher.slug && (
-                  <span
-                    className="text-[9px] font-mono px-1.5 py-0.5 rounded"
-                    style={{
-                      backgroundColor: "var(--color-active-bg)",
-                      color: "var(--color-gray)",
-                    }}
-                  >
-                    #{teacher.slug}
-                  </span>
-                )}
-                {/* online badge */}
-                {sessionInfo && (
-                  <span
-                    className="text-[9px] px-1.5 py-0.5 rounded font-bold bangla"
-                    style={{
-                      backgroundColor: sessionInfo.isOnline
-                        ? "rgba(34,197,94,0.12)"
-                        : "rgba(148,163,184,0.12)",
-                      color: sessionInfo.isOnline ? "#22c55e" : "#94a3b8",
-                    }}
-                  >
-                    {sessionInfo.isOnline ? "অনলাইন" : "অফলাইন"}
-                  </span>
-                )}
-              </div>
             </div>
           </div>
 

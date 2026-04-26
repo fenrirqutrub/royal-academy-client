@@ -291,14 +291,21 @@ const EditModal = ({ student, onSave, onClose }: EditModalProps) => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>শ্রেণি</label>
-                <input
-                  type="text"
+                <select
                   name="studentClass"
                   value={formData.studentClass}
                   onChange={handleChange}
                   className={inputClass}
-                  placeholder="যেমন: দশম"
-                />
+                >
+                  <option value="">নির্বাচন করুন</option>
+                  <option value="ষষ্ঠ শ্রেণি">ষষ্ঠ শ্রেণি</option>
+                  <option value="সপ্তম শ্রেণি">সপ্তম শ্রেণি</option>
+                  <option value="অষ্টম শ্রেণি">অষ্টম শ্রেণি</option>
+                  <option value="নবম শ্রেণি">নবম শ্রেণি</option>
+                  <option value="দশম শ্রেণি">দশম শ্রেণি</option>
+                  <option value="একাদশ শ্রেণি">একাদশ শ্রেণি</option>
+                  <option value="দ্বাদশ শ্রেণি">দ্বাদশ শ্রেণি</option>
+                </select>
               </div>
               <div>
                 <label className={labelClass}>বিভাগ</label>
@@ -312,7 +319,6 @@ const EditModal = ({ student, onSave, onClose }: EditModalProps) => {
                   <option value="বিজ্ঞান">বিজ্ঞান</option>
                   <option value="মানবিক">মানবিক</option>
                   <option value="ব্যবসায় শিক্ষা">ব্যবসায় শিক্ষা</option>
-                  <option value="সাধারণ">সাধারণ</option>
                 </select>
               </div>
               <div>
@@ -431,14 +437,14 @@ const EditModal = ({ student, onSave, onClose }: EditModalProps) => {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 rounded-xl text-sm font-semibold bangla transition-all bg-[var(--color-active-bg)] border border-[var(--color-active-border)] text-[var(--color-gray)]"
+              className="flex-1 py-3 rounded-xl text-sm font-semibold bangla bg-[var(--color-active-bg)] border border-[var(--color-active-border)] text-[var(--color-gray)]"
             >
               বাতিল
             </button>
             <button
               type="submit"
               disabled={isSaving}
-              className="flex-1 py-3 rounded-xl text-sm font-semibold bangla transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+              className="flex-1 py-3 rounded-xl text-sm font-semibold bangla flex items-center justify-center gap-2 disabled:opacity-60"
               style={{ backgroundColor: accent, color: "#fff" }}
             >
               {isSaving ? (
@@ -457,17 +463,22 @@ const EditModal = ({ student, onSave, onClose }: EditModalProps) => {
 };
 
 // ══════════════════════════════════════════════════
-// STUDENT MODAL
+// STUDENT MODAL (Edit/Delete buttons at bottom)
 // ══════════════════════════════════════════════════
 export const StudentModal = ({
   student,
   sessionInfo,
   onClose,
+  onDelete,
+  onEdit,
 }: {
   student: Student;
   sessionInfo?: SessionSummary | null;
   onClose: () => void;
+  onDelete?: (id: string, name: string) => Promise<boolean>;
+  onEdit?: (id: string, data: Partial<Student>) => Promise<void>;
 }) => {
+  const [editOpen, setEditOpen] = useState(false);
   const accent = getAccent(student.gender);
 
   const pAddr = student.permanentSameAsPresent
@@ -489,141 +500,199 @@ export const StudentModal = ({
   const hasPresent = student.gramNam || student.thana || student.district;
   const hasPermanent = pAddr.gram || pAddr.thana || pAddr.district;
 
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    onClose();
+    await onDelete(student._id, student.name);
+  };
+
+  const handleEdit = async (data: Partial<Student>) => {
+    if (!onEdit) return;
+    await onEdit(student._id, data);
+  };
+
   return (
-    <PersonModal
-      onClose={onClose}
-      accentColor={accent}
-      header={
-        <div className="flex flex-col justify-center items-center bangla">
-          <Avatar
-            name={student.name}
-            url={student.avatar?.url}
-            color={accent}
-            size={250}
-          />
-          <div className="min-w-0 text-center">
-            <p className="text-xl md:text-2xl font-bold bangla leading-snug text-[var(--color-text)] mt-5">
-              {student.name}
-            </p>
-            {student.fatherName && (
-              <p className="text-sm bangla mt-0.5 text-[var(--color-gray)]">
-                পিতা: {student.fatherName}
+    <>
+      <PersonModal
+        onClose={onClose}
+        accentColor={accent}
+        header={
+          <div className="flex flex-col justify-center items-center bangla">
+            <Avatar
+              name={student.name}
+              url={student.avatar?.url}
+              color={accent}
+              size={250}
+            />
+            <div className="min-w-0 text-center">
+              <p className="text-xl md:text-2xl font-bold bangla leading-snug text-[var(--color-text)] mt-5">
+                {student.name}
               </p>
-            )}
-            <div className="flex items-center justify-center gap-2 mt-1.5 flex-wrap">
-              {student.slug && (
-                <span className="text-sm font-mono px-1.5 py-0.5 rounded bg-[var(--color-active-bg)] text-[var(--color-gray)]">
-                  #{student.slug}
-                </span>
+              {student.fatherName && (
+                <p className="text-sm bangla mt-0.5 text-[var(--color-gray)]">
+                  পিতা: {student.fatherName}
+                </p>
               )}
-              {student.gender && (
-                <span
-                  className="text-sm px-1.5 py-0.5 rounded font-bold bangla"
-                  style={{ backgroundColor: accent + "18", color: accent }}
-                >
-                  {student.gender}
-                </span>
-              )}
-              {student.religion && (
-                <span className="text-sm px-1.5 py-0.5 rounded font-bold bangla bg-[var(--color-active-bg)] text-[var(--color-gray)]">
-                  {student.religion}
-                </span>
-              )}
-              {sessionInfo && (
-                <span
-                  className="text-sm px-1.5 py-0.5 rounded font-bold bangla"
-                  style={{
-                    backgroundColor: sessionInfo.isOnline
-                      ? "rgba(34,197,94,0.12)"
-                      : "rgba(148,163,184,0.12)",
-                    color: sessionInfo.isOnline ? "#22c55e" : "#94a3b8",
-                  }}
-                >
-                  {sessionInfo.isOnline ? "🟢 অনলাইন" : "⚫ অফলাইন"}
-                </span>
-              )}
+              <div className="flex items-center justify-center gap-2 mt-1.5 flex-wrap">
+                {student.slug && (
+                  <span className="text-sm font-mono px-1.5 py-0.5 rounded bg-[var(--color-active-bg)] text-[var(--color-gray)]">
+                    #{student.slug}
+                  </span>
+                )}
+                {student.gender && (
+                  <span
+                    className="text-sm px-1.5 py-0.5 rounded font-bold bangla"
+                    style={{ backgroundColor: accent + "18", color: accent }}
+                  >
+                    {student.gender}
+                  </span>
+                )}
+                {student.religion && (
+                  <span className="text-sm px-1.5 py-0.5 rounded font-bold bangla bg-[var(--color-active-bg)] text-[var(--color-gray)]">
+                    {student.religion}
+                  </span>
+                )}
+                {sessionInfo && (
+                  <span
+                    className="text-sm px-1.5 py-0.5 rounded font-bold bangla"
+                    style={{
+                      backgroundColor: sessionInfo.isOnline
+                        ? "rgba(34,197,94,0.12)"
+                        : "rgba(148,163,184,0.12)",
+                      color: sessionInfo.isOnline ? "#22c55e" : "#94a3b8",
+                    }}
+                  >
+                    {sessionInfo.isOnline ? "🟢 অনলাইন" : "⚫ অফলাইন"}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      }
-    >
-      {/* ── মূল তথ্য ── */}
-      <Section
-        title="মূল তথ্য"
-        color="var(--color-active-bg)"
-        borderColor="var(--color-active-border)"
+        }
       >
-        <InfoRow label="ফোন" value={student.phone} />
-        <InfoRow label="শ্রেণি" value={student.studentClass} />
-        <InfoRow label="বিভাগ" value={student.studentSubject} />
-        <InfoRow label="রোল" value={student.roll} />
-        <InfoRow label="বিদ্যালয়" value={student.schoolName} />
-        <InfoRow
-          label="জন্ম"
-          value={student.dateOfBirth ? formatDOB(student.dateOfBirth) : null}
+        {/* ── মূল তথ্য ── */}
+        <Section
+          title="মূল তথ্য"
+          color="var(--color-active-bg)"
+          borderColor="var(--color-active-border)"
+        >
+          <InfoRow label="ফোন" value={student.phone} />
+          <InfoRow label="শ্রেণি" value={student.studentClass} />
+          <InfoRow label="বিভাগ" value={student.studentSubject} />
+          <InfoRow label="রোল" value={student.roll} />
+          <InfoRow label="বিদ্যালয়" value={student.schoolName} />
+          <InfoRow
+            label="জন্ম"
+            value={student.dateOfBirth ? formatDOB(student.dateOfBirth) : null}
+          />
+          <InfoRow label="মা" value={student.motherName} />
+          <InfoRow label="জরুরি" value={student.emergencyContact} />
+        </Section>
+
+        {/* ── বর্তমান ঠিকানা ── */}
+        {hasPresent && (
+          <Section
+            title="বর্তমান ঠিকানা"
+            color="rgba(239,68,68,0.06)"
+            borderColor="rgba(239,68,68,0.2)"
+            titleColor="#ef4444"
+            icon={<MapPin className="w-3 h-3" />}
+          >
+            <InfoRow label="গ্রাম" value={student.gramNam} />
+            <InfoRow label="পাড়া" value={student.para} />
+            <InfoRow label="থানা" value={student.thana} />
+            <InfoRow label="জেলা" value={student.district} />
+            <InfoRow label="বিভাগ" value={student.division} />
+            <InfoRow label="চিহ্ন" value={student.landmark} />
+          </Section>
+        )}
+
+        {/* ── স্থায়ী ঠিকানা ── */}
+        {hasPermanent && (
+          <Section
+            title="স্থায়ী ঠিকানা"
+            color="rgba(245,158,11,0.06)"
+            borderColor="rgba(245,158,11,0.2)"
+            titleColor="#f59e0b"
+            icon={<MapPin className="w-3 h-3" />}
+          >
+            {student.permanentSameAsPresent && (
+              <p
+                className="text-[10px] bangla mb-1 px-1 py-0.5 rounded"
+                style={{
+                  backgroundColor: "rgba(245,158,11,0.12)",
+                  color: "#f59e0b",
+                }}
+              >
+                ★ বর্তমান ঠিকানার মতো
+              </p>
+            )}
+            <InfoRow label="গ্রাম" value={pAddr.gram} />
+            <InfoRow label="পাড়া" value={pAddr.para} />
+            <InfoRow label="থানা" value={pAddr.thana} />
+            <InfoRow label="জেলা" value={pAddr.district} />
+            <InfoRow label="বিভাগ" value={pAddr.division} />
+          </Section>
+        )}
+
+        {/* ── Session Info (বর্তমান + ইতিহাস) ── */}
+        <SessionInfoSections
+          userId={student._id}
+          sessionInfo={sessionInfo}
+          accent={accent}
         />
-        <InfoRow label="মা" value={student.motherName} />
-        <InfoRow label="জরুরি" value={student.emergencyContact} />
-      </Section>
 
-      {/* ── বর্তমান ঠিকানা ── */}
-      {hasPresent && (
-        <Section
-          title="বর্তমান ঠিকানা"
-          color="rgba(239,68,68,0.06)"
-          borderColor="rgba(239,68,68,0.2)"
-          titleColor="#ef4444"
-          icon={<MapPin className="w-3 h-3" />}
-        >
-          <InfoRow label="গ্রাম" value={student.gramNam} />
-          <InfoRow label="পাড়া" value={student.para} />
-          <InfoRow label="থানা" value={student.thana} />
-          <InfoRow label="জেলা" value={student.district} />
-          <InfoRow label="বিভাগ" value={student.division} />
-          <InfoRow label="চিহ্ন" value={student.landmark} />
-        </Section>
+        {/* ── Edit / Delete Buttons (Modal নিচে) ── */}
+        {(onEdit || onDelete) && (
+          <div className="flex gap-3 mt-4 pt-4 border-t border-[var(--color-active-border)]">
+            {onEdit && (
+              <button
+                type="button"
+                onClick={() => setEditOpen(true)}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold bangla transition-all"
+                style={{
+                  border: `1px solid ${accent}40`,
+                  color: accent,
+                  backgroundColor: accent + "08",
+                }}
+              >
+                <Edit3 className="w-4 h-4" />
+                সম্পাদনা
+              </button>
+            )}
+            {onDelete && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold bangla transition-all"
+                style={{
+                  border: "1px solid rgba(239,68,68,0.3)",
+                  color: "#ef4444",
+                  backgroundColor: "rgba(239,68,68,0.05)",
+                }}
+              >
+                <Trash2 className="w-4 h-4" />
+                মুছে ফেলুন
+              </button>
+            )}
+          </div>
+        )}
+      </PersonModal>
+
+      {/* Edit Modal */}
+      {editOpen && onEdit && (
+        <EditModal
+          student={student}
+          onSave={handleEdit}
+          onClose={() => setEditOpen(false)}
+        />
       )}
-
-      {/* ── স্থায়ী ঠিকানা ── */}
-      {hasPermanent && (
-        <Section
-          title="স্থায়ী ঠিকানা"
-          color="rgba(245,158,11,0.06)"
-          borderColor="rgba(245,158,11,0.2)"
-          titleColor="#f59e0b"
-          icon={<MapPin className="w-3 h-3" />}
-        >
-          {student.permanentSameAsPresent && (
-            <p
-              className="text-[10px] bangla mb-1 px-1 py-0.5 rounded"
-              style={{
-                backgroundColor: "rgba(245,158,11,0.12)",
-                color: "#f59e0b",
-              }}
-            >
-              ★ বর্তমান ঠিকানার মতো
-            </p>
-          )}
-          <InfoRow label="গ্রাম" value={pAddr.gram} />
-          <InfoRow label="পাড়া" value={pAddr.para} />
-          <InfoRow label="থানা" value={pAddr.thana} />
-          <InfoRow label="জেলা" value={pAddr.district} />
-          <InfoRow label="বিভাগ" value={pAddr.division} />
-        </Section>
-      )}
-
-      {/* ── Session Info (বর্তমান + ইতিহাস) ── */}
-      <SessionInfoSections
-        userId={student._id}
-        sessionInfo={sessionInfo}
-        accent={accent}
-      />
-    </PersonModal>
+    </>
   );
 };
 
 // ══════════════════════════════════════════════════
-// STUDENT CARD
+// STUDENT CARD (No Edit/Delete buttons here)
 // ══════════════════════════════════════════════════
 export const StudentCard = ({
   student,
@@ -639,18 +708,7 @@ export const StudentCard = ({
   onEdit?: (id: string, data: Partial<Student>) => Promise<void>;
 }) => {
   const [modalOpen, setModalOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
   const accent = getAccent(student.gender);
-
-  const handleDelete = async () => {
-    if (!onDelete) return;
-    await onDelete(student._id, student.name);
-  };
-
-  const handleEdit = async (data: Partial<Student>) => {
-    if (!onEdit) return;
-    await onEdit(student._id, data);
-  };
 
   return (
     <>
@@ -669,12 +727,9 @@ export const StudentCard = ({
           border: "1px solid var(--color-active-border)",
         }}
       >
-        {/* top accent bar */}
         <div
           className="h-1.5"
-          style={{
-            background: `linear-gradient(90deg,${accent},${accent}40)`,
-          }}
+          style={{ background: `linear-gradient(90deg,${accent},${accent}40)` }}
         />
 
         <div className="p-4 flex flex-col flex-1">
@@ -715,7 +770,6 @@ export const StudentCard = ({
                     {student.gender}
                   </span>
                 )}
-                {/* online badge */}
                 {sessionInfo && (
                   <span
                     className="text-[9px] px-1.5 py-0.5 rounded font-bold bangla"
@@ -748,7 +802,6 @@ export const StudentCard = ({
                 </span>
               </div>
             )}
-
             {student.studentClass && (
               <div className="flex items-center gap-2.5">
                 <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 bg-[rgba(139,92,246,0.1)]">
@@ -759,7 +812,6 @@ export const StudentCard = ({
                 </span>
               </div>
             )}
-
             {(student.thana || student.gramNam) && (
               <div className="flex items-start gap-2.5">
                 <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 bg-[rgba(239,68,68,0.08)]">
@@ -779,8 +831,6 @@ export const StudentCard = ({
                 </div>
               </div>
             )}
-
-            {/* IP location */}
             {sessionInfo?.lastLocation?.city && (
               <div className="flex items-center gap-2.5">
                 <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 bg-[rgba(16,185,129,0.1)]">
@@ -791,8 +841,6 @@ export const StudentCard = ({
                 </span>
               </div>
             )}
-
-            {/* browser */}
             {sessionInfo?.lastBrowser?.name && (
               <div className="flex items-center gap-2.5">
                 <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 bg-[rgba(59,130,246,0.1)]">
@@ -803,8 +851,6 @@ export const StudentCard = ({
                 </span>
               </div>
             )}
-
-            {/* last active */}
             {sessionInfo?.lastActiveAt && (
               <div className="flex items-center gap-2.5">
                 <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 bg-[rgba(245,158,11,0.12)]">
@@ -817,12 +863,12 @@ export const StudentCard = ({
             )}
           </div>
 
-          {/* action buttons */}
-          <div className="mt-4 flex gap-2">
+          {/* ✅ শুধু "বিস্তারিত" button — Edit/Delete নেই */}
+          <div className="mt-4">
             <button
               type="button"
               onClick={() => setModalOpen(true)}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bangla cursor-pointer transition-all bg-transparent text-[var(--color-gray)] border border-[var(--color-active-border)]"
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bangla cursor-pointer transition-all bg-transparent text-[var(--color-gray)] border border-[var(--color-active-border)]"
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = accent + "88";
                 e.currentTarget.style.color = accent;
@@ -838,81 +884,18 @@ export const StudentCard = ({
               <Eye className="w-3.5 h-3.5" />
               বিস্তারিত
             </button>
-
-            {onEdit && (
-              <motion.button
-                type="button"
-                onClick={() => setEditOpen(true)}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="flex items-center justify-center w-10 h-10 rounded-xl cursor-pointer transition-all shrink-0"
-                style={{
-                  border: "1px solid rgba(59,130,246,0.25)",
-                  color: "rgba(59,130,246,0.7)",
-                  backgroundColor: "rgba(59,130,246,0.05)",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(59,130,246,0.6)";
-                  e.currentTarget.style.color = "rgb(59,130,246)";
-                  e.currentTarget.style.backgroundColor =
-                    "rgba(59,130,246,0.1)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(59,130,246,0.25)";
-                  e.currentTarget.style.color = "rgba(59,130,246,0.7)";
-                  e.currentTarget.style.backgroundColor =
-                    "rgba(59,130,246,0.05)";
-                }}
-                title="সম্পাদনা"
-              >
-                <Edit3 className="w-4 h-4" />
-              </motion.button>
-            )}
-
-            {onDelete && (
-              <motion.button
-                type="button"
-                onClick={handleDelete}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="flex items-center justify-center w-10 h-10 rounded-xl cursor-pointer transition-all shrink-0"
-                style={{
-                  border: "1px solid rgba(239,68,68,0.25)",
-                  color: "rgba(239,68,68,0.6)",
-                  backgroundColor: "rgba(239,68,68,0.05)",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(239,68,68,0.6)";
-                  e.currentTarget.style.color = "rgb(239,68,68)";
-                  e.currentTarget.style.backgroundColor = "rgba(239,68,68,0.1)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(239,68,68,0.25)";
-                  e.currentTarget.style.color = "rgba(239,68,68,0.6)";
-                  e.currentTarget.style.backgroundColor =
-                    "rgba(239,68,68,0.05)";
-                }}
-                title="মুছুন"
-              >
-                <Trash2 className="w-4 h-4" />
-              </motion.button>
-            )}
           </div>
         </div>
       </motion.div>
 
+      {/* Modal — Edit/Delete buttons are inside modal now */}
       {modalOpen && (
         <StudentModal
           student={student}
           sessionInfo={sessionInfo}
           onClose={() => setModalOpen(false)}
-        />
-      )}
-      {editOpen && onEdit && (
-        <EditModal
-          student={student}
-          onSave={handleEdit}
-          onClose={() => setEditOpen(false)}
+          onDelete={onDelete}
+          onEdit={onEdit}
         />
       )}
     </>

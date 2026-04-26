@@ -1,4 +1,19 @@
 // src/utility/collectClientData.ts
+import { UAParser } from "ua-parser-js";
+
+// ── Interface এ যোগ করো ──
+export interface ClientDevice {
+  vendor: string | null;
+  model: string | null;
+  type: string | null;
+  browserName: string | null;
+  browserVersion: string | null;
+  osName: string | null;
+  osVersion: string | null;
+  ua: string | null;
+}
+
+// ── Interfaces ────────────────────────────────────────────────────────────────
 
 export interface ClientHardware {
   screenWidth: number | null;
@@ -67,45 +82,85 @@ export interface ClientData {
   battery: ClientBattery;
   viewport: ClientViewport;
   orientation: ClientOrientation;
+  device: ClientDevice;
+}
+
+// ── Internal types (browser APIs) ─────────────────────────────────────────────
+
+interface NetworkInformation {
+  type?: string;
+  effectiveType?: string;
+  downlink?: number;
+  rtt?: number;
+  saveData?: boolean;
+}
+
+interface BatteryManager {
+  level: number;
+  charging: boolean;
+}
+
+type NavigatorExtended = Navigator & {
+  deviceMemory?: number;
+  connection?: NetworkInformation;
+  mozConnection?: NetworkInformation;
+  webkitConnection?: NetworkInformation;
+  getBattery?: () => Promise<BatteryManager>;
+};
+
+interface PerformanceMemory {
+  jsHeapSizeLimit?: number;
+  totalJSHeapSize?: number;
+  usedJSHeapSize?: number;
+}
+
+interface PerformanceExtended extends Performance {
+  memory?: PerformanceMemory;
 }
 
 // ── WebGL helpers ─────────────────────────────────────────────────────────────
-const getWebGLInfo = (): {
+
+interface WebGLInfo {
   vendor: string | null;
   renderer: string | null;
   maxTextureSize: number | null;
   antialiasSupport: boolean | null;
-} => {
+}
+
+const getWebGLInfo = (): WebGLInfo => {
+  const empty: WebGLInfo = {
+    vendor: null,
+    renderer: null,
+    maxTextureSize: null,
+    antialiasSupport: null,
+  };
+
   try {
     const canvas = document.createElement("canvas");
     const gl =
-      canvas.getContext("webgl") ||
+      (canvas.getContext("webgl") as WebGLRenderingContext | null) ||
       (canvas.getContext("experimental-webgl") as WebGLRenderingContext | null);
-    if (!gl)
-      return {
-        vendor: null,
-        renderer: null,
-        maxTextureSize: null,
-        antialiasSupport: null,
-      };
+
+    if (!gl) return empty;
+
     const ext = gl.getExtension("WEBGL_debug_renderer_info");
+    const attrs = gl.getContextAttributes();
+
     return {
-      vendor: ext ? gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) : null,
-      renderer: ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : null,
-      maxTextureSize: gl.getParameter(gl.MAX_TEXTURE_SIZE) ?? null,
-      antialiasSupport: gl.getContextAttributes()?.antialias ?? null,
+      vendor: ext ? String(gl.getParameter(ext.UNMASKED_VENDOR_WEBGL)) : null,
+      renderer: ext
+        ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL))
+        : null,
+      maxTextureSize: Number(gl.getParameter(gl.MAX_TEXTURE_SIZE)) || null,
+      antialiasSupport: attrs?.antialias ?? null,
     };
   } catch {
-    return {
-      vendor: null,
-      renderer: null,
-      maxTextureSize: null,
-      antialiasSupport: null,
-    };
+    return empty;
   }
 };
 
 // ── Font detection ────────────────────────────────────────────────────────────
+
 const detectFonts = (): string[] => {
   const testFonts = [
     "Arial",
@@ -120,6 +175,7 @@ const detectFonts = (): string[] => {
     "Lucida Console",
   ];
   const available: string[] = [];
+
   try {
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
@@ -132,27 +188,35 @@ const detectFonts = (): string[] => {
     ctx.font = `${size}px ${baseline}`;
     const baselineWidth = ctx.measureText(testStr).width;
 
-    testFonts.forEach((font) => {
+    for (const font of testFonts) {
       ctx.font = `${size}px '${font}', ${baseline}`;
       const w = ctx.measureText(testStr).width;
       if (w !== baselineWidth) available.push(font);
-    });
-  } catch {}
+    }
+  } catch {
+    // silent
+  }
+
   return available;
 };
 
 // ── Plugin detection ──────────────────────────────────────────────────────────
+
 const detectPlugins = (): string[] => {
   try {
-    return Array.from(navigator.plugins || [])
-      .map((p) => p.name)
-      .filter(Boolean);
+    const pluginList: string[] = [];
+    for (let i = 0; i < navigator.plugins.length; i++) {
+      const name = navigator.plugins[i]?.name;
+      if (name) pluginList.push(name);
+    }
+    return pluginList;
   } catch {
     return [];
   }
 };
 
 // ── Media query helper ────────────────────────────────────────────────────────
+
 const mqMatch = (q: string): boolean => {
   try {
     return window.matchMedia(q).matches;
@@ -162,13 +226,11 @@ const mqMatch = (q: string): boolean => {
 };
 
 // ── Audio sample rate ─────────────────────────────────────────────────────────
+
 const getAudioSampleRate = (): number | null => {
   try {
-    const ctx = new (
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext: typeof AudioContext })
-        .webkitAudioContext
-    )();
+    if (typeof AudioContext === "undefined") return null;
+    const ctx = new AudioContext();
     const rate = ctx.sampleRate;
     ctx.close().catch(() => {});
     return rate ?? null;
@@ -178,20 +240,19 @@ const getAudioSampleRate = (): number | null => {
 };
 
 // ── Performance memory (Chrome only) ──────────────────────────────────────────
+
 const getPerformanceMemory = (): number | null => {
   try {
-    const perf = performance as Performance & {
-      memory?: { jsHeapSizeLimit?: number };
-    };
-    return perf.memory?.jsHeapSizeLimit
-      ? Math.round(perf.memory.jsHeapSizeLimit / 1048576)
-      : null;
+    const perf = performance as PerformanceExtended;
+    if (!perf.memory?.jsHeapSizeLimit) return null;
+    return Math.round(perf.memory.jsHeapSizeLimit / 1048576);
   } catch {
     return null;
   }
 };
 
 // ── Canvas fingerprint (short hash) ───────────────────────────────────────────
+
 const getCanvasFingerprint = (): string | null => {
   try {
     const canvas = document.createElement("canvas");
@@ -199,16 +260,17 @@ const getCanvasFingerprint = (): string | null => {
     canvas.height = 50;
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
+
     ctx.textBaseline = "top";
     ctx.font = "14px Arial";
     ctx.fillStyle = "#f60";
     ctx.fillRect(0, 0, 200, 50);
     ctx.fillStyle = "#069";
-    ctx.fillText("Browser fp 🔍", 2, 2);
+    ctx.fillText("Browser fp test", 2, 2);
     ctx.fillStyle = "rgba(102,204,0,0.7)";
     ctx.fillText("Canvas test", 4, 18);
+
     const dataURL = canvas.toDataURL();
-    // Simple hash
     let hash = 0;
     for (let i = 0; i < dataURL.length; i++) {
       const char = dataURL.charCodeAt(i);
@@ -222,13 +284,9 @@ const getCanvasFingerprint = (): string | null => {
 };
 
 // ── Hardware collect ──────────────────────────────────────────────────────────
-const collectHardware = (): ClientHardware => {
-  const nav = navigator as Navigator & {
-    deviceMemory?: number;
-    platform?: string;
-    pdfViewerEnabled?: boolean;
-  };
 
+const collectHardware = (): ClientHardware => {
+  const nav = navigator as NavigatorExtended;
   const webgl = getWebGLInfo();
 
   return {
@@ -243,7 +301,7 @@ const collectHardware = (): ClientHardware => {
     language: navigator.language ?? null,
     languages: Array.from(navigator.languages ?? []),
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone ?? null,
-    timezoneOffset: new Date().getTimezoneOffset() ?? null,
+    timezoneOffset: new Date().getTimezoneOffset(),
     platform: nav.platform ?? null,
     cookiesEnabled: navigator.cookieEnabled ?? null,
     doNotTrack: navigator.doNotTrack ?? null,
@@ -281,11 +339,10 @@ const collectHardware = (): ClientHardware => {
 };
 
 // ── Network collect ───────────────────────────────────────────────────────────
+
 const collectNetwork = (): ClientNetwork => {
-  const conn =
-    (navigator as any).connection ??
-    (navigator as any).mozConnection ??
-    (navigator as any).webkitConnection;
+  const nav = navigator as NavigatorExtended;
+  const conn = nav.connection ?? nav.mozConnection ?? nav.webkitConnection;
 
   if (!conn) {
     return {
@@ -307,11 +364,10 @@ const collectNetwork = (): ClientNetwork => {
 };
 
 // ── Battery collect ───────────────────────────────────────────────────────────
+
 const collectBattery = async (): Promise<ClientBattery> => {
   try {
-    const nav = navigator as Navigator & {
-      getBattery?: () => Promise<{ level: number; charging: boolean }>;
-    };
+    const nav = navigator as NavigatorExtended;
     if (!nav.getBattery) return { level: null, charging: null };
     const battery = await nav.getBattery();
     return {
@@ -324,6 +380,7 @@ const collectBattery = async (): Promise<ClientBattery> => {
 };
 
 // ── Viewport collect ──────────────────────────────────────────────────────────
+
 const collectViewport = (): ClientViewport => ({
   width: window.innerWidth ?? null,
   height: window.innerHeight ?? null,
@@ -332,9 +389,10 @@ const collectViewport = (): ClientViewport => ({
 });
 
 // ── Orientation collect ───────────────────────────────────────────────────────
+
 const collectOrientation = (): ClientOrientation => {
   try {
-    const o = screen.orientation as ScreenOrientation | undefined;
+    const o = screen.orientation;
     return {
       angle: o?.angle ?? null,
       type: o?.type ?? null,
@@ -344,7 +402,38 @@ const collectOrientation = (): ClientOrientation => {
   }
 };
 
-// ── Main export ───────────────────────────────────────────────────────────────
+// collectClientData.ts এ যোগ করো
+
+// ── Device collect ────────────────────────────────────────────────────────────
+const collectDevice = (): ClientDevice => {
+  try {
+    const parser = new UAParser(navigator.userAgent);
+    const r = parser.getResult();
+    return {
+      vendor: r.device.vendor ?? null,
+      model: r.device.model ?? null,
+      type: r.device.type ?? "desktop",
+      browserName: r.browser.name ?? null,
+      browserVersion: r.browser.version ?? null,
+      osName: r.os.name ?? null,
+      osVersion: r.os.version ?? null,
+      ua: navigator.userAgent ?? null,
+    };
+  } catch {
+    return {
+      vendor: null,
+      model: null,
+      type: null,
+      browserName: null,
+      browserVersion: null,
+      osName: null,
+      osVersion: null,
+      ua: navigator.userAgent ?? null,
+    };
+  }
+};
+
+// ── Main export update ────────────────────────────────────────────────────────
 export const collectClientData = async (): Promise<ClientData> => {
   const [hardware, network, battery, viewport, orientation] = await Promise.all(
     [
@@ -356,5 +445,9 @@ export const collectClientData = async (): Promise<ClientData> => {
     ],
   );
 
-  return { hardware, network, battery, viewport, orientation };
+  const device = collectDevice();
+
+  return { hardware, network, battery, viewport, orientation, device };
 };
+
+// ── Main export ───────────────────────────────────────────────────────────────
