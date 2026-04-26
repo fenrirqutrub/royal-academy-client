@@ -14,6 +14,8 @@ import {
 } from "../../../utility/AdminSidebarData";
 import { AnimatedAvatar } from "../../../components/common/AnimatedAvatar";
 
+import { useComplain } from "../../../context/ComplainContext";
+
 const buildNav = (role: string): NavItem[] => {
   if (role === "student") return studentNav();
   const isPrivileged = ["admin", "principal", "owner"].includes(role);
@@ -29,6 +31,7 @@ const AdminSidebar = () => {
   const [desktopOpen, setDesktopOpen] = useState(true);
   const { user, logout } = useAuth();
   const { toggleTheme } = useTheme();
+  const { openComplain } = useComplain();
 
   const role = user?.role ?? "teacher";
   const roleConfig = ROLE_CONFIG[role] ?? ROLE_CONFIG.teacher;
@@ -41,6 +44,7 @@ const AdminSidebar = () => {
     onLogout: logout,
     onThemeToggle: toggleTheme,
     onNavClick: () => setMobileOpen(false),
+    onComplain: openComplain,
   };
 
   useEffect(() => {
@@ -67,7 +71,7 @@ const AdminSidebar = () => {
   }, [mobileOpen]);
 
   return (
-    <>
+    <div>
       {/* Mobile Floating Avatar Toggle */}
       <AnimatePresence>
         {!mobileOpen && (
@@ -97,7 +101,7 @@ const AdminSidebar = () => {
       {/* Mobile Sidebar */}
       <AnimatePresence>
         {mobileOpen && (
-          <>
+          <div>
             {/* Dark Overlay - Click to close */}
             <motion.div
               key="backdrop"
@@ -151,7 +155,7 @@ const AdminSidebar = () => {
 
               <SidebarContent {...contentProps} />
             </motion.aside>
-          </>
+          </div>
         )}
       </AnimatePresence>
 
@@ -172,7 +176,7 @@ const AdminSidebar = () => {
           <SidebarContent {...contentProps} />
         </div>
       </motion.aside>
-    </>
+    </div>
   );
 };
 

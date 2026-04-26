@@ -15,16 +15,14 @@ import {
   HomeIcon,
   Sparkles,
   ArrowUpRight,
+  Headset,
 } from "lucide-react";
 import type {
   NavItem,
   SidebarContentProps,
 } from "../../../utility/AdminSidebarData";
 import { AnimatedAvatar } from "../../../components/common/AnimatedAvatar";
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Animation Variants
-// ═══════════════════════════════════════════════════════════════════════════
+import { useComplain } from "../../../context/ComplainContext";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -136,7 +134,6 @@ const NavLink = ({
 
   return (
     <div className="relative">
-      {/* FIX 1 continued: AnimatePresence দিয়ে indicator animate করা হচ্ছে */}
       <AnimatePresence initial={false}>
         {active && <FloatingIndicator key={item.path} />}
       </AnimatePresence>
@@ -171,9 +168,7 @@ const NavLink = ({
               strokeWidth={1.8}
             />
           </motion.span>
-
           <span className="truncate">{item.name}</span>
-
           {active && (
             <motion.div
               initial={{ scale: 0, opacity: 0 }}
@@ -205,7 +200,6 @@ const NavGroup = ({
 
   if (!item.subItems?.length) {
     return (
-      // FIX 2: initial={false} — re-render-এ entrance animation replay হবে না
       <motion.div initial={false} animate={{ opacity: 1, x: 0 }}>
         <NavLink item={item} onNavClick={onNavClick} />
       </motion.div>
@@ -216,7 +210,6 @@ const NavGroup = ({
   const Icon = item.icon;
 
   return (
-    // FIX 2: initial={false} — re-render-এ entrance animation replay হবে না
     <motion.div
       initial={false}
       animate={{ opacity: 1, x: 0 }}
@@ -318,7 +311,7 @@ const ActionButton = ({
     hover:bg-[var(--color-active-bg)] active:scale-95`;
 
   const content = (
-    <>
+    <div className="flex items-center gap-x-1.5">
       <motion.div
         className="absolute inset-0 -translate-x-full opacity-30 pointer-events-none"
         style={{
@@ -341,7 +334,7 @@ const ActionButton = ({
           group-hover:translate-x-0 transition-all duration-200"
         />
       )}
-    </>
+    </div>
   );
 
   if (to) {
@@ -372,10 +365,6 @@ const ActionButton = ({
     </MagneticButton>
   );
 };
-
-// ═══════════════════════════════════════════════════════════════════════════
-// User Card Component
-// ═══════════════════════════════════════════════════════════════════════════
 
 const UserCard = ({
   user,
@@ -443,7 +432,7 @@ const UserCard = ({
           >
             <motion.h3
               className="text-lg font-bold text-[var(--color-text)] 
-                group-hover:text-[var(--color-text-hover)] transition-colors"
+                group-hover:text-red-500 transition-colors"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
@@ -475,9 +464,6 @@ const UserCard = ({
                 />
                 {roleConfig.label}
               </motion.span>
-              <span className="text-[10px] text-[var(--color-gray)] font-mono">
-                #{user?.slug ?? "000"}
-              </span>
             </motion.div>
           </Link>
         </motion.div>
@@ -521,6 +507,7 @@ export const SidebarContent = ({
   onNavClick,
 }: SidebarContentProps) => {
   const [openGroup, setOpenGroup] = useState<number | null>(null);
+  const { openComplain } = useComplain();
 
   return (
     <motion.div
@@ -529,7 +516,6 @@ export const SidebarContent = ({
       initial="hidden"
       animate="visible"
     >
-      {/* User Card */}
       <UserCard
         user={user}
         roleConfig={roleConfig}
@@ -538,7 +524,6 @@ export const SidebarContent = ({
         onNavClick={onNavClick}
       />
 
-      {/* FIX 3: plain <nav> ব্যবহার করা হচ্ছে — motion.nav + variants সরানো হয়েছে */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
         {navGroups.map((group, idx) => (
           <div key={`${group.name}-${idx}`}>
@@ -557,6 +542,23 @@ export const SidebarContent = ({
           </div>
         ))}
       </nav>
+
+      {/* Complain Button */}
+      <div className="px-3 pb-4">
+        <div className="h-px bg-[var(--color-active-border)] mb-2" />
+        <motion.button
+          type="button"
+          onClick={openComplain}
+          whileHover={{ x: 4 }}
+          transition={{ type: "spring", stiffness: 400, damping: 25 }}
+          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium
+      text-[var(--color-gray)] hover:text-[var(--color-text)] hover:bg-[var(--color-active-bg)] 
+      transition-colors duration-200 cursor-pointer"
+        >
+          <Headset className="w-5 h-5 flex-shrink-0" strokeWidth={1.8} />
+          <span>অভিযোগ জানান</span>
+        </motion.button>
+      </div>
     </motion.div>
   );
 };

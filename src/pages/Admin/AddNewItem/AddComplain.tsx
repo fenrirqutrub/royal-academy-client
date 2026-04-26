@@ -47,7 +47,7 @@ const AddComplain = ({ isOpen, onClose }: AddComplainProps) => {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           onClick={!isSubmitting ? onClose : undefined}
-          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center px-4"
+          className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center px-4"
         >
           <motion.div
             initial={{ scale: 0.92, opacity: 0 }}

@@ -11,7 +11,7 @@ import { AuthProvider } from "./context/AuthContext.tsx";
 import ScrollToTopOnReload from "./components/common/ScrollToTopOnReload.tsx";
 import { ProfileDrawerProvider } from "./context/ProfileDrawerContext.tsx";
 import ProfileDrawer from "./components/Navbar/ProfileDrawer.tsx";
-import ComplainBtn from "./pages/Complain/ComplainBtn.tsx";
+import { ComplainProvider } from "./context/ComplainContext.tsx";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -32,12 +32,13 @@ createRoot(document.getElementById("root")!).render(
           <ThemeProvider>
             <AuthProvider>
               <ProfileDrawerProvider>
-                <ProfileDrawer />
-                <Router />
-                <ComplainBtn />
-                <ScrollToTopOnReload />
-                <Toaster position="top-center" />
-                <SpeedInsights />
+                <ComplainProvider>
+                  <ProfileDrawer />
+                  <Router />
+                  <ScrollToTopOnReload />
+                  <Toaster position="top-center" />
+                  <SpeedInsights />
+                </ComplainProvider>
               </ProfileDrawerProvider>
             </AuthProvider>
           </ThemeProvider>
