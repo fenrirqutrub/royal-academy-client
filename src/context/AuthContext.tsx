@@ -1,8 +1,13 @@
+// src/context/AuthContext.tsx
 import { createContext, useContext, useCallback, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axiosPublic, { TOKEN_KEY } from "../hooks/axiosPublic";
 import type { AxiosError } from "axios";
+import {
+  collectClientData,
+  type ClientData,
+} from "../utility/collectClientData";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -97,10 +102,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (phoneOrEmail: string, password: string): Promise<void> => {
+      // ✅ Login এর আগে সব device info collect করো
+      let clientData: ClientData | undefined;
+      try {
+        clientData = await collectClientData();
+      } catch {
+        // silent fail — clientData ছাড়াও login হবে
+      }
+
       const isEmail = phoneOrEmail.includes("@");
       const payload = isEmail
-        ? { email: phoneOrEmail, password }
-        : { phone: phoneOrEmail, password };
+        ? { email: phoneOrEmail, password, clientData }
+        : { phone: phoneOrEmail, password, clientData };
 
       const { data } = await axiosPublic.post<LoginResponse>(
         "/api/auth/login",

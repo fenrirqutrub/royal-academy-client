@@ -137,7 +137,7 @@ const ImageUploadWithEditor = ({
   const isEditorOpen = editingFile !== null;
 
   return (
-    <>
+    <div>
       {/* ── Upload Buttons ── */}
       <div
         className={`grid gap-3 ${allowSkipEdit ? "grid-cols-2" : "grid-cols-1"}`}
@@ -346,7 +346,7 @@ const ImageUploadWithEditor = ({
           onCancel={handleEditorCancel}
         />
       )}
-    </>
+    </div>
   );
 };
 

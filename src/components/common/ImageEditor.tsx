@@ -30,7 +30,7 @@ type AspectOption = {
 };
 
 const ASPECT_OPTIONS: AspectOption[] = [
-  { label: "Free", value: null, labelBn: "ফ্রি" },
+  { label: "Free", value: null, labelBn: "অনুপাত ছাড়া" }, // ← এটুকু বদলান
   { label: "1:1", value: 1, labelBn: "১:১" },
   { label: "4:3", value: 4 / 3, labelBn: "৪:৩" },
   { label: "16:9", value: 16 / 9, labelBn: "১৬:৯" },

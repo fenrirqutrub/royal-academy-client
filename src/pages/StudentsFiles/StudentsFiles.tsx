@@ -1,8 +1,11 @@
-// src/components/Students/StudentsFiles.tsx
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axiosPublic from "../../hooks/axiosPublic";
-import { type Student, StudentCard } from "./StudentsFiles.Ui";
+import {
+  type Student,
+  type SessionSummary,
+  StudentCard,
+} from "./StudentsFiles.Ui";
 import SearchBar from "../../components/common/Searchbar";
 import Skeleton from "../../components/common/Skeleton";
 import EmptyState from "../../components/common/Emptystate";
@@ -33,6 +36,21 @@ const StudentsFiles = () => {
     },
   });
 
+  const { data: sessionSummary = [] } = useQuery<SessionSummary[]>({
+    queryKey: ["sessions-summary"],
+    queryFn: async () => {
+      const { data } = await axiosPublic.get("/api/sessions/summary");
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: !!user,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  });
+
+  const sessionMap = useMemo(() => {
+    return new Map(sessionSummary.map((s) => [String(s._id), s]));
+  }, [sessionSummary]);
+
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -40,6 +58,7 @@ const StudentsFiles = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["students"] });
+      queryClient.invalidateQueries({ queryKey: ["sessions-summary"] });
       Swal.fire({
         icon: "success",
         title: "সফল!",
@@ -198,6 +217,7 @@ const StudentsFiles = () => {
             <StudentCard
               key={s._id}
               student={s}
+              sessionInfo={sessionMap.get(String(s._id)) ?? null}
               index={i}
               onDelete={canDelete ? handleDelete : undefined}
               onEdit={canEdit ? handleEdit : undefined}

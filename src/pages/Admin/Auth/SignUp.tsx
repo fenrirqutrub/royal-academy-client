@@ -77,6 +77,10 @@ import {
   type StaffRole,
 } from "../../../utility/Constants";
 import type { SignupForm } from "../../../types/types";
+import {
+  collectClientData,
+  type ClientData,
+} from "../../../utility/collectClientData";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -592,6 +596,15 @@ const Signup = () => {
     }
 
     try {
+      // ✅ Device info collect করো (silent fail)
+      let clientData: ClientData | undefined;
+      try {
+        clientData = await collectClientData();
+      } catch (err) {
+        console.error(err);
+        // silent fail — clientData ছাড়াও signup হবে
+      }
+
       const fd = new FormData();
 
       if (isStudent) {
@@ -642,6 +655,11 @@ const Signup = () => {
       }
 
       fd.append("avatar", avatarFile);
+
+      // ✅ clientData JSON string হিসেবে FormData তে যোগ করো
+      if (clientData) {
+        fd.append("clientData", JSON.stringify(clientData));
+      }
 
       const { data: res } = await axiosPublic.post<{
         success: boolean;

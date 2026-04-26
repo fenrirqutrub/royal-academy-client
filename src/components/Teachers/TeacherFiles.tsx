@@ -1,9 +1,12 @@
-// src/components/Teachers/TeacherFiles.tsx
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axiosPublic from "../../hooks/axiosPublic";
 import Skeleton from "../common/Skeleton";
-import { type Teacher, TeacherCard } from "./TeacherFiles.Ui";
+import {
+  type Teacher,
+  type SessionSummary,
+  TeacherCard,
+} from "./TeacherFiles.Ui";
 import SearchBar from "../common/Searchbar";
 import EmptyState from "../common/Emptystate";
 import { useAuth } from "../../context/AuthContext";
@@ -35,12 +38,28 @@ const TeacherFiles = () => {
     },
   });
 
+  const { data: sessionSummary = [] } = useQuery<SessionSummary[]>({
+    queryKey: ["sessions-summary"],
+    queryFn: async () => {
+      const { data } = await axiosPublic.get("/api/sessions/summary");
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: !!user,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  });
+
+  const sessionMap = useMemo(() => {
+    return new Map(sessionSummary.map((s) => [String(s._id), s]));
+  }, [sessionSummary]);
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       await axiosPublic.delete(`/api/users/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["teacherFiles"] });
+      queryClient.invalidateQueries({ queryKey: ["sessions-summary"] });
     },
   });
 
@@ -63,7 +82,6 @@ const TeacherFiles = () => {
 
   return (
     <div className="min-h-screen px-4 sm:px-6 bg-[var(--color-bg)] relative">
-      {/* header */}
       <div className=" flex items-end justify-center md:justify-between flex-wrap gap-4 mb-10">
         <div>
           <p className="text-xl text-[var(--color-gray)]">
@@ -83,7 +101,6 @@ const TeacherFiles = () => {
         </div>
       </div>
 
-      {/* content */}
       {isLoading ? (
         <Skeleton variant="teacher-card" count={6} />
       ) : isError ? (
@@ -101,6 +118,7 @@ const TeacherFiles = () => {
             <TeacherCard
               key={t._id}
               teacher={t}
+              sessionInfo={sessionMap.get(String(t._id)) ?? null}
               index={i}
               onDelete={canDelete ? handleDelete : undefined}
             />
