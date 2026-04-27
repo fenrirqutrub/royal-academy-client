@@ -1,3 +1,5 @@
+// WeeklyExam.tsx — full updated version
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
@@ -45,36 +47,29 @@ const normalizeImages = (images: RawImage[]): NormalizedImage[] =>
 const sortExamNumbers = (nums: string[]): string[] =>
   [...nums].sort((a, b) => Number(a) - Number(b));
 
-const isInExamViewWindow = (): boolean => {
-  const now = new Date(
-    new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka" }),
-  );
-  const day = now.getDay();
-  const hour = now.getHours();
-  const NOON = 12;
+// ─────────────────────────────────────────────────────────────────────────────
+// Dhaka time helpers
+// ─────────────────────────────────────────────────────────────────────────────
+const getDhakaNow = (): Date =>
+  new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka" }));
 
-  // Thursday 12pm থেকে Saturday 12pm পর্যন্ত
-  if (day === 4 && hour >= NOON) return true; // বৃহস্পতিবার দুপুর ১২টার পর
-  if (day === 5) return true; // শুক্রবার সারাদিন
-  if (day === 6 && hour < NOON) return true; // শনিবার দুপুর ১২টার আগে
+const toDhakaDate = (value: Date | string): Date =>
+  new Date(new Date(value).toLocaleString("en-US", { timeZone: "Asia/Dhaka" }));
 
-  return false;
-};
+/**
+ * কোনো date-এর পরবর্তী রবিবার 12:00 AM (Dhaka time) return করে।
+ * যদি date নিজেই রবিবার হয়, তাহলে **পরের** রবিবার ধরবে (7 দিন পর)।
+ */
+const getNextSundayStartFrom = (value: Date | string): Date => {
+  const d = toDhakaDate(value);
+  const day = d.getDay(); // 0 = Sunday
 
-const getThursdayMidnightStart = (): Date => {
-  const now = new Date(
-    new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka" }),
-  );
-  const day = now.getDay();
+  const daysUntilNextSunday = day === 0 ? 7 : 7 - day;
 
-  const daysBack =
-    day === 4 ? 0 : day === 5 ? 1 : day === 6 ? 2 : day === 0 ? 3 : day + 3;
+  d.setDate(d.getDate() + daysUntilNextSunday);
+  d.setHours(0, 0, 0, 0);
 
-  const thursday = new Date(now);
-  thursday.setDate(thursday.getDate() - daysBack);
-  thursday.setHours(0, 0, 0, 0); // midnight, না noon
-
-  return thursday;
+  return d;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -219,7 +214,10 @@ const WeeklyExam = () => {
     return String(Number(examNumbers[examNumbers.length - 1]) + 1);
   }, [examNumbers]);
 
-  const latestExamCreatedAt = useMemo(() => {
+  // ─────────────────────────────────────────────────────────────────────────
+  // Latest exam number-এর **প্রথমবার** কবে data এসেছে
+  // ─────────────────────────────────────────────────────────────────────────
+  const latestExamFirstCreatedAt = useMemo(() => {
     if (!data || examNumbers.length === 0) return null;
 
     const latestNumber = examNumbers[examNumbers.length - 1];
@@ -234,27 +232,22 @@ const WeeklyExam = () => {
       new Date(e.createdAt).getTime(),
     );
 
-    return new Date(Math.max(...dates));
+    // প্রথমবার এই exam number কবে এসেছে (earliest)
+    return new Date(Math.min(...dates));
   }, [data, examNumbers]);
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // রবিবার 12:00 AM পার হলেই next exam number show করবে
+  // data না আসা পর্যন্ত ওই number-এই stuck থাকবে
+  // ─────────────────────────────────────────────────────────────────────────
   const shouldShowNextExam = useMemo(() => {
-    if (!latestExamCreatedAt) return false;
+    if (!latestExamFirstCreatedAt) return false;
 
-    const thursdayNoon = getThursdayMidnightStart();
+    const now = getDhakaNow();
+    const nextSundayStart = getNextSundayStartFrom(latestExamFirstCreatedAt);
 
-    console.log("latestExamCreatedAt:", latestExamCreatedAt);
-    console.log("thursdayNoon:", thursdayNoon);
-    console.log("isInWindow:", isInExamViewWindow());
-    console.log(
-      "examIsFromThisWeek:",
-      latestExamCreatedAt.getTime() >= thursdayNoon.getTime(),
-    );
-
-    if (!isInExamViewWindow()) return false;
-    const examIsFromThisWeek =
-      latestExamCreatedAt.getTime() >= thursdayNoon.getTime();
-    return !examIsFromThisWeek;
-  }, [latestExamCreatedAt]);
+    return now.getTime() >= nextSundayStart.getTime();
+  }, [latestExamFirstCreatedAt]);
 
   const displayExamNumbers = useMemo(() => {
     if (shouldShowNextExam) return [...examNumbers, nextExpectedExamNumber];
@@ -268,7 +261,7 @@ const WeeklyExam = () => {
 
     if (shouldShowNextExam) return nextExpectedExamNumber;
 
-    return examNumbers[examNumbers.length - 1] ?? null;
+    return examNumbers[examNumbers.length - 1] ?? nextExpectedExamNumber;
   }, [
     selectedExamNumber,
     displayExamNumbers,
@@ -342,16 +335,6 @@ const WeeklyExam = () => {
 
   const groupedByClass = useMemo(() => {
     let filtered = examNumberFilteredData;
-
-    console.log("examNumberFilteredData:", examNumberFilteredData.length);
-    console.log("selectedTeacher:", selectedTeacher);
-    console.log("selectedClass:", selectedClass);
-    console.log(
-      "filtered after teacher:",
-      filtered.filter(
-        (e) => selectedTeacher === "all" || e.teacherSlug === selectedTeacher,
-      ).length,
-    );
 
     if (selectedTeacher !== "all") {
       filtered = filtered.filter((e) => e.teacherSlug === selectedTeacher);
@@ -581,7 +564,7 @@ const WeeklyExam = () => {
                 )}
               </div>
 
-              <p className="mb-5 text-sm text-[var(--color-gray)] bangla sm:text-base">
+              <p className="mb-5 text-md md:text-xl text-[var(--color-gray)] ">
                 {isAwaitingNextExam
                   ? `পরীক্ষা নং ${toBn(activeExamNumber ?? "")} — এখনো কেউ ধারণা দেয়নি`
                   : selectedTeacher !== "all"
@@ -590,15 +573,6 @@ const WeeklyExam = () => {
                       ? "এই শ্রেণির কোনো পরীক্ষা পাওয়া যায়নি"
                       : "এই পরীক্ষার কোনো তথ্য পাওয়া যায়নি।"}
               </p>
-
-              {(selectedClass !== "all" || selectedTeacher !== "all") && (
-                <button
-                  onClick={handleReset}
-                  className="rounded-xl border border-[var(--color-active-border)] bg-[var(--color-bg)] px-4 py-2 text-sm font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-active-bg)] bangla"
-                >
-                  সকল ফিল্টার সরান
-                </button>
-              )}
             </motion.div>
           )}
         </motion.div>

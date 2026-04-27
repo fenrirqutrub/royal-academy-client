@@ -3,14 +3,74 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import toast from "react-hot-toast";
+import type { AxiosError } from "axios";
 import axiosPublic from "../../../hooks/axiosPublic";
 
+// ── Types ─────────────────────────────────────────────────────────────────────
 interface NoticeFormData {
   notice: string;
   durationDays: number;
 }
 
-// ── preview slug with new format: Royal-Notice-YYMMDD-01 ─────────────────────
+interface NoticeApiResponse {
+  message: string;
+  data: {
+    noticeSlug: string;
+    notice: string;
+    durationDays: number;
+    expiresAt: string;
+    createdAt: string;
+  };
+}
+
+// ── Templates ─────────────────────────────────────────────────────────────────
+interface NoticeTemplate {
+  label: string;
+  icon: string;
+  notice: string;
+  durationDays: number;
+}
+
+const NOTICE_TEMPLATES: NoticeTemplate[] = [
+  {
+    label: "ছুটির নোটিশ",
+    icon: "🏖️",
+    notice:
+      "এতদ্বারা সকলের অবগতির জন্য জানানো যাচ্ছে যে, আগামি [তারিখ-সাল-বার] তারিখ থেকে [তারিখ-সাল-বার] পর্যন্ত [উপলক্ষ্য] উপলক্ষে রয়েল একাডেমির বেলকুচি শাখার ছুটি ঘোষণা করা হলো। আগামি [তারিখ-সাল-বার] তারিখ থেকে যথারীতি ক্লাস পুনরায় শুরু হবে।",
+    durationDays: 3,
+  },
+  {
+    label: "পরীক্ষার নোটিশ",
+    icon: "📝",
+    notice:
+      "এতদ্বারা সকলের অবগতির জন্য জানানো যাচ্ছে যে, আগামি [তারিখ-সাল-বার] তারিখ থেকে  [পরীক্ষার নাম] পরীক্ষা অনুষ্ঠিত হবে। সকল শিক্ষার্থীকে নির্ধারিত সময়ের কমপক্ষে ১৫ মিনিট পূর্বে উপস্থিত থাকার জন্য আদেশ করা হইলো",
+    durationDays: 2,
+  },
+  {
+    label: "অভিভাবক সভা",
+    icon: "👨‍👩‍👧",
+    notice:
+      "এতদ্বারা রয়েল একাডেমির শিক্ষার্থীদের অভিভাবকদের অবগতির জন্য জানানো যাচ্ছে যে, [তারিখ-ফুল] তারিখে বিকাল [সময়] ঘটিকায় একাডেমি প্রাঙ্গণে একটি গুরুত্বপূর্ণ অভিভাবক সভা অনুষ্ঠিত হবে। শিক্ষার্থীদের সার্বিক অগ্রগতি বিষয়ে আলোচনার জন্য সকল অভিভাবকের উপস্থিতি একান্তভাবে কাম্য।",
+    durationDays: 5,
+  },
+  {
+    label: "ফলাফল প্রকাশ",
+    icon: "🏆",
+    notice:
+      "এতদ্বারা রয়েল একাডেমির সকল শিক্ষার্থী ও অভিভাবকদের জানানো যাচ্ছে যে, [পরীক্ষার নাম] পরীক্ষার ফলাফল [তারিখ-ফুল] তারিখে প্রকাশ করা হবে। শিক্ষার্থীরা নির্ধারিত সময়ে একাডেমি অফিস থেকে তাদের ফলাফল সংগ্রহ করতে পারবে।",
+    durationDays: 14,
+  },
+  {
+    label: "বিশেষ বিজ্ঞপ্তি",
+    icon: "📢",
+    notice:
+      "এতদ্বারা রয়েল একাডেমির সংশ্লিষ্ট সকলের অবগতির জন্য জানানো যাচ্ছে যে, [বিস্তারিত]। এ বিষয়ে প্রয়োজনীয় ব্যবস্থা গ্রহণের জন্য অনুরোধ করা হলো। অতিরিক্ত তথ্যের জন্য একাডেমি অফিসে যোগাযোগ করুন।",
+    durationDays: 7,
+  },
+];
+
+// ── Preview slug ───────────────────────────────────────────────────────────────
 const previewSlug = () => {
   const now = new Date();
   const yy = String(now.getFullYear()).slice(-2);
@@ -19,14 +79,16 @@ const previewSlug = () => {
   return `Royal-Notice-${yy}${mm}${dd}-??`;
 };
 
+// ── Component ─────────────────────────────────────────────────────────────────
 const AddNotice = () => {
   const queryClient = useQueryClient();
-  const [successSlug, setSuccessSlug] = useState<string | null>(null);
+  const [activeTemplate, setActiveTemplate] = useState<number | null>(null);
 
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<NoticeFormData>({
@@ -48,23 +110,60 @@ const AddNotice = () => {
     });
   })();
 
-  const createMutation = useMutation({
+  // ── Apply template ────────────────────────────────────────────────────────
+  const applyTemplate = (idx: number) => {
+    const tpl = NOTICE_TEMPLATES[idx];
+    setValue("notice", tpl.notice, { shouldValidate: true });
+    setValue("durationDays", tpl.durationDays, { shouldValidate: true });
+    setActiveTemplate(idx);
+  };
+
+  // ── Mutation ──────────────────────────────────────────────────────────────
+  const createMutation = useMutation<
+    { data: NoticeApiResponse },
+    AxiosError<{ message: string }>,
+    NoticeFormData
+  >({
     mutationFn: (data: NoticeFormData) =>
-      axiosPublic.post("/api/notices", {
+      axiosPublic.post<NoticeApiResponse>("/api/notices", {
         notice: data.notice,
-        durationDays: data.durationDays, // ← explicitly send both fields
+        durationDays: data.durationDays,
       }),
     onSuccess: (res) => {
-      setSuccessSlug(res.data.data.noticeSlug);
+      const slug = res.data.data.noticeSlug;
+      toast.success(`নোটিশ প্রকাশিত হয়েছে!\nID: ${slug}`, {
+        duration: 4000,
+        style: {
+          background: "var(--color-active-bg)",
+          color: "var(--color-text)",
+          border: "1px solid rgba(16,185,129,0.4)",
+        },
+        iconTheme: { primary: "#10b981", secondary: "#fff" },
+      });
       reset();
+      setActiveTemplate(null);
       queryClient.invalidateQueries({ queryKey: ["notices"] });
       queryClient.invalidateQueries({ queryKey: ["active-notice"] });
-      setTimeout(() => setSuccessSlug(null), 4000);
+    },
+    onError: (err) => {
+      const msg =
+        err.response?.data?.message ??
+        "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।";
+      toast.error(msg, {
+        duration: 4000,
+        style: {
+          background: "var(--color-active-bg)",
+          color: "var(--color-text)",
+          border: "1px solid rgba(239,68,68,0.4)",
+        },
+        iconTheme: { primary: "#ef4444", secondary: "#fff" },
+      });
     },
   });
 
   const onSubmit = (data: NoticeFormData) => createMutation.mutate(data);
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div
       className="min-h-screen bangla w-full px-4 sm:px-8 py-10"
@@ -97,54 +196,93 @@ const AddNotice = () => {
         </p>
       </motion.div>
 
+      {/* ── Templates ── */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.05 }}
+        className="w-full mb-6"
+      >
+        <p
+          className="text-xs uppercase tracking-widest font-semibold mb-3"
+          style={{ color: "var(--color-gray)" }}
+        >
+          টেমপ্লেট বেছে নিন
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {NOTICE_TEMPLATES.map((tpl, idx) => (
+            <motion.button
+              key={idx}
+              type="button"
+              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.03 }}
+              onClick={() => applyTemplate(idx)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-150"
+              style={{
+                backgroundColor:
+                  activeTemplate === idx
+                    ? "var(--color-text)"
+                    : "var(--color-active-bg)",
+                color:
+                  activeTemplate === idx
+                    ? "var(--color-bg)"
+                    : "var(--color-text)",
+                border:
+                  activeTemplate === idx
+                    ? "1px solid var(--color-text)"
+                    : "1px solid var(--color-active-border)",
+              }}
+            >
+              <span>{tpl.icon}</span>
+              <span>{tpl.label}</span>
+            </motion.button>
+          ))}
+        </div>
+
+        {/* Active template hint */}
+        <AnimatePresence>
+          {activeTemplate !== null && (
+            <motion.p
+              key="tpl-hint"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="text-xs mt-2"
+              style={{ color: "var(--color-gray)" }}
+            >
+              ✦ টেমপ্লেট ফর্মে পেস্ট হয়েছে — এডিট করে পাঠান
+            </motion.p>
+          )}
+        </AnimatePresence>
+      </motion.div>
+
       {/* ── Form Card ── */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.1 }}
-        className="w-full rounded-2xl p-6 sm:p-8 md:p-10"
-        style={{
-          backgroundColor: "var(--color-active-bg)",
-          border: "1px solid var(--color-active-border)",
-        }}
+        className="w-full rounded p-6 sm:p-8 md:p-10 bg-[var(--color-active-bg)] border border-[var(--color-active-border)] "
       >
-        {/* Auto ID badge */}
-        <div className="flex items-center gap-3 mb-7">
-          <span
-            className="text-sm tracking-widest uppercase font-semibold"
-            style={{ color: "var(--color-gray)" }}
-          >
-            Auto ID
-          </span>
-          <span
-            className="text-sm font-bold px-4 py-1.5 rounded-full tracking-widest"
-            style={{
-              backgroundColor: "var(--color-bg)",
-              color: "rgba(245,197,66,0.9)",
-              border: "1px solid var(--color-active-border)",
-            }}
-          >
-            {previewSlug()}
-          </span>
-        </div>
-
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
           {/* Notice textarea */}
           <div className="mb-7">
-            <label
-              className="block text-sm sm:text-base font-semibold mb-3 tracking-widest uppercase"
-              style={{ color: "var(--color-gray)" }}
-            >
-              নোটিশের বিষয়বস্তু <span style={{ color: "#f87171" }}>*</span>
+            <label className="flex justify-between text-[var(--color-gray)]  text-sm sm:text-base font-semibold mb-3 tracking-widest uppercase">
+              নোটিশের বিষয়বস্তু{" "}
+              <span className="bg-[var(--color-bg)] border border-[var(--color-active-border)] px-3 py-1 rounded-2xl">
+                {previewSlug()}
+              </span>
             </label>
             <div className="relative">
               <textarea
                 {...register("notice", {
-                  required: "Notice content is required.",
-                  minLength: { value: 10, message: "At least 10 characters." },
+                  required: "নোটিশের বিষয়বস্তু আবশ্যক।",
+                  minLength: {
+                    value: 5,
+                    message: "কমপক্ষে ১০টি অক্ষর লিখুন।",
+                  },
                   maxLength: {
                     value: 1000,
-                    message: "Maximum 1000 characters.",
+                    message: "সর্বোচ্চ ১০০০ অক্ষর।",
                   },
                 })}
                 rows={6}
@@ -200,9 +338,9 @@ const AddNotice = () => {
                   min={1}
                   max={365}
                   {...register("durationDays", {
-                    required: "Duration is required.",
-                    min: { value: 1, message: "Minimum 1 day." },
-                    max: { value: 365, message: "Maximum 365 days." },
+                    required: "সময়কাল আবশ্যক।",
+                    min: { value: 1, message: "কমপক্ষে ১ দিন।" },
+                    max: { value: 365, message: "সর্বোচ্চ ৩৬৫ দিন।" },
                     valueAsNumber: true,
                   })}
                   className="w-full rounded-xl px-5 py-4 text-base sm:text-lg outline-none transition-all duration-200 appearance-none"
@@ -303,61 +441,6 @@ const AddNotice = () => {
             )}
           </motion.button>
         </form>
-
-        {/* Success */}
-        <AnimatePresence>
-          {successSlug && (
-            <motion.div
-              key="success"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="mt-5 rounded-xl px-5 py-4 flex items-start gap-4"
-              style={{
-                backgroundColor: "rgba(16,185,129,0.1)",
-                border: "1px solid rgba(16,185,129,0.3)",
-              }}
-            >
-              <span className="text-emerald-400 text-2xl leading-none">✓</span>
-              <div>
-                <p className="text-emerald-400 text-base sm:text-lg font-semibold">
-                  নোটিশ সফলভাবে প্রকাশিত হয়েছে!
-                </p>
-                <p
-                  className="text-sm mt-1"
-                  style={{ color: "var(--color-gray)" }}
-                >
-                  ID:{" "}
-                  <span className="font-mono" style={{ color: "#f5c542" }}>
-                    {successSlug}
-                  </span>
-                </p>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* API error */}
-        <AnimatePresence>
-          {createMutation.isError && (
-            <motion.div
-              key="api-err"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="mt-5 rounded-xl px-5 py-4 text-base"
-              style={{
-                backgroundColor: "rgba(239,68,68,0.1)",
-                border: "1px solid rgba(239,68,68,0.3)",
-                color: "#f87171",
-              }}
-            >
-              ✗{" "}
-              {(createMutation.error as any)?.response?.data?.message ||
-                "Something went wrong."}
-            </motion.div>
-          )}
-        </AnimatePresence>
       </motion.div>
     </div>
   );

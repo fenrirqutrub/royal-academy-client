@@ -31,7 +31,7 @@ const Notice = () => {
   const displayText = isLoading
     ? "..."
     : isActive
-      ? `এতদ্বারা সকলের অবগতির জন্য জানানো যাইতেছে যে, ${data!.notice} `
+      ? data!.notice
       : DEFAULT_NOTICE;
 
   refetch();
