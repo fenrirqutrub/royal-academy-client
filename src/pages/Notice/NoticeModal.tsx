@@ -5,7 +5,6 @@ import Swal from "sweetalert2";
 import { createRoot, type Root } from "react-dom/client";
 import { Printer, Download, Loader2, X } from "lucide-react";
 import axiosPublic from "../../hooks/axiosPublic";
-
 import Button from "../../components/common/Button";
 import { BN_DAYS_FULL, BN_MONTHS } from "../../utility/Formatters";
 
@@ -52,7 +51,7 @@ const ActionBar = ({ expired, onPrint, onDownload }: ActionBarProps) => {
   };
 
   return (
-    <div className="flex items-center justify-between px-4 py-2.5 border-t border-gray-200/40 shrink-0">
+    <div className="flex items-center justify-between px-4 py-2.5 border-t border-[var(--color-active-border)] shrink-0">
       {/* Status indicator */}
       <div className="flex items-center gap-1.5">
         <span
@@ -68,7 +67,7 @@ const ActionBar = ({ expired, onPrint, onDownload }: ActionBarProps) => {
       {/* Buttons */}
       <div className="flex items-center gap-2">
         <Button
-          variant="outline"
+          variant="secondary"
           size="sm"
           onClick={onPrint}
           className="bangla gap-1.5 !text-[13px]"
@@ -78,22 +77,22 @@ const ActionBar = ({ expired, onPrint, onDownload }: ActionBarProps) => {
         </Button>
 
         <Button
-          variant="outline"
+          variant="destructive"
           size="sm"
           onClick={handleDownload}
           disabled={downloading}
-          className="bangla gap-1.5 !text-[13px] min-w-[120px]"
+          className="bangla  gap-1.5 !text-[13px] min-w-[120px]"
         >
           {downloading ? (
-            <>
+            <div className="flex items-center">
               <Loader2 size={14} className="animate-spin" />
               ডাউনলোড হচ্ছে…
-            </>
+            </div>
           ) : (
-            <>
+            <div className="flex items-center gap-x-1">
               <Download size={14} />
               ডাউনলোড
-            </>
+            </div>
           )}
         </Button>
       </div>
@@ -155,7 +154,7 @@ const NoticeModal = ({ notice, onClose }: NoticeModalProps) => {
     };
 
     const html = `
-      <div class="bangla flex flex-col h-full max-h-[85vh] w-full overflow-hidden ">
+     <div class="bangla flex flex-col h-screen w-full overflow-hidden">
 
         <!-- Close button mount point (top-right) -->
         <div id="swal-close-btn" class="absolute top-3 right-3 z-10"></div>
@@ -221,13 +220,14 @@ const NoticeModal = ({ notice, onClose }: NoticeModalProps) => {
       showConfirmButton: false,
       showCloseButton: false,
       padding: "0",
-      width: "min(680px, 95vw)",
+      grow: "fullscreen",
+      width: "100%",
       background: "var(--color-bg, #fff)",
       color: "var(--color-text, #111)",
       position: "center",
       backdrop: "rgba(0,0,0,0.55)",
       customClass: {
-        popup: "!rounded-2xl !overflow-hidden bangla",
+        popup: "rounded !overflow-hidden bangla !m-0 !max-h-screen",
         htmlContainer: "!p-0 !m-0 !overflow-hidden",
       },
       didOpen: () => {

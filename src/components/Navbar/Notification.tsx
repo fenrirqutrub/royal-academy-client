@@ -104,6 +104,7 @@ const Notification = () => {
   const activeNoticesRef = useRef<NoticeItem[]>([]);
   const navigateRef = useRef<ReturnType<typeof useNavigate> | null>(null);
   const setSelectedRef = useRef(setSelectedNotice);
+  const setSeenIdsRef = useRef(setSeenIds); // ← NEW: ref to keep setSeenIds stable in showSwal
   const swalCloseBtnRootRef = useRef<Root | null>(null);
 
   const navigate = useNavigate();
@@ -112,6 +113,7 @@ const Notification = () => {
   seenIdsRef.current = seenIds;
   navigateRef.current = navigate;
   setSelectedRef.current = setSelectedNotice;
+  setSeenIdsRef.current = setSeenIds; // always in sync
 
   const { data: notices = [] } = useQuery<NoticeItem[]>({
     queryKey: ["notices"],
@@ -123,7 +125,7 @@ const Notification = () => {
   });
 
   const activeNotices = useMemo(() => {
-    const result = notices.slice().slice(0, 3);
+    const result = notices.slice(0, 3);
     activeNoticesRef.current = result;
     return result;
   }, [notices]);
@@ -133,7 +135,7 @@ const Notification = () => {
     [activeNotices, seenIds],
   );
 
-  // Mark all as seen when on /notice page
+  // ── Mark all as seen when on /notice page ──────────────────────────────
   useEffect(() => {
     if (location.pathname !== "/notice" || !notices.length) return;
     const updated = new Set(seenIdsRef.current);
@@ -142,7 +144,7 @@ const Notification = () => {
     setSeenIds(updated);
   }, [location.pathname, notices]);
 
-  // Mark visible notices as seen when popup opens
+  // ── Mark visible notices as seen when desktop popup opens ─────────────
   useEffect(() => {
     if (!open || !activeNoticesRef.current.length) return;
     const updated = new Set(seenIdsRef.current);
@@ -151,7 +153,7 @@ const Notification = () => {
     setSeenIds(updated);
   }, [open]);
 
-  // Close popup on outside click
+  // ── Close popup on outside click ──────────────────────────────────────
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (
@@ -164,6 +166,22 @@ const Notification = () => {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  /* ── Helpers ──────────────────────────────────────────────────────────── */
+
+  /**
+   * Mark all currently visible notices as seen and sync both
+   * localStorage and React state so the badge count updates.
+   */
+  const markActiveAsSeen = () => {
+    const current = activeNoticesRef.current;
+    if (!current.length) return;
+    const updated = new Set(seenIdsRef.current);
+    current.forEach((n) => updated.add(n._id));
+    saveSeenIds(updated);
+    seenIdsRef.current = updated; // keep ref in sync immediately
+    setSeenIdsRef.current(updated); // trigger re-render → badge disappears
+  };
 
   /* ── SweetAlert2 (mobile) ─────────────────────────────────────── */
   const buildSwalHTML = (notices: NoticeItem[], seenSet: Set<string>) => {
@@ -181,7 +199,7 @@ const Notification = () => {
           : `<span class="block w-2 h-2 rounded-full bg-red-500 mt-1.5 shrink-0 animate-pulse"></span>`;
 
         const badge = isActive
-          ? `<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-[rgba(16,185,129,0.12)] text-[#10b981] border-[rgba(16,185,129,0.3)]  ">সক্রিয়</span>`
+          ? `<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-[rgba(16,185,129,0.12)] text-[#10b981] border-[rgba(16,185,129,0.3)]">সক্রিয়</span>`
           : `<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-[rgba(239,68,68,0.10)] text-[#f87171] border-[rgba(239,68,68,0.25)]">মেয়াদ শেষ</span>`;
 
         const dateStr = new Date(n.expiresAt).toLocaleDateString("bn-BD", {
@@ -219,6 +237,7 @@ const Notification = () => {
   };
 
   const showSwal = () => {
+    // Build HTML with current seen state (dots will show correctly)
     const html = buildSwalHTML(activeNoticesRef.current, seenIdsRef.current);
 
     Swal.fire({
@@ -244,6 +263,9 @@ const Notification = () => {
         popup: "animate__animated animate__fadeOutUp animate__faster",
       },
       didOpen: () => {
+        // ── KEY FIX: mark as seen on mobile too ──────────────────────────
+        markActiveAsSeen();
+
         // Mount red close button
         const closeMount = document.getElementById("swal-close-btn");
         if (closeMount) {
@@ -322,7 +344,7 @@ const Notification = () => {
               repeatDelay: 3.5,
             }}
           >
-            <Bell size={18} className="text-[var(--color-active-text)] " />
+            <Bell size={18} className="text-[var(--color-active-text)]" />
           </motion.div>
 
           <AnimatePresence>
