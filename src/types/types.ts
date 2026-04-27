@@ -20,8 +20,8 @@ export interface SignupForm {
   roll: string;
   schoolName: string;
   degree: string;
-  qualification: string;
   currentYear: string;
+  subject: string;
   emergencyContact: string;
 }
 

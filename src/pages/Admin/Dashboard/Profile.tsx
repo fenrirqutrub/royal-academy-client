@@ -47,13 +47,12 @@ import {
   type UserRole,
   SUBJECT_REQUIRED_CLASSES,
   SUBJECT_GROUPS,
-  DEGREE_LABEL,
   DEGREE_SELECT_OPTIONS,
   YEARS,
   RELIGION_SELECT_OPTIONS,
 } from "../../../utility/Constants";
 
-/* ─── Types ───────────────────────────────────────────────────────────────── */
+/* ─── Types ─────────────────────────────────────────────────────────────── */
 
 interface ProfileData {
   name?: string;
@@ -82,14 +81,14 @@ interface ProfileData {
   roll?: string;
   schoolName?: string;
   collegeName?: string;
-  qualification?: string;
+  subject?: string; // ← qualification এর বদলে
   educationComplete?: boolean;
   degree?: string;
   currentYear?: string;
   avatar?: { url?: string; publicId?: string };
 }
 
-/* ─── Helpers ─────────────────────────────────────────────────────────────── */
+/* ─── Helpers ────────────────────────────────────────────────────────────── */
 
 const formatDOB = (dob: string | null | undefined): string | null => {
   if (!dob) return null;
@@ -104,7 +103,7 @@ const formatDOB = (dob: string | null | undefined): string | null => {
   }
 };
 
-/* ─── Animation Variants ──────────────────────────────────────────────────── */
+/* ─── Animation Variants ─────────────────────────────────────────────────── */
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -124,7 +123,7 @@ const cardVariants = {
   },
 };
 
-/* ─── GlassCard ───────────────────────────────────────────────────────────── */
+/* ─── GlassCard ──────────────────────────────────────────────────────────── */
 
 const GlassCard = ({
   children,
@@ -150,7 +149,7 @@ const GlassCard = ({
   </motion.div>
 );
 
-/* ─── SectionHeader ───────────────────────────────────────────────────────── */
+/* ─── SectionHeader ──────────────────────────────────────────────────────── */
 
 const SectionHeader = ({
   icon,
@@ -173,7 +172,7 @@ const SectionHeader = ({
   </div>
 );
 
-/* ─── FieldDisplay ────────────────────────────────────────────────────────── */
+/* ─── FieldDisplay ───────────────────────────────────────────────────────── */
 
 const FieldDisplay = ({
   icon,
@@ -238,7 +237,7 @@ const FieldDisplay = ({
   );
 };
 
-/* ─── TextInput ───────────────────────────────────────────────────────────── */
+/* ─── TextInput ──────────────────────────────────────────────────────────── */
 
 const TextInput = ({
   icon,
@@ -295,7 +294,7 @@ const TextInput = ({
   </motion.div>
 );
 
-/* ─── PasswordInput ───────────────────────────────────────────────────────── */
+/* ─── PasswordInput ──────────────────────────────────────────────────────── */
 
 const PasswordInput = ({
   onChange,
@@ -347,7 +346,7 @@ const PasswordInput = ({
   );
 };
 
-/* ─── ProfileCompletion ───────────────────────────────────────────────────── */
+/* ─── ProfileCompletion ──────────────────────────────────────────────────── */
 
 const ProfileCompletion = ({
   missing,
@@ -396,7 +395,7 @@ const ProfileCompletion = ({
   );
 };
 
-/* ─── FieldLabel ──────────────────────────────────────────────────────────── */
+/* ─── FieldLabel ─────────────────────────────────────────────────────────── */
 
 const FieldLabel = ({
   icon,
@@ -416,16 +415,15 @@ const FieldLabel = ({
   </label>
 );
 
-/* ════════════════════════════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════════════════
    PROFILE PAGE
-════════════════════════════════════════════════════════════════════════════ */
+══════════════════════════════════════════════════════════════════════════ */
 
 const Profile = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const slug = user?.slug ?? "";
 
-  // Role config from Constants — no local duplicate
   const role = (user?.role ?? "teacher") as UserRole;
   const roleConfig = ROLE_CONFIG[role] ?? ROLE_CONFIG.teacher;
   const roleColor = roleConfig.color;
@@ -438,12 +436,12 @@ const Profile = () => {
   const [copied, setCopied] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Geo state — present address
+  // Geo state — present
   const [division, setDivision] = useState("");
   const [district, setDistrict] = useState("");
   const [thana, setThana] = useState("");
 
-  // Geo state — permanent address
+  // Geo state — permanent
   const [pDivision, setPDivision] = useState("");
   const [pDistrict, setPDistrict] = useState("");
   const [pThana, setPThana] = useState("");
@@ -524,7 +522,6 @@ const Profile = () => {
   const handleSave = () => {
     const payload: Record<string, string> = { ...formData };
 
-    // Phone validation
     if (payload.phone) {
       const result = validateBdPhone(payload.phone);
       if (result !== true) {
@@ -533,7 +530,6 @@ const Profile = () => {
       }
     }
 
-    // Geo fields
     if (division) payload.division = division;
     if (district) payload.district = district;
     if (thana) payload.thana = thana;
@@ -542,7 +538,6 @@ const Profile = () => {
     if (pThana) payload.permanentThana = pThana;
     if (dobIso) payload.dateOfBirth = dobIso;
 
-    // Empty password → don't send
     if (!payload.password) delete payload.password;
 
     if (Object.keys(payload).length === 0) {
@@ -559,21 +554,17 @@ const Profile = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  /* ── Derived values (memoized) ── */
-
-  // Student class for subject-show logic
+  /* ── Derived values ── */
   const selectedStudentClass =
     formData.studentClass ?? profile?.studentClass ?? "";
   const shouldShowSubject =
     SUBJECT_REQUIRED_CLASSES.includes(selectedStudentClass);
 
-  // Education incomplete check
   const educationIncomplete =
     formData.educationComplete === "false" ||
     (formData.educationComplete === undefined &&
       profile?.educationComplete === false);
 
-  // Geo options
   const divisionOptions = useMemo(
     () => getDivisions().map((v) => ({ value: v, label: v })),
     [],
@@ -607,7 +598,6 @@ const Profile = () => {
     [pDivision, pDistrict],
   );
 
-  // Profile completion
   const missingFields = useMemo(
     () =>
       [
@@ -1167,7 +1157,6 @@ const Profile = () => {
                         onChange={handleChange}
                         roleColor={roleColor}
                       />
-                      {/* Division */}
                       <div className="space-y-2 mb-4">
                         <FieldLabel
                           icon={<MapPin className="w-3.5 h-3.5" />}
@@ -1184,7 +1173,6 @@ const Profile = () => {
                           placeholder="বিভাগ নির্বাচন করুন"
                         />
                       </div>
-                      {/* District + Thana */}
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         <div className="space-y-2">
                           <FieldLabel
@@ -1485,9 +1473,7 @@ const Profile = () => {
                       <FieldDisplay
                         icon={<BookOpen className="w-4 h-4" />}
                         label="ডিগ্রি"
-                        value={
-                          profile?.degree ? DEGREE_LABEL[profile.degree] : null
-                        }
+                        value={profile?.degree ?? null} // ← সরাসরি বাংলা value দেখাও
                         roleColor={roleColor}
                       />
                       {profile?.educationComplete === false &&
@@ -1495,14 +1481,14 @@ const Profile = () => {
                           <FieldDisplay
                             icon={<CalendarDays className="w-4 h-4" />}
                             label="বর্তমান বর্ষ"
-                            value={profile.currentYear}
+                            value={profile.currentYear} // ← সরাসরি বাংলা value
                             roleColor={roleColor}
                           />
                         )}
                       <FieldDisplay
                         icon={<BookOpen className="w-4 h-4" />}
-                        label="যোগ্যতা"
-                        value={profile?.qualification}
+                        label="বিষয়" // ← "যোগ্যতা" এর বদলে "বিষয়"
+                        value={profile?.subject ?? null} // ← qualification এর বদলে subject
                         optional
                         roleColor={roleColor}
                       />
@@ -1572,12 +1558,13 @@ const Profile = () => {
                           />
                         </div>
                       )}
+                      {/* subject field ← qualification এর বদলে */}
                       <TextInput
                         icon={<BookOpen className="w-4 h-4" />}
-                        label="যোগ্যতা (বিষয়/বিভাগ)"
-                        name="qualification"
-                        value={profile?.qualification}
-                        placeholder="যেমন: বাংলা, ইতিহাস"
+                        label="বিষয়"
+                        name="subject"
+                        value={profile?.subject}
+                        placeholder="যেমন: বাংলা, গণিত, ইংরেজি"
                         optional
                         onChange={handleChange}
                         roleColor={roleColor}

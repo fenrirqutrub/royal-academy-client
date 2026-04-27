@@ -277,6 +277,12 @@ const TeacherCard = ({ teacher, offset, cfg, onClick }: CardProps) => {
           className="bangla text-[var(--color-gray)] w-full text-center line-clamp-1"
           style={{ fontSize: cfg.fontSize.sub }}
         >
+          {teacher.subject || teacher.degree || "—"}
+        </p>
+        <p
+          className="bangla text-[var(--color-gray)] w-full text-center line-clamp-1"
+          style={{ fontSize: cfg.fontSize.sub }}
+        >
           {teacher.collegeName || teacher.degree || "—"}
         </p>
 

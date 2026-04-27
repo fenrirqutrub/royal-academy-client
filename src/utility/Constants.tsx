@@ -346,19 +346,17 @@ export const NUMBER_TYPE_OPTIONS: SelectOption[] = [
 // ─────────────────────────────────────────────────────────────
 
 export const DEGREES = [
-  { value: "hsc", label: "এইচএসসি / সমমান", icon: "📘" },
-  { value: "hons", label: "স্নাতক (সম্মান)", icon: "🎓" },
-  { value: "masters", label: "স্নাতকোত্তর", icon: "🏅" },
+  { value: "এইচএসসি", label: "এইচএসসি / সমমান", icon: "📘" },
+  { value: "স্নাতক", label: "স্নাতক (সম্মান)", icon: "🎓" },
+  { value: "স্নাতকোত্তর", label: "স্নাতকোত্তর", icon: "🏅" },
 ] as const;
 
 export type Degree = (typeof DEGREES)[number]["value"] | "";
 
-/** Map degree value → human-readable label (for display in FieldDisplay) */
 export const DEGREE_LABEL: Record<string, string> = Object.fromEntries(
   DEGREES.map((d) => [d.value, d.label]),
 );
 
-/** SelectOption[] for use in <SelectInput> */
 export const DEGREE_SELECT_OPTIONS: SelectOption[] = DEGREES.map((d) => ({
   value: d.value,
   label: d.label,
@@ -369,14 +367,14 @@ export const DEGREE_SELECT_OPTIONS: SelectOption[] = DEGREES.map((d) => ({
 // 🔹 ACADEMIC YEAR
 // ─────────────────────────────────────────────────────────────
 
-/** Current academic year options for staff still in education */
 export const YEARS: SelectOption[] = [
-  { value: "১ম বর্ষ", label: "১ম বর্ষ" },
-  { value: "২য় বর্ষ", label: "২য় বর্ষ" },
-  { value: "৩য় বর্ষ", label: "৩য় বর্ষ" },
-  { value: "৪র্থ বর্ষ", label: "৪র্থ বর্ষ" },
-  { value: "মাস্টার্স ১ম বর্ষ", label: "মাস্টার্স ১ম বর্ষ" },
-  { value: "মাস্টার্স ২য় বর্ষ", label: "মাস্টার্স ২য় বর্ষ" },
+  { value: "১ম", label: "১ম বর্ষ" },
+  { value: "২য়", label: "২য় বর্ষ" },
+  { value: "৩য়", label: "৩য় বর্ষ" },
+  { value: "৪র্থ", label: "৪র্থ বর্ষ" },
+  { value: "এমবিএ", label: "এমবিএ" },
+  { value: "এমবিবিএস", label: "এমবিবিএস" },
+  { value: "এমএ", label: "এমএ" },
 ];
 
 // ─────────────────────────────────────────────────────────────

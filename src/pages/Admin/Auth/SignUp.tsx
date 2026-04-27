@@ -544,11 +544,10 @@ const Signup = () => {
         };
         break;
       case "degree":
-        nextActionRef.current = () => triggerAndGo(["degree", "qualification"]);
+        nextActionRef.current = () => triggerAndGo(["degree", "subject"]);
         break;
       case "current-year":
-        nextActionRef.current = () =>
-          triggerAndGo(["currentYear", "qualification"]);
+        nextActionRef.current = () => triggerAndGo(["currentYear", "subject"]);
         break;
       case "email":
         nextActionRef.current = () => triggerAndGo(["email"]);
@@ -596,13 +595,11 @@ const Signup = () => {
     }
 
     try {
-      // ✅ Device info collect করো (silent fail)
       let clientData: ClientData | undefined;
       try {
         clientData = await collectClientData();
       } catch (err) {
         console.error(err);
-        // silent fail — clientData ছাড়াও signup হবে
       }
 
       const fd = new FormData();
@@ -619,7 +616,7 @@ const Signup = () => {
         fd.append("role", staffInfo!.role);
         fd.append("phone", staffPhone!);
         fd.append("educationComplete", String(educationComplete));
-        if (data.qualification) fd.append("qualification", data.qualification);
+        if (data.subject) fd.append("subject", data.subject);
         if (educationComplete === true && data.degree)
           fd.append("degree", data.degree);
         if (educationComplete === false && data.currentYear)
@@ -1116,13 +1113,13 @@ const Signup = () => {
             <div className="space-y-3">
               <ValidatedInput
                 autoFocus
-                state={fs("qualification")}
+                state={fs("subject")}
                 iconLeft={BookOpen}
-                label="যোগ্যতা / বিষয় *"
-                placeholder="যেমন: বিএড, বিসিএস, বাংলা সাহিত্য"
-                error={errors.qualification?.message}
+                label="বিষয় *"
+                placeholder="যেমন: বাংলা সাহিত্য"
+                error={errors.subject?.message}
                 blockEnglish
-                {...register("qualification", {
+                {...register("subject", {
                   required: "যোগ্যতার বিবরণ দিন",
                   validate: banglaOnly("যোগ্যতা"),
                 })}
@@ -1150,7 +1147,7 @@ const Signup = () => {
             </div>
             <NavRow
               onBack={goBack}
-              onNext={() => triggerAndGo(["degree", "qualification"])}
+              onNext={() => triggerAndGo(["degree", "subject"])}
             />
           </StepShell>
         );
@@ -1166,13 +1163,13 @@ const Signup = () => {
             <div className="space-y-3">
               <ValidatedInput
                 autoFocus
-                state={fs("qualification")}
+                state={fs("subject")}
                 iconLeft={BookOpen}
                 label="পড়ার বিষয় / প্রতিষ্ঠান *"
                 placeholder="যেমন: ঢাকা বিশ্ববিদ্যালয়, বাংলা বিভাগ"
-                error={errors.qualification?.message}
+                error={errors.subject?.message}
                 blockEnglish
-                {...register("qualification", {
+                {...register("subject", {
                   required: "পড়ার বিষয় ও প্রতিষ্ঠান লিখুন",
                   validate: banglaOnly("পড়ার বিষয়"),
                 })}
@@ -1202,7 +1199,7 @@ const Signup = () => {
             </div>
             <NavRow
               onBack={goBack}
-              onNext={() => triggerAndGo(["currentYear", "qualification"])}
+              onNext={() => triggerAndGo(["currentYear", "subject"])}
             />
           </StepShell>
         );
