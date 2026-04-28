@@ -45,7 +45,7 @@ const CFG: Record<
     rotY: 28,
     scaleStep: 0.2,
     fontSize: { name: "0.78rem", sub: "0.67rem", badge: "9px" },
-    infoRatio: 0.28,
+    infoRatio: 0.31,
   },
   tablet: {
     cardW: 200,
@@ -55,7 +55,7 @@ const CFG: Record<
     rotY: 22,
     scaleStep: 0.15,
     fontSize: { name: "0.875rem", sub: "0.75rem", badge: "10px" },
-    infoRatio: 0.27,
+    infoRatio: 0.32,
   },
   desktop: {
     cardW: 255,
@@ -65,7 +65,7 @@ const CFG: Record<
     rotY: 18,
     scaleStep: 0.12,
     fontSize: { name: "1rem", sub: "0.825rem", badge: "10px" },
-    infoRatio: 0.26,
+    infoRatio: 0.33,
   },
 };
 
@@ -262,25 +262,27 @@ const TeacherCard = ({ teacher, offset, cfg, onClick }: CardProps) => {
       </div>
 
       {/* ── Info strip ── */}
-      <div
-        className="flex-1 flex flex-col items-center justify-center gap-1
-                   px-3 bg-[var(--color-active-bg)] text-center"
-      >
+      <div className="flex-1 flex flex-col items-center justify-center px-3 bg-[var(--color-active-bg)] text-center">
         <p
-          className="bangla font-bold text-[var(--color-text)] w-full text-center
-                     leading-snug line-clamp-1"
+          className="bangla font-bold text-[var(--color-text)] w-full text-center"
           style={{ fontSize: cfg.fontSize.name }}
         >
           {teacher.name}
         </p>
         <p
-          className="bangla text-[var(--color-gray)] w-full text-center line-clamp-1"
+          className="bangla text-[var(--color-gray)] w-full text-center "
           style={{ fontSize: cfg.fontSize.sub }}
         >
-          {teacher.subject || teacher.degree || "—"}
+          {teacher.degree || "—"}
         </p>
         <p
-          className="bangla text-[var(--color-gray)] w-full text-center line-clamp-1"
+          className="bangla text-[var(--color-gray)] w-full text-center "
+          style={{ fontSize: cfg.fontSize.sub }}
+        >
+          {teacher.subject && teacher.subject + " " + "বিভাগ"}
+        </p>
+        <p
+          className="bangla text-[var(--color-gray)] w-full text-center"
           style={{ fontSize: cfg.fontSize.sub }}
         >
           {teacher.collegeName || teacher.degree || "—"}
