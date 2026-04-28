@@ -62,7 +62,7 @@ const TeacherCard = ({ teacher }: { teacher: TeacherData }) => {
           {/* Name + verified badge */}
           <div className="flex items-center mt-5 gap-x-2">
             <span
-              className="font-bold  text-[15px] leading-tight truncate max-w-[160px] text-[var(--color-text)] bangla"
+              className="font-bold  text-xl leading-tight truncate max-w-[160px] text-[var(--color-text)] bangla"
               title={teacher.name}
             >
               {teacher.name}

@@ -1,19 +1,18 @@
+// TeacherFiles.Ui.tsx
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Phone,
   MapPin,
   Mail,
   Eye,
-  Crown,
   GraduationCap,
-  ShieldCheck,
   BadgeCheck,
   Trash2,
-  AlertTriangle,
   Monitor,
   Clock,
 } from "lucide-react";
+import Swal from "sweetalert2";
 import PersonModal, {
   InfoRow,
   Section,
@@ -27,6 +26,17 @@ import {
   formatDateTime,
   formatLocation,
 } from "../common/SessionSections";
+import {
+  ROLE_CONFIG,
+  DEGREE_LABEL,
+  YEARS,
+  type UserRole,
+} from "../../utility/Constants";
+
+// ── Build year label map from YEARS SelectOption[] ───────────────────────────
+const YEAR_LABEL: Record<string, string> = Object.fromEntries(
+  YEARS.map((y) => [y.value, y.label as string]),
+);
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface Teacher {
@@ -62,168 +72,6 @@ export interface Teacher {
   isHardcoded?: boolean;
 }
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-const ROLE_CONFIG: Record<
-  string,
-  { label: string; color: string; Icon: React.ElementType; handle: string }
-> = {
-  principal: {
-    label: "অধ্যক্ষ",
-    color: "#8b5cf6",
-    Icon: Crown,
-    handle: "principal",
-  },
-  admin: {
-    label: "প্রশাসক",
-    color: "#ef4444",
-    Icon: ShieldCheck,
-    handle: "admin",
-  },
-  teacher: {
-    label: "শিক্ষক",
-    color: "#3b82f6",
-    Icon: GraduationCap,
-    handle: "teacher",
-  },
-};
-
-const DEGREE_LABEL: Record<string, string> = {
-  hsc: "এইচএসসি / সমমান",
-  hons: "স্নাতক (সম্মান)",
-  masters: "স্নাতকোত্তর",
-};
-
-const YEAR_LABEL: Record<string, string> = {
-  "1st": "প্রথম বর্ষ",
-  "2nd": "দ্বিতীয় বর্ষ",
-  "3rd": "তৃতীয় বর্ষ",
-  "4th": "চতুর্থ বর্ষ",
-  mba: "এমবিএ",
-  mbbs: "এমবিবিএস",
-  ma: "এমএ",
-};
-
-// ══════════════════════════════════════════════════
-// DELETE CONFIRM MODAL
-// ══════════════════════════════════════════════════
-const DeleteConfirmModal = ({
-  teacher,
-  onConfirm,
-  onCancel,
-  isDeleting,
-}: {
-  teacher: Teacher;
-  onConfirm: () => void;
-  onCancel: () => void;
-  isDeleting: boolean;
-}) => {
-  const { color } =
-    ROLE_CONFIG[teacher.role ?? "teacher"] ?? ROLE_CONFIG.teacher;
-
-  return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-      style={{
-        backgroundColor: "rgba(0,0,0,0.6)",
-        backdropFilter: "blur(6px)",
-      }}
-      onClick={onCancel}
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        transition={{ type: "spring", stiffness: 320, damping: 28 }}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full rounded-2xl overflow-hidden shadow-2xl"
-        style={{
-          maxWidth: 380,
-          backgroundColor: "var(--color-bg)",
-          border: "1px solid var(--color-active-border)",
-        }}
-      >
-        <div className="h-[3px] bg-rose-500" />
-        <div className="p-6">
-          <div className="flex items-center justify-center w-12 h-12 rounded-2xl mx-auto mb-4 bg-rose-500/10 border border-rose-500/20">
-            <AlertTriangle className="w-6 h-6 text-rose-500" />
-          </div>
-          <h3
-            className="text-lg font-bold text-center bangla mb-1"
-            style={{ color: "var(--color-text)" }}
-          >
-            শিক্ষক মুছে ফেলবেন?
-          </h3>
-          <p
-            className="text-sm text-center bangla mb-1"
-            style={{ color: "var(--color-gray)" }}
-          >
-            নিচের শিক্ষককে স্থায়ীভাবে মুছে ফেলা হবে:
-          </p>
-          <div
-            className="flex items-center gap-3 rounded-xl p-3 mt-3 mb-5"
-            style={{
-              backgroundColor: "var(--color-active-bg)",
-              border: "1px solid var(--color-active-border)",
-            }}
-          >
-            <Avatar
-              name={teacher.name}
-              url={teacher.avatar?.url}
-              color={color}
-              size={40}
-            />
-            <div className="min-w-0">
-              <p
-                className="text-sm font-semibold bangla truncate"
-                style={{ color: "var(--color-text)" }}
-              >
-                {teacher.name}
-              </p>
-              <p
-                className="text-xs font-mono"
-                style={{ color: "var(--color-gray)" }}
-              >
-                {teacher.phone ?? teacher.slug ?? "—"}
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={onCancel}
-              className="flex-1 py-2.5 rounded-xl text-sm font-semibold bangla transition-all"
-              style={{
-                backgroundColor: "var(--color-active-bg)",
-                border: "1px solid var(--color-active-border)",
-                color: "var(--color-gray)",
-              }}
-            >
-              বাতিল
-            </button>
-            <button
-              onClick={onConfirm}
-              disabled={isDeleting}
-              className="flex-1 py-2.5 rounded-xl text-sm font-semibold bangla transition-all flex items-center justify-center gap-2 disabled:opacity-60"
-              style={{
-                backgroundColor: isDeleting
-                  ? "rgba(239,68,68,0.6)"
-                  : "rgb(239,68,68)",
-                color: "#fff",
-              }}
-            >
-              {isDeleting ? (
-                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-              ) : (
-                <Trash2 className="w-4 h-4" />
-              )}
-              {isDeleting ? "মুছছে..." : "হ্যাঁ, মুছুন"}
-            </button>
-          </div>
-        </div>
-      </motion.div>
-    </div>
-  );
-};
-
 // ══════════════════════════════════════════════════
 // TEACHER MODAL
 // ══════════════════════════════════════════════════
@@ -231,13 +79,79 @@ export const TeacherModal = ({
   teacher,
   sessionInfo,
   onClose,
+  onDelete,
 }: {
   teacher: Teacher;
   sessionInfo?: SessionSummary | null;
   onClose: () => void;
+  onDelete?: (id: string) => Promise<void>;
 }) => {
-  const { color, label, handle } =
-    ROLE_CONFIG[teacher.role ?? "teacher"] ?? ROLE_CONFIG.teacher;
+  const [isDeleting, setIsDeleting] = useState(false);
+  const role = (teacher.role as UserRole) ?? "teacher";
+  const { color, label } = ROLE_CONFIG[role] ?? ROLE_CONFIG.teacher;
+
+  const handleDelete = async () => {
+    if (!onDelete) return;
+
+    const result = await Swal.fire({
+      title: "শিক্ষক মুছে ফেলবেন?",
+      html: `<p style="font-size:14px;color:#94a3b8"><strong style="color:#f87171">${teacher.name}</strong> কে স্থায়ীভাবে মুছে ফেলা হবে।<br/>এটি পূর্বাবস্থায় ফেরানো যাবে না।</p>`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#64748b",
+      confirmButtonText: "হ্যাঁ, মুছুন",
+      cancelButtonText: "বাতিল",
+      background: "var(--color-bg)",
+      color: "var(--color-text)",
+      customClass: {
+        popup: "rounded-2xl",
+        container: "!z-[9999]",
+        title: "bangla",
+        confirmButton: "bangla",
+        cancelButton: "bangla",
+      },
+    });
+
+    if (!result.isConfirmed) return;
+
+    setIsDeleting(true);
+    try {
+      await onDelete(teacher._id);
+      onClose();
+      Swal.fire({
+        title: "মুছে ফেলা হয়েছে!",
+        text: `${teacher.name} সফলভাবে মুছে ফেলা হয়েছে।`,
+        icon: "success",
+        timer: 2000,
+        showConfirmButton: false,
+        background: "var(--color-bg)",
+        color: "var(--color-text)",
+        customClass: {
+          popup: "rounded-2xl",
+          container: "!z-[9999]",
+          title: "bangla",
+        },
+      });
+    } catch {
+      Swal.fire({
+        title: "ত্রুটি!",
+        text: "মুছে ফেলতে সমস্যা হয়েছে। আবার চেষ্টা করুন।",
+        icon: "error",
+        confirmButtonColor: "#ef4444",
+        background: "var(--color-bg)",
+        color: "var(--color-text)",
+        customClass: {
+          popup: "rounded-2xl",
+          container: "!z-[9999]",
+          title: "bangla",
+          confirmButton: "bangla",
+        },
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const pAddr = teacher.permanentSameAsPresent
     ? {
@@ -268,33 +182,35 @@ export const TeacherModal = ({
       onClose={onClose}
       accentColor={color}
       header={
-        <>
+        <div className="flex flex-col items-center justify-center gap-y-3">
           <Avatar
             name={teacher.name}
             url={teacher.avatar?.url}
             color={color}
-            size={68}
+            size={200}
+            className=""
           />
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <p className="text-base font-bold bangla leading-snug text-[var(--color-text)]">
+            <div className="flex items-center justify-center gap-1.5">
+              <p className="text-xl md:text-2xl font-bold bangla leading-snug text-[var(--color-text)]">
                 {teacher.name}
               </p>
-              <BadgeCheck className="w-4 h-4 shrink-0" style={{ color }} />
+              <BadgeCheck
+                className="w-4 h-4 md:w-5.5 md:h-5.5 shrink-0"
+                style={{ color }}
+              />
             </div>
-            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+            <div className="flex items-center gap-2 mt-1 ml-2 flex-wrap">
               <span
-                className="text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest bangla"
+                className="text-xs md:text-sm font-black px-3 py-0.5 rounded-full uppercase tracking-widest bangla"
                 style={{ backgroundColor: color + "20", color }}
               >
                 {label}
               </span>
-              <span className="text-[10px] font-mono text-[var(--color-gray)]">
-                @{handle}
-              </span>
+
               {teacher.slug && (
                 <span
-                  className="text-[9px] font-mono px-1.5 py-0.5 rounded"
+                  className="text-xs md:text-sm font-mono px-1.5 py-0.5 rounded"
                   style={{
                     backgroundColor: "var(--color-active-bg)",
                     color: "var(--color-gray)",
@@ -318,7 +234,7 @@ export const TeacherModal = ({
               )}
             </div>
           </div>
-        </>
+        </div>
       }
     >
       {/* ── মূল তথ্য ── */}
@@ -425,12 +341,49 @@ export const TeacherModal = ({
         </Section>
       )}
 
-      {/* ── Session Info (বর্তমান + ইতিহাস) ── */}
+      {/* ── Session Info ── */}
       <SessionInfoSections
         userId={teacher._id}
         sessionInfo={sessionInfo}
         accent={color}
       />
+
+      {/* ── Delete Button ── */}
+      {onDelete && (
+        <div
+          className="mt-4 pt-4"
+          style={{ borderTop: "1px solid var(--color-active-border)" }}
+        >
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={isDeleting}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold bangla cursor-pointer transition-all disabled:opacity-60"
+            style={{
+              border: "1px solid rgba(239,68,68,0.3)",
+              color: "#ef4444",
+              backgroundColor: "rgba(239,68,68,0.06)",
+            }}
+            onMouseEnter={(e) => {
+              if (!isDeleting) {
+                e.currentTarget.style.backgroundColor = "rgba(239,68,68,0.15)";
+                e.currentTarget.style.borderColor = "rgba(239,68,68,0.6)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(239,68,68,0.06)";
+              e.currentTarget.style.borderColor = "rgba(239,68,68,0.3)";
+            }}
+          >
+            {isDeleting ? (
+              <span className="w-4 h-4 border-2 border-red-400/40 border-t-red-500 rounded-full animate-spin" />
+            ) : (
+              <Trash2 className="w-4 h-4" />
+            )}
+            {isDeleting ? "মুছছে..." : "শিক্ষক মুছে ফেলুন"}
+          </button>
+        </div>
+      )}
     </PersonModal>
   );
 };
@@ -450,22 +403,9 @@ export const TeacherCard = ({
   onDelete?: (id: string) => Promise<void>;
 }) => {
   const [modalOpen, setModalOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
 
-  const { color, label } =
-    ROLE_CONFIG[teacher.role ?? "teacher"] ?? ROLE_CONFIG.teacher;
-
-  const handleDelete = async () => {
-    if (!onDelete) return;
-    setIsDeleting(true);
-    try {
-      await onDelete(teacher._id);
-    } finally {
-      setIsDeleting(false);
-      setDeleteOpen(false);
-    }
-  };
+  const role = (teacher.role as UserRole) ?? "teacher";
+  const { color, label } = ROLE_CONFIG[role] ?? ROLE_CONFIG.teacher;
 
   const eduDisplay =
     teacher.collegeName?.trim() ||
@@ -522,7 +462,7 @@ export const TeacherCard = ({
                 />
               </div>
               <p
-                className=" text-xs font-black w-14 py-1 px-3 rounded-full uppercase tracking-widest bangla"
+                className="text-xs font-black w-fit py-1 px-3 rounded-full uppercase tracking-widest bangla"
                 style={{ backgroundColor: color + "18", color }}
               >
                 {label}
@@ -627,12 +567,12 @@ export const TeacherCard = ({
             )}
           </div>
 
-          {/* action buttons */}
-          <div className="mt-4 flex gap-2">
+          {/* action button */}
+          <div className="mt-4">
             <button
               type="button"
               onClick={() => setModalOpen(true)}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bangla cursor-pointer transition-all bg-transparent text-[var(--color-gray)] border border-[var(--color-active-border)]"
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bangla cursor-pointer transition-all bg-transparent text-[var(--color-gray)] border border-[var(--color-active-border)]"
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = color + "88";
                 e.currentTarget.style.color = color;
@@ -648,35 +588,6 @@ export const TeacherCard = ({
               <Eye className="w-3.5 h-3.5" />
               বিস্তারিত
             </button>
-
-            {onDelete && (
-              <motion.button
-                type="button"
-                onClick={() => setDeleteOpen(true)}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="flex items-center justify-center w-10 h-10 rounded-xl cursor-pointer transition-all shrink-0"
-                style={{
-                  border: "1px solid rgba(239,68,68,0.25)",
-                  color: "rgba(239,68,68,0.6)",
-                  backgroundColor: "rgba(239,68,68,0.05)",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(239,68,68,0.6)";
-                  e.currentTarget.style.color = "rgb(239,68,68)";
-                  e.currentTarget.style.backgroundColor = "rgba(239,68,68,0.1)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(239,68,68,0.25)";
-                  e.currentTarget.style.color = "rgba(239,68,68,0.6)";
-                  e.currentTarget.style.backgroundColor =
-                    "rgba(239,68,68,0.05)";
-                }}
-                title="মুছুন"
-              >
-                <Trash2 className="w-4 h-4" />
-              </motion.button>
-            )}
           </div>
         </div>
       </motion.div>
@@ -686,19 +597,9 @@ export const TeacherCard = ({
           teacher={teacher}
           sessionInfo={sessionInfo}
           onClose={() => setModalOpen(false)}
+          onDelete={onDelete}
         />
       )}
-
-      <AnimatePresence>
-        {deleteOpen && (
-          <DeleteConfirmModal
-            teacher={teacher}
-            onConfirm={handleDelete}
-            onCancel={() => setDeleteOpen(false)}
-            isDeleting={isDeleting}
-          />
-        )}
-      </AnimatePresence>
     </>
   );
 };

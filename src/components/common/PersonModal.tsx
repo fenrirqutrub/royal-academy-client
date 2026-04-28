@@ -28,11 +28,13 @@ export const InfoRow = ({
 }) =>
   value ? (
     <div className="flex items-start gap-3 group">
-      <span className="text-[10px] font-bold uppercase tracking-[0.5px] shrink-0 bangla text-[var(--color-gray)] w-16 pt-0.5">
+      <span className="text-xs md:text-sm font-bold uppercase tracking-[0.5px] shrink-0 bangla text-[var(--color-gray)] w-16 pt-0.5">
         {label}
       </span>
-      <span className="text-xs opacity-40 text-[var(--color-gray)]">:</span>
-      <span className="text-sm bangla text-[var(--color-text)] leading-relaxed flex-1">
+      <span className="text-xs md:text-sm opacity-40 text-[var(--color-gray)]">
+        :
+      </span>
+      <span className="text-xs md:text-sm bangla text-[var(--color-text)] leading-relaxed flex-1">
         {value}
       </span>
     </div>
