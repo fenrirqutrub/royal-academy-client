@@ -133,7 +133,6 @@ export const convertToModernFormats = async (
   return { avif: avifBlob, webp: webpBlob, preferred, preferredBlob };
 };
 
-// ── Single upload with XHR progress ──────────────────────────────────────
 export const uploadSingleWithProgress = (
   blob: Blob,
   folder: string,
@@ -141,7 +140,23 @@ export const uploadSingleWithProgress = (
   onProgress?: (loaded: number, total: number) => void,
 ): Promise<CloudinaryResult> => {
   return new Promise((resolve, reject) => {
-    const ext = blob.type === "image/avif" ? "avif" : "webp";
+    const getExtFromMime = (type: string) => {
+      switch (type) {
+        case "image/avif":
+          return "avif";
+        case "image/webp":
+          return "webp";
+        case "image/jpeg":
+          return "jpg";
+        case "image/png":
+          return "png";
+        default:
+          return "bin";
+      }
+    };
+
+    const ext = getExtFromMime(blob.type);
+
     const fd = new FormData();
     fd.append("file", blob, `${filename}.${ext}`);
     fd.append("upload_preset", UPLOAD_PRESET);
@@ -173,14 +188,11 @@ export const uploadSingleWithProgress = (
 
     xhr.onerror = () => reject(new Error("Network error during upload"));
     xhr.ontimeout = () => reject(new Error("Upload timed out"));
+
     xhr.send(fd);
   });
 };
 
-/**
- * Upload a single file — converts to WebP/AVIF first, uploads preferred format.
- * Vercel-safe: all heavy work done in browser, only small blob hits the CDN.
- */
 export const uploadToCloudinaryDirect = async (
   file: File | Blob,
   folder = "uploads",

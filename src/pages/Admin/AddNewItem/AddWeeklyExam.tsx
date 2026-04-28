@@ -1,6 +1,11 @@
-/* eslint-disable react-hooks/rules-of-hooks */
 // AddWeeklyExam.tsx
-import { useForm, type SubmitHandler, Controller } from "react-hook-form";
+import {
+  useForm,
+  type SubmitHandler,
+  Controller,
+  type ControllerRenderProps,
+  type ControllerFieldState,
+} from "react-hook-form";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import {
@@ -55,14 +60,14 @@ const validateNumberValue = (
   fieldLabel: string,
 ): string | true => {
   if (!raw?.trim()) return `${fieldLabel} আবশ্যিক`;
-  const ascii = toEn(raw).trim();
-  if (!/^[\d.\-–, ]+$/.test(ascii)) {
-    return "শুধু সংখ্যা, দশমিক (.), হাইফেন (-) এবং কমা (,) ব্যবহার করুন";
-  }
+
+  const ascii = toEn(raw).replace(/[–—]/g, "-").replace(/।/g, ".").trim();
+
   const parts = ascii
     .split(",")
     .map((p) => p.trim())
     .filter(Boolean);
+
   for (const part of parts) {
     if (!/^\d+\.?\d*$|^\d+\.?\d*-\d+\.?\d*$/.test(part)) {
       return "সঠিক ফরম্যাট দিন। উদাহরণ: ২.৬, ১৫-২০, ২৫-৩০";
@@ -154,6 +159,7 @@ const inputCls = (
 const labelCls =
   "flex items-center gap-2 text-xs font-semibold tracking-wide uppercase text-[var(--color-gray)] mb-2";
 
+// ─── Small UI helpers ──────────────────────────────────────
 const RequiredStar = () => (
   <motion.span
     initial={{ scale: 0 }}
@@ -215,7 +221,80 @@ const ErrorMsg = ({ msg }: { msg?: string }) => (
   </AnimatePresence>
 );
 
-// ─── Reusable Bangla number text input ────────────────────
+// ─── TopicsField ───────────────────────────────────────────
+interface TextAreaFieldProps {
+  field: ControllerRenderProps<WeeklyExamFormData, "topics">;
+  fieldState: ControllerFieldState;
+}
+
+const TopicsField = ({ field, fieldState }: TextAreaFieldProps) => {
+  const [isFocused, setIsFocused] = useState(false);
+
+  return (
+    <div className="relative">
+      <textarea
+        rows={4}
+        placeholder="পরীক্ষার বিষয়বস্তু লিখুন..."
+        value={field.value}
+        onChange={field.onChange}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => {
+          setIsFocused(false);
+          field.onBlur();
+        }}
+        className={`${inputCls(
+          !!fieldState.error,
+          fieldState.isTouched && !fieldState.error,
+          isFocused,
+        )} resize-none leading-relaxed bangla pr-10`}
+      />
+      <div className="absolute right-3 top-3">
+        <FieldIcon
+          isError={!!fieldState.error}
+          isValid={fieldState.isTouched && !fieldState.error}
+        />
+      </div>
+    </div>
+  );
+};
+
+// ─── QuestionField ─────────────────────────────────────────
+interface QuestionFieldProps {
+  field: ControllerRenderProps<WeeklyExamFormData, "question">;
+  fieldState: ControllerFieldState;
+}
+
+const QuestionField = ({ field, fieldState }: QuestionFieldProps) => {
+  const [isFocused, setIsFocused] = useState(false);
+
+  return (
+    <div className="relative">
+      <textarea
+        rows={4}
+        placeholder="পরীক্ষার প্রশ্ন লিখুন (যদি থাকে)..."
+        value={field.value}
+        onChange={field.onChange}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => {
+          setIsFocused(false);
+          field.onBlur();
+        }}
+        className={`${inputCls(
+          !!fieldState.error,
+          fieldState.isTouched && !fieldState.error && !!field.value,
+          isFocused,
+        )} resize-none leading-relaxed bangla pr-10`}
+      />
+      {field.value && (
+        <div className="absolute right-3 top-3">
+          <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── BanglaNumberInput ────────────────────────────────────
 const BanglaNumberInput = ({
   value,
   onChange,
@@ -259,7 +338,7 @@ const BanglaNumberInput = ({
   );
 };
 
-// ─── Animated Card Wrapper ────────────────────────────────
+// ─── AnimatedCard ─────────────────────────────────────────
 const AnimatedCard = ({
   children,
   index,
@@ -280,7 +359,7 @@ const AnimatedCard = ({
 );
 
 // ═════════════════════════════════════════════════════════
-// Component
+// Main Component
 // ═════════════════════════════════════════════════════════
 const AddWeeklyExam = () => {
   const { user } = useAuth();
@@ -291,7 +370,7 @@ const AddWeeklyExam = () => {
   const hasUserEditedExamNumber = useRef(false);
   const qc = useQueryClient();
 
-  // ── Fetch all exams for suggested exam number ──────────
+  // ── Fetch all exams ────────────────────────────────────
   const { data: allExams = [] } = useQuery<WeeklyExamData[]>({
     queryKey: ["weekly-exams"],
     queryFn: async () => {
@@ -304,7 +383,7 @@ const AddWeeklyExam = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  // ── Suggested exam number logic ────────────────────────
+  // ── Exam number suggestions ────────────────────────────
   const examNumbers = useMemo(() => {
     const unique = new Set(allExams.map((e) => String(e.ExamNumber)));
     return sortExamNumbers(Array.from(unique));
@@ -374,8 +453,9 @@ const AddWeeklyExam = () => {
     staleTime: 5 * 60 * 1000,
   });
 
+  // ✅ slug as value — name as label
   const teacherOptions: SelectOption[] = teacherList.map((t) => ({
-    value: t.name,
+    value: t.slug,
     label: t.name,
     icon: <PiChalkboardTeacherFill />,
   }));
@@ -407,7 +487,7 @@ const AddWeeklyExam = () => {
   const teacherValue = watch("teacher");
   const numberType = watch("numberType");
 
-  // ── Auto set suggested exam number ────────────────────
+  // ── Auto set exam number ───────────────────────────────
   useEffect(() => {
     if (hasUserEditedExamNumber.current) return;
     setValue("ExamNumber", toBn(suggestedExamNumber), {
@@ -419,11 +499,15 @@ const AddWeeklyExam = () => {
 
   // ── Auto set teacher ───────────────────────────────────
   useEffect(() => {
-    if (!user?.name) return;
+    if (!user?.slug) return;
     if (isAdmin && teacherList.length === 0) return;
     if (teacherValue) return;
-    setValue("teacher", user.name, { shouldValidate: true, shouldTouch: true });
-  }, [user?.name, isAdmin, teacherList.length, teacherValue, setValue]);
+    // ✅ set slug as default value (matches teacherOptions value)
+    setValue("teacher", user.slug, {
+      shouldValidate: true,
+      shouldTouch: true,
+    });
+  }, [user?.slug, isAdmin, teacherList.length, teacherValue, setValue]);
 
   // ── Mutation ───────────────────────────────────────────
   const mutation = useMutation({
@@ -435,24 +519,26 @@ const AddWeeklyExam = () => {
 
       if (data.images.length > 0) {
         setUploadProgress(0);
-
-        // Extract blobs — already WebP from editor
         const blobs = data.images.map((img) => img.blob);
-
         const cloudinaryResults = await uploadEditedBlobsToCloudinary(blobs, {
           folder: "weekly-exams",
           onProgress: setUploadProgress,
         });
-
         uploadedImages = cloudinaryResults.map((r) => ({
           imageUrl: r.secure_url,
           publicId: r.public_id,
         }));
       }
 
+      // ✅ resolve teacher name + slug from selected slug
+      const selectedTeacher = teacherList.find(
+        (t) => t.slug === data.formData.teacher,
+      );
+
       const payload = {
         subject: data.formData.subject,
-        teacher: data.formData.teacher,
+        teacher: selectedTeacher?.name ?? user?.name,
+        teacherSlug: selectedTeacher?.slug ?? user?.slug,
         class: data.formData.class,
         mark: data.formData.mark,
         ExamNumber: toEn(data.formData.ExamNumber),
@@ -460,7 +546,6 @@ const AddWeeklyExam = () => {
         [data.formData.numberType]: toEn(data.formData.numberValue),
         topics: data.formData.topics,
         question: data.formData.question,
-        teacherSlug: user?.slug,
         images: uploadedImages,
       };
 
@@ -473,7 +558,7 @@ const AddWeeklyExam = () => {
       hasUserEditedExamNumber.current = false;
       reset({
         subject: "",
-        teacher: user?.name ?? "",
+        teacher: user?.slug ?? "",
         class: "",
         mark: 0,
         ExamNumber: toBn(suggestedExamNumber),
@@ -482,7 +567,6 @@ const AddWeeklyExam = () => {
         topics: "",
         question: "",
       });
-      // Clean up preview URLs
       editedImages.forEach((img) => URL.revokeObjectURL(img.previewUrl));
       setEditedImages([]);
       setUploadProgress(0);
@@ -496,8 +580,9 @@ const AddWeeklyExam = () => {
   });
 
   const onSubmit: SubmitHandler<WeeklyExamFormData> = (data) => {
-    if (!isAdmin && user?.name) {
-      data.teacher = user.name;
+    // non-admin: override teacher with own slug
+    if (!isAdmin && user?.slug) {
+      data.teacher = user.slug;
     }
     mutation.mutate({ formData: data, images: editedImages });
   };
@@ -506,10 +591,10 @@ const AddWeeklyExam = () => {
     hasUserEditedExamNumber.current = false;
     reset({
       subject: "",
-      teacher: "",
+      teacher: user?.slug ?? "",
       class: "",
       mark: 0,
-      ExamNumber: "",
+      ExamNumber: toBn(suggestedExamNumber),
       numberType: "chapterNumber",
       numberValue: "",
       topics: "",
@@ -539,7 +624,7 @@ const AddWeeklyExam = () => {
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         className="w-full"
       >
-        {/* Header */}
+        {/* ── Header ── */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -572,14 +657,13 @@ const AddWeeklyExam = () => {
           </div>
         </motion.div>
 
-        {/* Card */}
+        {/* ── Card ── */}
         <motion.div
           variants={pulseGlow}
           initial="initial"
           animate="animate"
           className="relative bg-[var(--color-bg)] rounded-2xl border-2 border-[var(--color-active-border)] overflow-hidden shadow-xl"
         >
-          {/* Animated gradient border effect */}
           <motion.div
             className="absolute inset-0 rounded-2xl pointer-events-none"
             style={{
@@ -587,7 +671,9 @@ const AddWeeklyExam = () => {
                 "linear-gradient(45deg, transparent 30%, rgba(139,92,246,0.1) 50%, transparent 70%)",
               backgroundSize: "200% 200%",
             }}
-            animate={{ backgroundPosition: ["0% 0%", "100% 100%", "0% 0%"] }}
+            animate={{
+              backgroundPosition: ["0% 0%", "100% 100%", "0% 0%"],
+            }}
             transition={{ duration: 5, repeat: Infinity }}
           />
 
@@ -827,37 +913,14 @@ const AddWeeklyExam = () => {
                   control={control}
                   rules={{
                     required: "বিষয়বস্তু আবশ্যিক",
-                    minLength: { value: 5, message: "কমপক্ষে ৫ অক্ষর লিখুন" },
+                    minLength: {
+                      value: 5,
+                      message: "কমপক্ষে ৫ অক্ষর লিখুন",
+                    },
                   }}
-                  render={({ field, fieldState }) => {
-                    const [isFocused, setIsFocused] = useState(false);
-                    return (
-                      <div className="relative">
-                        <textarea
-                          rows={4}
-                          placeholder="পরীক্ষার বিষয়বস্তু লিখুন..."
-                          value={field.value}
-                          onChange={field.onChange}
-                          onFocus={() => setIsFocused(true)}
-                          onBlur={() => {
-                            setIsFocused(false);
-                            field.onBlur();
-                          }}
-                          className={`${inputCls(
-                            !!fieldState.error,
-                            fieldState.isTouched && !fieldState.error,
-                            isFocused,
-                          )} resize-none leading-relaxed bangla pr-10`}
-                        />
-                        <div className="absolute right-3 top-3">
-                          <FieldIcon
-                            isError={!!fieldState.error}
-                            isValid={fieldState.isTouched && !fieldState.error}
-                          />
-                        </div>
-                      </div>
-                    );
-                  }}
+                  render={({ field, fieldState }) => (
+                    <TopicsField field={field} fieldState={fieldState} />
+                  )}
                 />
                 <ErrorMsg msg={errors.topics?.message} />
               </AnimatedCard>
@@ -871,41 +934,9 @@ const AddWeeklyExam = () => {
                 <Controller
                   name="question"
                   control={control}
-                  render={({ field, fieldState }) => {
-                    const [isFocused, setIsFocused] = useState(false);
-                    return (
-                      <div className="relative">
-                        <textarea
-                          rows={4}
-                          placeholder="পরীক্ষার প্রশ্ন লিখুন (যদি থাকে)..."
-                          value={field.value}
-                          onChange={field.onChange}
-                          onFocus={() => setIsFocused(true)}
-                          onBlur={() => {
-                            setIsFocused(false);
-                            field.onBlur();
-                          }}
-                          className={`${inputCls(
-                            !!fieldState.error,
-                            fieldState.isTouched &&
-                              !fieldState.error &&
-                              !!field.value,
-                            isFocused,
-                          )} resize-none leading-relaxed bangla pr-10`}
-                        />
-                        {field.value && (
-                          <div className="absolute right-3 top-3">
-                            <motion.span
-                              initial={{ scale: 0 }}
-                              animate={{ scale: 1 }}
-                            >
-                              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                            </motion.span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  }}
+                  render={({ field, fieldState }) => (
+                    <QuestionField field={field} fieldState={fieldState} />
+                  )}
                 />
                 <p className="text-xs text-[var(--color-gray)] mt-1.5 bangla flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-amber-500" />
@@ -913,7 +944,7 @@ const AddWeeklyExam = () => {
                 </p>
               </AnimatedCard>
 
-              {/* ── Row 7: Image Upload with Editor ── */}
+              {/* ── Row 7: Image Upload ── */}
               <AnimatedCard index={9}>
                 <label className={labelCls}>
                   <ImagePlus className="w-4 h-4" />
@@ -969,7 +1000,9 @@ const AddWeeklyExam = () => {
                               : "সংরক্ষণ হচ্ছে…"}
                           </span>
                           <span className="font-bold">
-                            {toBn(uploadProgress)}%
+                            {editedImages.length > 0
+                              ? `${toBn(uploadProgress)}%`
+                              : ""}
                           </span>
                         </span>
                         <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">

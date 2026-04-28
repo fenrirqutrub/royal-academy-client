@@ -1,9 +1,11 @@
 // src/components/common/ImageUploadWithEditor.tsx
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ImagePlus, CheckCircle2, Pencil, X, Zap } from "lucide-react";
+import { ImagePlus, CheckCircle2, Pencil, X, Check, Edit3 } from "lucide-react";
 import ImageEditor from "./ImageEditor";
 import { toBn } from "../../utility/Formatters";
+import { lockScroll, unlockScroll } from "../../utility/scrollLock";
 
 export interface EditedImage {
   blob: Blob;
@@ -15,74 +17,207 @@ interface ImageUploadWithEditorProps {
   images: EditedImage[];
   onChange: (images: EditedImage[]) => void;
   maxImages?: number;
-  allowSkipEdit?: boolean; // ← নতুন prop
+  allowSkipEdit?: boolean;
 }
 
-const shimmer = {
-  initial: { x: "-100%" },
-  animate: {
-    x: "100%",
-    transition: { duration: 1.5, repeat: Infinity, repeatDelay: 0.5 },
-  },
+// ── Full-screen preview modal ─────────────────────────────
+interface PreviewModalProps {
+  file: File;
+  previewUrl: string;
+  onConfirm: () => void;
+  onEdit: () => void;
+  onCancel: () => void;
+}
+
+const PreviewModal = ({
+  file,
+  previewUrl,
+  onConfirm,
+  onEdit,
+  onCancel,
+}: PreviewModalProps) => {
+  useEffect(() => {
+    lockScroll();
+    return () => {
+      unlockScroll();
+    };
+  }, []);
+
+  const modal = (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[99990] bg-black/95 backdrop-blur-sm flex flex-col"
+    >
+      {/* Top bar */}
+      <motion.div
+        initial={{ y: -40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.25 }}
+        className="flex items-center justify-between px-4 py-3 bg-black/80 border-b border-white/10 shrink-0"
+      >
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-rose-600/80 hover:bg-rose-600 text-white text-sm transition-all active:scale-95"
+        >
+          <X className="w-4 h-4" />
+          <span className="bangla hidden sm:inline">বাতিল</span>
+        </button>
+
+        <p className="text-white/60 text-xs bangla truncate max-w-[180px]">
+          {file.name} · {(file.size / (1024 * 1024)).toFixed(1)} MB
+        </p>
+
+        <div className="w-24" />
+      </motion.div>
+
+      {/* Image preview */}
+      <div className="flex-1 min-h-0 flex items-center justify-center p-4 overflow-hidden">
+        <motion.img
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+          src={previewUrl}
+          alt="preview"
+          className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+        />
+      </div>
+
+      {/* Bottom action buttons */}
+      <motion.div
+        initial={{ y: 60, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.3 }}
+        className="bg-black/90 border-t border-white/10 p-4 shrink-0"
+      >
+        <div className="flex gap-3 max-w-sm mx-auto">
+          <motion.button
+            type="button"
+            onClick={onEdit}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl
+              bg-amber-500/20 border border-amber-500/40 hover:bg-amber-500/30
+              text-amber-400 text-sm font-medium transition-all bangla"
+          >
+            <Edit3 className="w-4 h-4" />
+            সম্পাদনা
+          </motion.button>
+
+          <motion.button
+            type="button"
+            onClick={onConfirm}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl
+              bg-emerald-500/20 border border-emerald-500/40 hover:bg-emerald-500/30
+              text-emerald-400 text-sm font-semibold transition-all bangla"
+          >
+            <Check className="w-4 h-4" />
+            নিশ্চিত করুন
+          </motion.button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+
+  return createPortal(modal, document.body);
 };
 
+// ── Main Component ────────────────────────────────────────
 const ImageUploadWithEditor = ({
   images,
   onChange,
   maxImages = 10,
-  allowSkipEdit = false,
 }: ImageUploadWithEditorProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const skipInputRef = useRef<HTMLInputElement>(null);
-  const [editingFile, setEditingFile] = useState<File | null>(null);
-  const [reEditIndex, setReEditIndex] = useState<number | null>(null);
   const fileQueueRef = useRef<File[]>([]);
 
-  const processFileQueue = useCallback(
-    (files: File[]) => {
-      if (files.length === 0) return;
-      if (images.length >= maxImages) return;
-      fileQueueRef.current = files.slice(1);
-      setEditingFile(files[0]);
-    },
-    [images.length, maxImages],
-  );
+  const maxImagesRef = useRef(maxImages);
+  useEffect(() => {
+    maxImagesRef.current = maxImages;
+  }, [maxImages]);
+
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>("");
+
+  const [editingFile, setEditingFile] = useState<File | null>(null);
+  const [reEditIndex, setReEditIndex] = useState<number | null>(null);
+
+  const openNextPreview = useCallback((files: File[], currentCount: number) => {
+    if (files.length === 0 || currentCount >= maxImagesRef.current) return;
+    fileQueueRef.current = files.slice(1);
+    const file = files[0];
+    const url = URL.createObjectURL(file);
+    setPreviewFile(file);
+    setPreviewUrl(url);
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
-    if (!files.length) return;
     e.target.value = "";
-    processFileQueue([...files]);
+    if (!files.length) return;
+    openNextPreview(files, images.length);
   };
 
-  // ── Skip editor: directly add files as-is ────────────────────────────
-  const handleSkipEditChange = async (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const files = Array.from(e.target.files ?? []);
-    if (!files.length) return;
-    e.target.value = "";
+  // ── Preview → Confirm ────────────────────────────────────
+  const handlePreviewConfirm = useCallback(() => {
+    if (!previewFile) return;
 
-    const remaining = maxImages - images.length;
-    const toAdd = files.slice(0, remaining);
+    const newImage: EditedImage = {
+      blob: previewFile,
+      previewUrl: previewUrl,
+      originalName: previewFile.name,
+    };
+    const newImages = [...images, newImage];
+    onChange(newImages);
 
-    const newImages: EditedImage[] = toAdd.map((file) => ({
-      blob: file,
-      previewUrl: URL.createObjectURL(file),
-      originalName: file.name,
-    }));
+    setPreviewFile(null);
+    setPreviewUrl("");
 
-    onChange([...images, ...newImages]);
-  };
+    if (
+      fileQueueRef.current.length > 0 &&
+      newImages.length < maxImagesRef.current
+    ) {
+      setTimeout(() => openNextPreview(fileQueueRef.current, newImages.length));
+    }
+  }, [previewFile, previewUrl, images, onChange, openNextPreview]);
 
+  // ── Preview → Edit ───────────────────────────────────────
+  const handlePreviewEdit = useCallback(() => {
+    if (!previewFile) return;
+
+    const fileToEdit = previewFile;
+    const urlToRevoke = previewUrl;
+
+    setPreviewFile(null);
+    setPreviewUrl("");
+    setEditingFile(fileToEdit);
+
+    requestAnimationFrame(() => {
+      URL.revokeObjectURL(urlToRevoke);
+    });
+  }, [previewFile, previewUrl]);
+
+  // ── Preview → Cancel ─────────────────────────────────────
+  const handlePreviewCancel = useCallback(() => {
+    URL.revokeObjectURL(previewUrl);
+    setPreviewFile(null);
+    setPreviewUrl("");
+    fileQueueRef.current = [];
+  }, [previewUrl]);
+
+  // ── Editor confirm ────────────────────────────────────────
   const handleEditorConfirm = useCallback(
-    (blob: Blob, previewUrl: string) => {
+    (blob: Blob, url: string) => {
       if (reEditIndex !== null) {
         const updated = [...images];
         URL.revokeObjectURL(updated[reEditIndex].previewUrl);
         updated[reEditIndex] = {
           blob,
-          previewUrl,
+          previewUrl: url,
           originalName: updated[reEditIndex].originalName,
         };
         onChange(updated);
@@ -93,34 +228,34 @@ const ImageUploadWithEditor = ({
 
       const newImage: EditedImage = {
         blob,
-        previewUrl,
+        previewUrl: url,
         originalName: editingFile?.name ?? "image",
       };
       const newImages = [...images, newImage];
       onChange(newImages);
       setEditingFile(null);
 
-      if (fileQueueRef.current.length > 0 && newImages.length < maxImages) {
-        setTimeout(() => processFileQueue(fileQueueRef.current), 200);
+      if (
+        fileQueueRef.current.length > 0 &&
+        newImages.length < maxImagesRef.current
+      ) {
+        setTimeout(
+          () => openNextPreview(fileQueueRef.current, newImages.length),
+          200,
+        );
       }
     },
-    [editingFile, images, onChange, reEditIndex, maxImages, processFileQueue],
+    [editingFile, images, onChange, reEditIndex, openNextPreview],
   );
 
+  // ── Editor cancel ─────────────────────────────────────────
   const handleEditorCancel = useCallback(() => {
     setEditingFile(null);
     setReEditIndex(null);
     fileQueueRef.current = [];
   }, []);
 
-  const removeImage = useCallback(
-    (index: number) => {
-      URL.revokeObjectURL(images[index].previewUrl);
-      onChange(images.filter((_, i) => i !== index));
-    },
-    [images, onChange],
-  );
-
+  // ── Re-edit existing image ────────────────────────────────
   const reEditImage = useCallback(
     (index: number) => {
       const img = images[index];
@@ -133,93 +268,53 @@ const ImageUploadWithEditor = ({
     [images],
   );
 
+  // ── Remove image ──────────────────────────────────────────
+  const removeImage = useCallback(
+    (index: number) => {
+      URL.revokeObjectURL(images[index].previewUrl);
+      onChange(images.filter((_, i) => i !== index));
+    },
+    [images, onChange],
+  );
+
   const isFull = images.length >= maxImages;
-  const isEditorOpen = editingFile !== null;
 
   return (
     <div>
-      {/* ── Upload Buttons ── */}
-      <div
-        className={`grid gap-3 ${allowSkipEdit ? "grid-cols-2" : "grid-cols-1"}`}
+      {/* ── Upload Button ── */}
+      <motion.div
+        whileHover={{ scale: isFull ? 1 : 1.01 }}
+        whileTap={{ scale: isFull ? 1 : 0.99 }}
+        onClick={() => {
+          if (!isFull) fileInputRef.current?.click();
+        }}
+        className={`cursor-pointer border-2 border-dashed rounded-xl p-6
+          flex flex-col items-center gap-2 transition-all duration-300
+          group relative overflow-hidden
+          ${
+            isFull
+              ? "border-[var(--color-active-border)] opacity-50 cursor-not-allowed"
+              : "border-[var(--color-active-border)] hover:border-violet-400"
+          }`}
       >
-        {/* Edit করে যোগ করুন */}
         <motion.div
-          whileHover={{ scale: isFull ? 1 : 1.01 }}
-          whileTap={{ scale: isFull ? 1 : 0.99 }}
-          onClick={() => {
-            if (!isFull) fileInputRef.current?.click();
-          }}
-          className={`cursor-pointer border-2 border-dashed rounded-xl p-6
-            flex flex-col items-center gap-2 transition-all duration-300
-            group relative overflow-hidden
-            ${
-              isFull
-                ? "border-[var(--color-active-border)] opacity-50 cursor-not-allowed"
-                : "border-[var(--color-active-border)] hover:border-violet-400"
-            }`}
+          animate={{ x: ["-100%", "100%"] }}
+          transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 0.5 }}
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-violet-500/5 to-transparent pointer-events-none"
+        />
+        <motion.div
+          whileHover={{ rotate: 15, scale: 1.1 }}
+          transition={{ type: "spring", stiffness: 400 }}
         >
-          <motion.div
-            variants={shimmer}
-            initial="initial"
-            animate="animate"
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-violet-500/5 to-transparent"
-          />
-          <motion.div
-            whileHover={{ rotate: 15, scale: 1.1 }}
-            transition={{ type: "spring", stiffness: 400 }}
-          >
-            <ImagePlus className="w-8 h-8 text-[var(--color-gray)] group-hover:text-violet-500 transition-colors" />
-          </motion.div>
-          <p className="text-sm text-[var(--color-gray)] group-hover:text-violet-500 transition-colors bangla font-medium text-center">
-            {allowSkipEdit
-              ? "সম্পাদনা করে যোগ করুন"
-              : "ক্লিক করুন — ছবি সম্পাদনা করে যোগ করুন"}
-          </p>
-          {allowSkipEdit && (
-            <p className="text-xs text-[var(--color-gray)] bangla text-center">
-              ক্রপ, রোটেট, ফ্লিপ সম্ভব
-            </p>
-          )}
+          <ImagePlus className="w-8 h-8 text-[var(--color-gray)] group-hover:text-violet-500 transition-colors" />
         </motion.div>
-
-        {/* সরাসরি যোগ করুন (full size) */}
-        {allowSkipEdit && (
-          <motion.div
-            whileHover={{ scale: isFull ? 1 : 1.01 }}
-            whileTap={{ scale: isFull ? 1 : 0.99 }}
-            onClick={() => {
-              if (!isFull) skipInputRef.current?.click();
-            }}
-            className={`cursor-pointer border-2 border-dashed rounded-xl p-6
-              flex flex-col items-center gap-2 transition-all duration-300
-              group relative overflow-hidden
-              ${
-                isFull
-                  ? "border-[var(--color-active-border)] opacity-50 cursor-not-allowed"
-                  : "border-[var(--color-active-border)] hover:border-amber-400"
-              }`}
-          >
-            <motion.div
-              variants={shimmer}
-              initial="initial"
-              animate="animate"
-              className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/5 to-transparent"
-            />
-            <motion.div
-              whileHover={{ scale: 1.1 }}
-              transition={{ type: "spring", stiffness: 400 }}
-            >
-              <Zap className="w-8 h-8 text-[var(--color-gray)] group-hover:text-amber-500 transition-colors" />
-            </motion.div>
-            <p className="text-sm text-[var(--color-gray)] group-hover:text-amber-500 transition-colors bangla font-medium text-center">
-              সরাসরি যোগ করুন
-            </p>
-            <p className="text-xs text-[var(--color-gray)] bangla text-center">
-              ফুল সাইজ · এডিট ছাড়া
-            </p>
-          </motion.div>
-        )}
-      </div>
+        <p className="text-sm text-[var(--color-gray)] group-hover:text-violet-500 transition-colors bangla font-medium text-center">
+          ক্লিক করুন — ছবি যোগ করুন
+        </p>
+        <p className="text-xs text-[var(--color-gray)] bangla text-center">
+          নিশ্চিত করুন বা সম্পাদনা করে যোগ করুন
+        </p>
+      </motion.div>
 
       {isFull && (
         <p className="text-xs text-amber-500 bangla mt-1">
@@ -227,7 +322,6 @@ const ImageUploadWithEditor = ({
         </p>
       )}
 
-      {/* Hidden inputs */}
       <input
         ref={fileInputRef}
         type="file"
@@ -235,14 +329,6 @@ const ImageUploadWithEditor = ({
         multiple
         className="hidden"
         onChange={handleFileChange}
-      />
-      <input
-        ref={skipInputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        className="hidden"
-        onChange={handleSkipEditChange}
       />
 
       {/* ── Image Previews Grid ── */}
@@ -267,7 +353,7 @@ const ImageUploadWithEditor = ({
               >
                 <img
                   src={img.previewUrl}
-                  alt={`edited-${i}`}
+                  alt={`img-${i}`}
                   className="w-full h-full object-cover"
                 />
                 <div
@@ -283,11 +369,12 @@ const ImageUploadWithEditor = ({
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     className="w-9 h-9 bg-amber-500 rounded-full flex items-center
-                      justify-center shadow-lg transition-all"
+                      justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
                     title="পুনরায় সম্পাদনা"
                   >
                     <Pencil className="w-4 h-4 text-white" />
                   </motion.button>
+
                   <motion.button
                     type="button"
                     onClick={(e) => {
@@ -297,8 +384,7 @@ const ImageUploadWithEditor = ({
                     whileHover={{ scale: 1.15 }}
                     whileTap={{ scale: 0.9 }}
                     className="absolute top-1.5 right-1.5 z-10 w-6 h-6 rounded-full bg-rose-500
-                      backdrop-blur-sm text-white flex items-center justify-center
-                      transition-colors shadow-md"
+                      text-white flex items-center justify-center shadow-md"
                     title="মুছুন"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -337,10 +423,23 @@ const ImageUploadWithEditor = ({
         </motion.p>
       )}
 
+      {/* ── Full-screen Preview Modal ── */}
+      <AnimatePresence>
+        {previewFile && previewUrl && (
+          <PreviewModal
+            file={previewFile}
+            previewUrl={previewUrl}
+            onConfirm={handlePreviewConfirm}
+            onEdit={handlePreviewEdit}
+            onCancel={handlePreviewCancel}
+          />
+        )}
+      </AnimatePresence>
+
       {/* ── Image Editor Modal ── */}
-      {isEditorOpen && editingFile && (
+      {editingFile && (
         <ImageEditor
-          key={editingFile.name + editingFile.size + Date.now()}
+          key={editingFile.name + editingFile.size}
           file={editingFile}
           onConfirm={handleEditorConfirm}
           onCancel={handleEditorCancel}
