@@ -30,6 +30,7 @@ import AddExamMarks from "../pages/Admin/AddNewItem/AddExamMarks";
 import TeacherStudentTab from "../components/Teachers/TeacherStudentTab";
 import { PRIVILEGED_ROLES, STAFF_DASHBOARD_ROLES } from "../utility/Constants";
 import Signup from "../pages/Admin/Auth/SignUp";
+import Subject from "../pages/MultimediaClass/Subject";
 
 const Router = () => {
   return (
@@ -41,6 +42,8 @@ const Router = () => {
         <Route path="photography" element={<Photography />} />
         <Route path="dailylesson" element={<DailyLesson />} />
         <Route path="weekly-exam" element={<WeeklyExam />} />
+
+        <Route path="class-8/bgm" element={<Subject />} />
 
         <Route
           path="people"

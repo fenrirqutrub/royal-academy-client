@@ -32,6 +32,7 @@ const NoticeTabs = ({ activeId, onChange }: NoticeTabsProps) => {
 
     { id: "routine", label: "ক্লাস রুটিন", icon: "📅" },
     { id: "marks", label: "মান বন্টন", icon: "📊" },
+    { id: "multimediaClass", label: "মাল্টিমিডিয়া ক্লাস", icon: "📊" },
   ];
 
   const tabs = allTabs.filter(

@@ -237,7 +237,6 @@ const Notification = () => {
   };
 
   const showSwal = () => {
-    // Build HTML with current seen state (dots will show correctly)
     const html = buildSwalHTML(activeNoticesRef.current, seenIdsRef.current);
 
     Swal.fire({

@@ -14,6 +14,7 @@ import NoticeTabs from "../../components/common/NoticeTabs";
 import Routine from "../Routine/Routine";
 import ExamMarks from "../ExamMarks/ExamMarks";
 import Complain from "../Complain/Complain";
+import MultimediaClass from "../MultimediaClass/MultimediaClass";
 
 const HOME_LIMIT = 5;
 const PAGE_LIMIT = 10;
@@ -165,6 +166,7 @@ const NoticeBoard = () => {
     if (activeTabId === "complain") return <Complain />;
     if (activeTabId === "routine") return <Routine />;
     if (activeTabId === "marks") return <ExamMarks />;
+    if (activeTabId === "multimediaClass") return <MultimediaClass />;
     return null;
   };
 
