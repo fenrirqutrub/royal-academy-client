@@ -38,14 +38,14 @@ const CFG: Record<
   }
 > = {
   mobile: {
-    cardW: 160,
-    cardH: 230,
-    gap: 80,
+    cardW: 175,
+    cardH: 250,
+    gap: 95,
     visible: 1,
-    rotY: 28,
-    scaleStep: 0.2,
+    rotY: 24,
+    scaleStep: 0.14,
     fontSize: { name: "0.78rem", sub: "0.67rem", badge: "9px" },
-    infoRatio: 0.31,
+    infoRatio: 0.38,
   },
   tablet: {
     cardW: 200,
@@ -248,13 +248,10 @@ const TeacherCard = ({ teacher, offset, cfg, onClick }: CardProps) => {
           transition={{ delay: 0.12, duration: 0.3 }}
           style={{
             fontSize: cfg.fontSize.badge,
-            backgroundColor: `${roleColor}25`,
             color: roleColor,
             borderColor: `${roleColor}50`,
           }}
-          className="absolute top-2 left-2 rounded-full font-semibold
-                     leading-none backdrop-blur-md border shadow-sm
-                     py-1 px-2.5 flex items-center gap-1"
+          className="absolute top-2 left-2 rounded-full font-semibold leading-none backdrop-blur-md border shadow-sm py-1 px-2.5 flex items-center gap-1 bg-white"
         >
           {RoleIcon && <RoleIcon size={9} />}
           {roleHandle}
