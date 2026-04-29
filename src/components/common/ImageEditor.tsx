@@ -1,5 +1,5 @@
 // src/components/common/ImageEditor.tsx
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import Cropper, { type Area, type Point } from "react-easy-crop";
 import { motion } from "framer-motion";
@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { lockScroll, unlockScroll } from "../../utility/scrollLock";
 
-// ── Types ─────────────────────────────────────────────────
 interface ImageEditorProps {
   file: File;
   onConfirm: (editedBlob: Blob, previewUrl: string) => void;
@@ -43,7 +42,6 @@ const ASPECT_OPTIONS: AspectOption[] = [
   { label: "2:3", value: 2 / 3, labelBn: "২:৩" },
 ];
 
-// ── Crop helpers ──────────────────────────────────────────
 const createImage = (url: string): Promise<HTMLImageElement> =>
   new Promise((resolve, reject) => {
     const img = new Image();
@@ -54,7 +52,6 @@ const createImage = (url: string): Promise<HTMLImageElement> =>
 
 const getRadians = (deg: number) => (deg * Math.PI) / 180;
 
-// Existing: for aspect-ratio locked crop (react-easy-crop)
 async function getCroppedImg(
   imageSrc: string,
   pixelCrop: Area,
@@ -108,11 +105,9 @@ async function getCroppedImg(
   });
 }
 
-// New: for free-resize crop (percentage-based)
-// Crops first, then applies rotation/flip
 async function getCroppedImgFree(
   imageSrc: string,
-  crop: FreeCrop, // 0–100% of natural image
+  crop: FreeCrop,
   rotation: number,
   flipH: boolean,
   flipV: boolean,
@@ -124,7 +119,6 @@ async function getCroppedImgFree(
   const pw = Math.max(1, Math.round((crop.w / 100) * image.naturalWidth));
   const ph = Math.max(1, Math.round((crop.h / 100) * image.naturalHeight));
 
-  // Step 1 — extract crop region from original image
   const cropCanvas = document.createElement("canvas");
   cropCanvas.width = pw;
   cropCanvas.height = ph;
@@ -142,7 +136,6 @@ async function getCroppedImgFree(
     });
   }
 
-  // Step 2 — apply rotation + flip to the cropped result
   const radians = getRadians(rotation);
   const sin = Math.abs(Math.sin(radians));
   const cos = Math.abs(Math.cos(radians));
@@ -170,10 +163,46 @@ async function getCroppedImgFree(
   });
 }
 
-// ── FreeResizeCrop component ──────────────────────────────
-const clampVal = (v: number, lo: number, hi: number) =>
+async function createTransformedImageUrl(
+  srcUrl: string,
+  rotation: number,
+  flipH: boolean,
+  flipV: boolean,
+): Promise<string> {
+  const image = await createImage(srcUrl);
+  const radians = getRadians(rotation);
+  const sin = Math.abs(Math.sin(radians));
+  const cos = Math.abs(Math.cos(radians));
+  const w = Math.round(image.naturalWidth * cos + image.naturalHeight * sin);
+  const h = Math.round(image.naturalWidth * sin + image.naturalHeight * cos);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas context failed");
+
+  ctx.translate(w / 2, h / 2);
+  ctx.rotate(radians);
+  ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
+  ctx.drawImage(image, -image.naturalWidth / 2, -image.naturalHeight / 2);
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(URL.createObjectURL(blob));
+        else reject(new Error("Transform blob failed"));
+      },
+      "image/webp",
+      0.92,
+    );
+  });
+}
+
+const clamp = (v: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, v));
 
+// ─── FreeResizeCrop — DOM-direct manipulation for 60fps drag ───
 interface FreeResizeCropProps {
   imageSrc: string;
   crop: FreeCrop;
@@ -183,27 +212,108 @@ interface FreeResizeCropProps {
 
 const FreeResizeCrop = ({
   imageSrc,
-  crop,
+  crop: externalCrop,
   onChange,
   onNaturalDims,
 }: FreeResizeCropProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const [loaded, setLoaded] = useState(false);
+  const boundsRef = useRef({ x: 0, y: 0, w: 0, h: 0 });
   const [bounds, setBounds] = useState({ x: 0, y: 0, w: 0, h: 0 });
 
-  // dragRef stores active drag state without triggering re-renders
-  const dragRef = useRef<{
-    type: string;
-    sx: number; // pointer start X
-    sy: number; // pointer start Y
-    sc: FreeCrop; // crop at drag start
-    bw: number; // image display width at drag start
-    bh: number; // image display height at drag start
-  } | null>(null);
+  // DOM refs for direct manipulation — zero React re-renders during drag
+  const cropBoxRef = useRef<HTMLDivElement>(null);
+  const overlayTopRef = useRef<HTMLDivElement>(null);
+  const overlayBottomRef = useRef<HTMLDivElement>(null);
+  const overlayLeftRef = useRef<HTMLDivElement>(null);
+  const overlayRightRef = useRef<HTMLDivElement>(null);
+  const handleRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // Compute the actual image display bounds inside the container
-  // (handles object-fit: contain letterboxing)
+  const cropRef = useRef<FreeCrop>(externalCrop);
+  const isDraggingRef = useRef(false);
+
+  // Sync external crop when not dragging
+  useEffect(() => {
+    if (!isDraggingRef.current) {
+      cropRef.current = externalCrop;
+      applyDOMUpdate(externalCrop, boundsRef.current);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalCrop]);
+
+  // ── Direct DOM update — no setState, no re-render ──
+  const applyDOMUpdate = useCallback(
+    (c: FreeCrop, b: { x: number; y: number; w: number; h: number }) => {
+      if (!b.w) return;
+
+      const ax = b.x + (c.x / 100) * b.w;
+      const ay = b.y + (c.y / 100) * b.h;
+      const aw = (c.w / 100) * b.w;
+      const ah = (c.h / 100) * b.h;
+
+      // Crop box — use transform for GPU acceleration
+      const box = cropBoxRef.current;
+      if (box) {
+        box.style.transform = `translate3d(${ax}px, ${ay}px, 0)`;
+        box.style.width = `${aw}px`;
+        box.style.height = `${ah}px`;
+      }
+
+      // Overlays
+      const ot = overlayTopRef.current;
+      if (ot) {
+        ot.style.left = `${b.x}px`;
+        ot.style.top = `${b.y}px`;
+        ot.style.width = `${b.w}px`;
+        ot.style.height = `${ay - b.y}px`;
+      }
+      const ob = overlayBottomRef.current;
+      if (ob) {
+        ob.style.left = `${b.x}px`;
+        ob.style.top = `${ay + ah}px`;
+        ob.style.width = `${b.w}px`;
+        ob.style.height = `${b.y + b.h - ay - ah}px`;
+      }
+      const ol = overlayLeftRef.current;
+      if (ol) {
+        ol.style.left = `${b.x}px`;
+        ol.style.top = `${ay}px`;
+        ol.style.width = `${ax - b.x}px`;
+        ol.style.height = `${ah}px`;
+      }
+      const or2 = overlayRightRef.current;
+      if (or2) {
+        or2.style.left = `${ax + aw}px`;
+        or2.style.top = `${ay}px`;
+        or2.style.width = `${b.x + b.w - ax - aw}px`;
+        or2.style.height = `${ah}px`;
+      }
+
+      // Handles
+      const HS = 12;
+      const HH = HS / 2;
+      const handlePositions: Record<string, { cx: number; cy: number }> = {
+        nw: { cx: 0, cy: 0 },
+        n: { cx: 0.5, cy: 0 },
+        ne: { cx: 1, cy: 0 },
+        e: { cx: 1, cy: 0.5 },
+        se: { cx: 1, cy: 1 },
+        s: { cx: 0.5, cy: 1 },
+        sw: { cx: 0, cy: 1 },
+        w: { cx: 0, cy: 0.5 },
+      };
+
+      for (const [id, pos] of Object.entries(handlePositions)) {
+        const el = handleRefs.current[id];
+        if (el) {
+          el.style.transform = `translate3d(${ax + pos.cx * aw - HH}px, ${ay + pos.cy * ah - HH}px, 0)`;
+        }
+      }
+    },
+    [],
+  );
+
   const computeBounds = useCallback(() => {
     const img = imgRef.current;
     if (!img || !img.naturalWidth) return;
@@ -224,8 +334,11 @@ const FreeResizeCrop = ({
       x = (cW - w) / 2;
       y = 0;
     }
-    setBounds({ x, y, w, h });
-  }, []);
+    const newBounds = { x, y, w, h };
+    boundsRef.current = newBounds;
+    setBounds(newBounds);
+    applyDOMUpdate(cropRef.current, newBounds);
+  }, [applyDOMUpdate]);
 
   useEffect(() => {
     computeBounds();
@@ -234,6 +347,10 @@ const FreeResizeCrop = ({
     return () => ro.disconnect();
   }, [computeBounds, loaded]);
 
+  useEffect(() => {
+    setLoaded(false);
+  }, [imageSrc]);
+
   const onImgLoad = () => {
     const img = imgRef.current;
     if (!img) return;
@@ -241,97 +358,117 @@ const FreeResizeCrop = ({
     setLoaded(true);
   };
 
-  // Pointer down on a handle or crop box
-  const startDrag = useCallback(
-    (e: React.PointerEvent, type: string) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (!bounds.w) return;
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-      dragRef.current = {
-        type,
-        sx: e.clientX,
-        sy: e.clientY,
-        sc: { ...crop },
-        bw: bounds.w,
-        bh: bounds.h,
-      };
-    },
-    [crop, bounds],
-  );
+  // ── Pointer handlers — attached to container, uses native events ──
+  const dragStateRef = useRef<{
+    type: string;
+    sx: number;
+    sy: number;
+    sc: FreeCrop;
+    bw: number;
+    bh: number;
+    pointerId: number;
+  } | null>(null);
 
-  // Pointer move — bubbles up from captured handle to container
-  const handleMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (!dragRef.current) return;
-      const { type, sx, sy, sc, bw, bh } = dragRef.current;
-      const dx = ((e.clientX - sx) / bw) * 100;
-      const dy = ((e.clientY - sy) / bh) * 100;
-      const MIN = 3;
+  const onPointerDown = useCallback((type: string, e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const b = boundsRef.current;
+    if (!b.w) return;
 
-      let { x, y, w, h } = sc;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    isDraggingRef.current = true;
+
+    dragStateRef.current = {
+      type,
+      sx: e.clientX,
+      sy: e.clientY,
+      sc: { ...cropRef.current },
+      bw: b.w,
+      bh: b.h,
+      pointerId: e.pointerId,
+    };
+  }, []);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const MIN = 3;
+
+    const onMove = (e: PointerEvent) => {
+      const d = dragStateRef.current;
+      if (!d) return;
+
+      const dx = ((e.clientX - d.sx) / d.bw) * 100;
+      const dy = ((e.clientY - d.sy) / d.bh) * 100;
+
+      let { x, y, w, h } = d.sc;
+      const type = d.type;
 
       if (type === "move") {
-        x = clampVal(sc.x + dx, 0, 100 - sc.w);
-        y = clampVal(sc.y + dy, 0, 100 - sc.h);
+        x = clamp(d.sc.x + dx, 0, 100 - d.sc.w);
+        y = clamp(d.sc.y + dy, 0, 100 - d.sc.h);
       } else {
-        if (type.includes("e")) {
-          w = clampVal(sc.w + dx, MIN, 100 - sc.x);
-        }
+        if (type.includes("e")) w = clamp(d.sc.w + dx, MIN, 100 - d.sc.x);
         if (type.includes("w")) {
-          const d = clampVal(dx, -sc.x, sc.w - MIN);
-          x = sc.x + d;
-          w = sc.w - d;
+          const dd = clamp(dx, -d.sc.x, d.sc.w - MIN);
+          x = d.sc.x + dd;
+          w = d.sc.w - dd;
         }
-        if (type.includes("s")) {
-          h = clampVal(sc.h + dy, MIN, 100 - sc.y);
-        }
+        if (type.includes("s")) h = clamp(d.sc.h + dy, MIN, 100 - d.sc.y);
         if (type.includes("n")) {
-          const d = clampVal(dy, -sc.y, sc.h - MIN);
-          y = sc.y + d;
-          h = sc.h - d;
+          const dd = clamp(dy, -d.sc.y, d.sc.h - MIN);
+          y = d.sc.y + dd;
+          h = d.sc.h - dd;
         }
       }
 
-      onChange({ x, y, w, h });
-    },
-    [onChange],
-  );
+      const newCrop = { x, y, w, h };
+      cropRef.current = newCrop;
 
-  const stopDrag = useCallback(() => {
-    dragRef.current = null;
-  }, []);
+      // Direct DOM update — zero React overhead
+      applyDOMUpdate(newCrop, boundsRef.current);
+    };
 
-  // Compute absolute pixel positions for rendering
-  const ax = bounds.x + (crop.x / 100) * bounds.w;
-  const ay = bounds.y + (crop.y / 100) * bounds.h;
-  const aw = (crop.w / 100) * bounds.w;
-  const ah = (crop.h / 100) * bounds.h;
+    const onUp = () => {
+      if (!isDraggingRef.current) return;
+      isDraggingRef.current = false;
+      dragStateRef.current = null;
 
-  const HS = 12; // handle size in px
-  const HH = HS / 2;
+      // Sync to React state only on drag end
+      onChange(cropRef.current);
+    };
+
+    container.addEventListener("pointermove", onMove, { passive: true });
+    container.addEventListener("pointerup", onUp);
+    container.addEventListener("pointercancel", onUp);
+
+    return () => {
+      container.removeEventListener("pointermove", onMove);
+      container.removeEventListener("pointerup", onUp);
+      container.removeEventListener("pointercancel", onUp);
+    };
+  }, [applyDOMUpdate, onChange]);
+
+  const HS = 12;
 
   const handles = [
-    { id: "nw", cx: 0, cy: 0, cursor: "nw-resize" },
-    { id: "n", cx: 0.5, cy: 0, cursor: "n-resize" },
-    { id: "ne", cx: 1, cy: 0, cursor: "ne-resize" },
-    { id: "e", cx: 1, cy: 0.5, cursor: "e-resize" },
-    { id: "se", cx: 1, cy: 1, cursor: "se-resize" },
-    { id: "s", cx: 0.5, cy: 1, cursor: "s-resize" },
-    { id: "sw", cx: 0, cy: 1, cursor: "sw-resize" },
-    { id: "w", cx: 0, cy: 0.5, cursor: "w-resize" },
+    { id: "nw", cursor: "nw-resize" },
+    { id: "n", cursor: "n-resize" },
+    { id: "ne", cursor: "ne-resize" },
+    { id: "e", cursor: "e-resize" },
+    { id: "se", cursor: "se-resize" },
+    { id: "s", cursor: "s-resize" },
+    { id: "sw", cursor: "sw-resize" },
+    { id: "w", cursor: "w-resize" },
   ];
 
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full overflow-hidden bg-black select-none touch-none"
-      onPointerMove={handleMove}
-      onPointerUp={stopDrag}
-      onPointerCancel={stopDrag}
+      className="relative w-full h-full overflow-hidden bg-black select-none"
       style={{ touchAction: "none" }}
     >
-      {/* The image */}
       <img
         ref={imgRef}
         src={imageSrc}
@@ -343,62 +480,41 @@ const FreeResizeCrop = ({
 
       {loaded && bounds.w > 0 && (
         <>
-          {/* ── Dark overlays around crop box (4 regions) ── */}
-          {/* Top */}
+          {/* Overlays — positioned via DOM ref, initial position set */}
           <div
+            ref={overlayTopRef}
             className="absolute bg-black/65 pointer-events-none"
-            style={{
-              left: bounds.x,
-              top: bounds.y,
-              width: bounds.w,
-              height: ay - bounds.y,
-            }}
+            style={{ willChange: "top, height" }}
           />
-          {/* Bottom */}
           <div
+            ref={overlayBottomRef}
             className="absolute bg-black/65 pointer-events-none"
-            style={{
-              left: bounds.x,
-              top: ay + ah,
-              width: bounds.w,
-              height: bounds.y + bounds.h - ay - ah,
-            }}
+            style={{ willChange: "top, height" }}
           />
-          {/* Left */}
           <div
+            ref={overlayLeftRef}
             className="absolute bg-black/65 pointer-events-none"
-            style={{
-              left: bounds.x,
-              top: ay,
-              width: ax - bounds.x,
-              height: ah,
-            }}
+            style={{ willChange: "left, width" }}
           />
-          {/* Right */}
           <div
+            ref={overlayRightRef}
             className="absolute bg-black/65 pointer-events-none"
-            style={{
-              left: ax + aw,
-              top: ay,
-              width: bounds.x + bounds.w - ax - aw,
-              height: ah,
-            }}
+            style={{ willChange: "left, width" }}
           />
 
-          {/* ── Crop box — drag to move ── */}
+          {/* Crop box — positioned via transform3d */}
           <div
-            className="absolute"
+            ref={cropBoxRef}
+            className="absolute top-0 left-0"
             style={{
-              left: ax,
-              top: ay,
-              width: aw,
-              height: ah,
               cursor: "move",
               border: "1.5px solid rgba(255,255,255,0.75)",
               outline: "1px solid rgba(139,92,246,0.55)",
               boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.15)",
+              willChange: "transform, width, height",
+              touchAction: "none",
             }}
-            onPointerDown={(e) => startDrag(e, "move")}
+            onPointerDown={(e) => onPointerDown("move", e)}
           >
             {/* Rule-of-thirds grid */}
             <div className="absolute inset-0 pointer-events-none">
@@ -409,22 +525,24 @@ const FreeResizeCrop = ({
             </div>
           </div>
 
-          {/* ── 8 Resize handles ── */}
+          {/* Handles — positioned via transform3d */}
           {handles.map((h) => (
             <div
               key={h.id}
-              className="absolute z-10 bg-white rounded-sm"
+              ref={(el) => {
+                handleRefs.current[h.id] = el;
+              }}
+              className="absolute top-0 left-0 z-10 bg-white rounded-sm"
               style={{
-                left: ax + h.cx * aw - HH,
-                top: ay + h.cy * ah - HH,
                 width: HS,
                 height: HS,
                 cursor: h.cursor,
                 border: "1.5px solid rgb(139,92,246)",
                 boxShadow: "0 1px 4px rgba(0,0,0,0.6)",
                 touchAction: "none",
+                willChange: "transform",
               }}
-              onPointerDown={(e) => startDrag(e, h.id)}
+              onPointerDown={(e) => onPointerDown(h.id, e)}
             />
           ))}
         </>
@@ -434,7 +552,7 @@ const FreeResizeCrop = ({
 };
 
 // ═══════════════════════════════════════════════════════════
-// Main ImageEditor component
+// Main ImageEditor
 // ═══════════════════════════════════════════════════════════
 const ImageEditor = ({ file, onConfirm, onCancel }: ImageEditorProps) => {
   const [imageSrc, setImageSrc] = useState("");
@@ -444,12 +562,11 @@ const ImageEditor = ({ file, onConfirm, onCancel }: ImageEditorProps) => {
   const [flipH, setFlipH] = useState(false);
   const [flipV, setFlipV] = useState(false);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
-  const [selectedAspect, setSelectedAspect] = useState(0); // 0 = free resize
+  const [selectedAspect, setSelectedAspect] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState<"crop" | "transform">("crop");
   const [mounted, setMounted] = useState(false);
 
-  // Free resize specific
   const [freeResizeCrop, setFreeResizeCrop] = useState<FreeCrop>({
     x: 10,
     y: 10,
@@ -457,6 +574,10 @@ const ImageEditor = ({ file, onConfirm, onCancel }: ImageEditorProps) => {
     h: 80,
   });
   const [naturalDims, setNaturalDims] = useState({ w: 0, h: 0 });
+
+  const [transformedSrc, setTransformedSrc] = useState("");
+  const [isTransforming, setIsTransforming] = useState(false);
+  const transformedSrcRef = useRef("");
 
   const isFreeMode = ASPECT_OPTIONS[selectedAspect].value === "free";
 
@@ -467,21 +588,77 @@ const ImageEditor = ({ file, onConfirm, onCancel }: ImageEditorProps) => {
   useEffect(() => {
     const url = URL.createObjectURL(file);
     setImageSrc(url);
-    return () => {
-      URL.revokeObjectURL(url);
-    };
+    return () => URL.revokeObjectURL(url);
   }, [file]);
 
-  // Replace the old scroll lock useEffect with:
   useEffect(() => {
     lockScroll();
+    return () => unlockScroll();
+  }, []);
+
+  // Transform preview generation
+  useEffect(() => {
+    if (!imageSrc) return;
+
+    const needsFree = isFreeMode && (rotation !== 0 || flipH || flipV);
+    const needsFixed = !isFreeMode && (flipH || flipV);
+
+    if (!needsFree && !needsFixed) {
+      if (transformedSrcRef.current) {
+        URL.revokeObjectURL(transformedSrcRef.current);
+        transformedSrcRef.current = "";
+      }
+      setTransformedSrc("");
+      return;
+    }
+
+    let cancelled = false;
+    setIsTransforming(true);
+
+    const rot = isFreeMode ? rotation : 0;
+
+    createTransformedImageUrl(imageSrc, rot, flipH, flipV)
+      .then((url) => {
+        if (cancelled) {
+          URL.revokeObjectURL(url);
+          return;
+        }
+        if (transformedSrcRef.current)
+          URL.revokeObjectURL(transformedSrcRef.current);
+        transformedSrcRef.current = url;
+        setTransformedSrc(url);
+        setIsTransforming(false);
+      })
+      .catch(() => {
+        if (!cancelled) setIsTransforming(false);
+      });
+
     return () => {
-      unlockScroll();
+      cancelled = true;
+    };
+  }, [imageSrc, rotation, flipH, flipV, isFreeMode]);
+
+  useEffect(() => {
+    return () => {
+      if (transformedSrcRef.current)
+        URL.revokeObjectURL(transformedSrcRef.current);
     };
   }, []);
+
   const onCropComplete = useCallback((_: Area, croppedPixels: Area) => {
     setCroppedAreaPixels(croppedPixels);
   }, []);
+
+  const freePreviewSrc = useMemo(() => {
+    if (!isFreeMode) return imageSrc;
+    return transformedSrc || imageSrc;
+  }, [isFreeMode, imageSrc, transformedSrc]);
+
+  const fixedPreviewSrc = useMemo(() => {
+    if (isFreeMode) return imageSrc;
+    if (flipH || flipV) return transformedSrc || imageSrc;
+    return imageSrc;
+  }, [isFreeMode, imageSrc, flipH, flipV, transformedSrc]);
 
   const handleConfirm = async () => {
     if (!imageSrc) return;
@@ -498,12 +675,14 @@ const ImageEditor = ({ file, onConfirm, onCancel }: ImageEditorProps) => {
         );
       } else {
         if (!croppedAreaPixels) return;
+        const srcForCrop =
+          flipH || flipV ? transformedSrc || imageSrc : imageSrc;
         blob = await getCroppedImg(
-          imageSrc,
+          srcForCrop,
           croppedAreaPixels,
           rotation,
-          flipH,
-          flipV,
+          false,
+          false,
         );
       }
       const previewUrl = URL.createObjectURL(blob);
@@ -526,12 +705,18 @@ const ImageEditor = ({ file, onConfirm, onCancel }: ImageEditorProps) => {
     setActiveTab("crop");
   };
 
+  const handleAspectChange = (index: number) => {
+    setSelectedAspect(index);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setFreeResizeCrop({ x: 10, y: 10, w: 80, h: 80 });
+  };
+
   const currentAspect =
     typeof ASPECT_OPTIONS[selectedAspect].value === "number"
       ? (ASPECT_OPTIONS[selectedAspect].value as number)
       : undefined;
 
-  // Live px dimensions display in header
   const cropPxDisplay =
     isFreeMode && naturalDims.w > 0
       ? {
@@ -580,7 +765,11 @@ const ImageEditor = ({ file, onConfirm, onCancel }: ImageEditorProps) => {
         <button
           type="button"
           onClick={handleConfirm}
-          disabled={isProcessing || (!isFreeMode && !croppedAreaPixels)}
+          disabled={
+            isProcessing ||
+            isTransforming ||
+            (!isFreeMode && !croppedAreaPixels)
+          }
           className="flex items-center gap-2 px-5 py-2 rounded bg-[var(--color-text)] text-[var(--color-bg)] text-sm font-semibold transition-all active:scale-95 disabled:opacity-50 shadow-lg shadow-violet-500/30"
         >
           {isProcessing ? (
@@ -601,18 +790,29 @@ const ImageEditor = ({ file, onConfirm, onCancel }: ImageEditorProps) => {
 
       {/* ── Cropper Area ── */}
       <div className="relative flex-1 min-h-0 overflow-hidden">
+        {isTransforming && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            >
+              <RefreshCw className="w-8 h-8 text-violet-400" />
+            </motion.div>
+          </div>
+        )}
+
         {imageSrc &&
           (isFreeMode ? (
             <FreeResizeCrop
-              imageSrc={imageSrc}
+              imageSrc={freePreviewSrc}
               crop={freeResizeCrop}
               onChange={setFreeResizeCrop}
               onNaturalDims={(w, h) => setNaturalDims({ w, h })}
             />
           ) : (
             <Cropper
-              key={currentAspect ?? "fixed-ratio"}
-              image={imageSrc}
+              key={`${currentAspect ?? "ratio"}-${flipH}-${flipV}`}
+              image={fixedPreviewSrc}
               crop={crop}
               zoom={zoom}
               rotation={rotation}
@@ -623,7 +823,6 @@ const ImageEditor = ({ file, onConfirm, onCancel }: ImageEditorProps) => {
               onCropComplete={onCropComplete}
               cropShape="rect"
               showGrid
-              transform={`translate(${crop.x}px, ${crop.y}px) rotate(${rotation}deg) scale(${zoom}) scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`}
               style={{
                 containerStyle: {
                   background: "#000",
@@ -643,12 +842,27 @@ const ImageEditor = ({ file, onConfirm, onCancel }: ImageEditorProps) => {
           {file.name} • {(file.size / (1024 * 1024)).toFixed(1)} MB
         </div>
 
-        {/* Rotation applied notice in free mode */}
-        {isFreeMode && rotation !== 0 && (
-          <div className="absolute top-3 right-3 px-3 py-1.5 rounded-lg bg-violet-500/20 backdrop-blur-sm border border-violet-500/30 text-violet-300 text-xs z-10 bangla">
-            ঘোরানো {rotation}° — এক্সপোর্টে প্রযোজ্য হবে
-          </div>
-        )}
+        {/* Transform indicators */}
+        <div className="absolute top-3 right-3 flex flex-col gap-1 z-10">
+          {flipH && (
+            <div className="px-2.5 py-1 rounded-md bg-violet-500/25 backdrop-blur-sm border border-violet-500/40 text-violet-300 text-[11px] bangla flex items-center gap-1.5">
+              <FlipHorizontal className="w-3 h-3" />
+              অনুভূমিক ফ্লিপ
+            </div>
+          )}
+          {flipV && (
+            <div className="px-2.5 py-1 rounded-md bg-violet-500/25 backdrop-blur-sm border border-violet-500/40 text-violet-300 text-[11px] bangla flex items-center gap-1.5">
+              <FlipVertical className="w-3 h-3" />
+              উল্লম্ব ফ্লিপ
+            </div>
+          )}
+          {isFreeMode && rotation !== 0 && (
+            <div className="px-2.5 py-1 rounded-md bg-violet-500/25 backdrop-blur-sm border border-violet-500/40 text-violet-300 text-[11px] bangla flex items-center gap-1.5">
+              <RotateCw className="w-3 h-3" />
+              ঘোরানো {rotation}°
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── Bottom Controls ── */}
@@ -658,7 +872,6 @@ const ImageEditor = ({ file, onConfirm, onCancel }: ImageEditorProps) => {
         transition={{ duration: 0.3 }}
         className="bg-black/90 border-t border-white/10 shrink-0"
       >
-        {/* Tab Switcher */}
         <div className="flex justify-center gap-1 px-4 pt-3">
           {(["crop", "transform"] as const).map((tab) => (
             <button
@@ -693,7 +906,6 @@ const ImageEditor = ({ file, onConfirm, onCancel }: ImageEditorProps) => {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-3"
             >
-              {/* Mode / Aspect selector */}
               <div>
                 <p className="text-white/50 text-[10px] uppercase tracking-wider mb-2 bangla">
                   ক্রপ মোড / অনুপাত
@@ -703,7 +915,7 @@ const ImageEditor = ({ file, onConfirm, onCancel }: ImageEditorProps) => {
                     <button
                       key={opt.label}
                       type="button"
-                      onClick={() => setSelectedAspect(i)}
+                      onClick={() => handleAspectChange(i)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95 bangla flex items-center gap-1 ${
                         selectedAspect === i
                           ? "bg-violet-600 text-white shadow-md shadow-violet-500/20"
@@ -719,7 +931,6 @@ const ImageEditor = ({ file, onConfirm, onCancel }: ImageEditorProps) => {
                 </div>
               </div>
 
-              {/* Zoom — only for fixed aspect modes */}
               {!isFreeMode && (
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
@@ -762,7 +973,6 @@ const ImageEditor = ({ file, onConfirm, onCancel }: ImageEditorProps) => {
                 </div>
               )}
 
-              {/* Free mode hint */}
               {isFreeMode && (
                 <p className="text-white/40 text-[11px] bangla flex items-center gap-1.5">
                   <Maximize2 className="w-3 h-3 text-violet-400 shrink-0" />
@@ -779,7 +989,6 @@ const ImageEditor = ({ file, onConfirm, onCancel }: ImageEditorProps) => {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-3"
             >
-              {/* Rotation */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <p className="text-white/50 text-[10px] uppercase tracking-wider flex items-center gap-1.5">
@@ -820,7 +1029,6 @@ const ImageEditor = ({ file, onConfirm, onCancel }: ImageEditorProps) => {
                 </div>
               </div>
 
-              {/* Flip + Reset */}
               <div className="flex items-center gap-2 flex-wrap">
                 <button
                   type="button"
