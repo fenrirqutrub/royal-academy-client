@@ -6,7 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { Printer, Download, Loader2, X } from "lucide-react";
 import axiosPublic from "../../hooks/axiosPublic";
 import Button from "../../components/common/Button";
-import { BN_DAYS_FULL, BN_MONTHS } from "../../utility/Formatters";
+import { BN_DAYS_FULL, BN_MONTHS, toBn } from "../../utility/Formatters";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -178,7 +178,7 @@ const NoticeModal = ({ notice, onClose }: NoticeModalProps) => {
           </div>
 
           <div class="flex justify-between text-[clamp(12px,2vw,18px)] mt-10">
-            <span>তাংঃ ${created.full}</span>
+            <span>তাংঃ ${toBn(created.full)}</span>
             <span>রোজঃ ${created.dayName}</span>
           </div>
 
@@ -187,7 +187,7 @@ const NoticeModal = ({ notice, onClose }: NoticeModalProps) => {
           <p class="text-center text-[clamp(22px,5vw,52px)] py-8 m-0">জরুরী বিজ্ঞপ্তি</p>
 
           <p class="m-0 text-[clamp(13px,2vw,20px)] leading-[2.1] text-justify min-h-[100px]">
-            এতদ্বারা সকলের অবগতির জন্য জানানো যাইতেছে যে, ${notice.notice}
+            ${notice.notice}
           </p>
 
           <div class="flex justify-end mt-20">
