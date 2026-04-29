@@ -2,7 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import axiosPublic from "./axiosPublic";
 
-interface Hero {
+export interface Hero {
   _id: string;
   title: string;
   uniqueID: string;
@@ -10,6 +10,10 @@ interface Hero {
   imagePublicId: string;
   createdAt: string;
   updatedAt: string;
+  subtitle?: string;
+  ctaLabel?: string;
+  ctaHref?: string;
+  tag?: string;
 }
 
 interface HeroesResponse {
@@ -19,13 +23,17 @@ interface HeroesResponse {
 }
 
 export const useHeroes = () => {
-  return useQuery<HeroesResponse>({
+  return useQuery<Hero[]>({
     queryKey: ["heroes"],
     queryFn: async () => {
       const response = await axiosPublic.get<HeroesResponse>("/api/heroes");
-      return response.data;
+      return response.data.data;
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: 2,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000, // v5 হলে
+    retry: 1,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
   });
 };

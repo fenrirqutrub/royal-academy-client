@@ -11,20 +11,6 @@ import Skeleton from "../common/Skeleton";
 import EmptyState from "../common/Emptystate";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 
-interface HeroItem {
-  _id: string;
-  imageUrl: string;
-  title: string;
-  uniqueID: string;
-  imagePublicId: string;
-  createdAt: string;
-  updatedAt: string;
-  subtitle?: string;
-  ctaLabel?: string;
-  ctaHref?: string;
-  tag?: string;
-}
-
 const DELAY = 5000;
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -101,11 +87,7 @@ const HeroImage = ({
    HERO
 ════════════════════════ */
 const Hero = () => {
-  const { data, isLoading, isError, error, refetch } = useHeroes();
-  const heroes = useMemo<HeroItem[]>(
-    () => (data?.data ?? []) as HeroItem[],
-    [data],
-  );
+  const { data: heroes = [], isLoading, isError, error } = useHeroes();
   const total = heroes.length;
 
   const swiperRef = useRef<SwiperType | null>(null);
@@ -115,17 +97,16 @@ const Hero = () => {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    heroes.forEach(({ imageUrl }, i) => {
-      if (i > 0) {
-        const img = new Image();
-        img.src = imageUrl;
-      }
-    });
-  }, [heroes]);
+    if (total <= 1) return;
 
-  useEffect(() => {
-    refetch();
-  }, [refetch]);
+    const nextIndex = (active + 1) % total;
+    const nextImage = heroes[nextIndex]?.imageUrl;
+
+    if (nextImage) {
+      const img = new Image();
+      img.src = nextImage;
+    }
+  }, [active, heroes, total]);
 
   const onSlideChange = useCallback((s: SwiperType) => {
     setActive(s.realIndex);
