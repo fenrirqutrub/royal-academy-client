@@ -272,7 +272,7 @@ const QuestionField = ({ field, fieldState }: QuestionFieldProps) => {
       <textarea
         rows={4}
         placeholder="পরীক্ষার প্রশ্ন লিখুন (যদি থাকে)..."
-        value={field.value}
+        value={toBn(field.value)}
         onChange={field.onChange}
         onFocus={() => setIsFocused(true)}
         onBlur={() => {
